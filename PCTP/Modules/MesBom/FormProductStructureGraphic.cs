@@ -6,6 +6,8 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
 using System.Globalization;
+using System.IO;
+using System.Text;
 using System.Windows.Forms;
 
 namespace PCTP.Modules.MesBom
@@ -19,6 +21,8 @@ namespace PCTP.Modules.MesBom
         private readonly TextBox _site = new TextBox();
         private readonly DateTimePicker _asOf = new DateTimePicker();
         private readonly Button _load = new Button();
+        private readonly Button _exportSite = new Button();
+        private readonly Button _exportCurrent = new Button();
         private readonly Label _summary = new Label();
         private readonly TreeView _tree = new TreeView();
         private readonly DataGridView _components = new DataGridView();
@@ -66,15 +70,34 @@ namespace PCTP.Modules.MesBom
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 85));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320));
             AddField(fields, "Part No:", _partNo, 0, 0);
             AddField(fields, "Site:", _site, 2, 0);
             AddField(fields, "As of:", _asOf, 4, 0);
             _asOf.Format = DateTimePickerFormat.Short;
-            _load.Text = "Load Structure";
-            _load.Dock = DockStyle.Fill;
+            var actions = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Padding = new Padding(0, 2, 0, 0)
+            };
+            _load.Text = "Load";
+            _load.Width = 70;
+            _load.Height = 30;
             _load.Click += (s, e) => LoadStructure();
-            fields.Controls.Add(_load, 7, 0);
+            _exportSite.Text = "Export BOM / Site";
+            _exportSite.Width = 112;
+            _exportSite.Height = 30;
+            _exportSite.Click += (s, e) => ExportBom(false);
+            _exportCurrent.Text = "Export BOM đang xem";
+            _exportCurrent.Width = 125;
+            _exportCurrent.Height = 30;
+            _exportCurrent.Click += (s, e) => ExportBom(true);
+            actions.Controls.Add(_load);
+            actions.Controls.Add(_exportSite);
+            actions.Controls.Add(_exportCurrent);
+            fields.Controls.Add(actions, 7, 0);
             _summary.Dock = DockStyle.Fill;
             _summary.TextAlign = ContentAlignment.MiddleLeft;
             _summary.ForeColor = Color.DarkSlateGray;
@@ -306,6 +329,151 @@ ORDER BY c.LineSequence,c.LineItemNo;";
                 using (var adapter = new SqlDataAdapter(cmd)) adapter.Fill(table);
                 return table;
             }
+        }
+
+        /// <summary>
+        /// Exports the synchronized BOM snapshot as UTF-8 CSV (Excel compatible).
+        /// Site export includes every effective BOM component for the selected site;
+        /// current export is limited to the BOM header selected in the structure tree.
+        /// </summary>
+        private void ExportBom(bool currentOnly)
+        {
+            string site = _site.Text.Trim();
+            if (string.IsNullOrWhiteSpace(_connectionString))
+            {
+                MessageBox.Show("Thiếu connection string FVN_PCTP.", "Export BOM", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (site.Length == 0)
+            {
+                MessageBox.Show("Vui lòng nhập Site trước khi xuất. Không tự mặc định Site.", "Export BOM", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            BomNode selected = currentOnly ? _tree.SelectedNode?.Tag as BomNode : null;
+            if (currentOnly && (selected == null || string.IsNullOrWhiteSpace(selected.EngChgLevel)))
+            {
+                MessageBox.Show("Hãy chọn một BOM header trên cây cấu trúc trước khi xuất BOM đang xem.", "Export BOM", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (selected != null && !string.Equals(selected.SiteCode, site, StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("Site trên BOM đang chọn không khớp Site nhập ở bộ lọc.", "Export BOM", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using (var dialog = new SaveFileDialog())
+            {
+                dialog.Filter = "Excel CSV (*.csv)|*.csv";
+                dialog.DefaultExt = "csv";
+                dialog.AddExtension = true;
+                dialog.FileName = currentOnly
+                    ? "BOM_" + SafeFileName(selected.PartNo) + "_" + SafeFileName(site) + ".csv"
+                    : "BOM_ALL_" + SafeFileName(site) + "_" + _asOf.Value.ToString("yyyyMMdd") + ".csv";
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+                try
+                {
+                    DataTable data;
+                    using (var connection = new SqlConnection(_connectionString))
+                    using (var command = new SqlCommand(@"
+SELECT h.SiteCode, h.PartNo, ISNULL(parent.Description, iparent.Description) AS ParentDescription,
+       h.EngChgLevel, h.BomTypeDb, ISNULL(a.AlternativeNo,'*') AS AlternativeNo,
+       h.EffectiveInDate AS HeaderEffectiveIn, h.EffectiveOutDate AS HeaderEffectiveOut,
+       c.LineItemNo, c.LineSequence, c.ComponentPartNo,
+       ISNULL(child.Description, ichild.Description) AS ComponentDescription,
+       ISNULL(ichild.UnitMeas,child.UnitCode) AS UnitMeas,
+       c.QtyPerAssembly, c.OperationNo, c.ComponentScrap, c.ConsumptionItem,
+       c.PhantomConsume, c.EffectiveInDate AS ComponentEffectiveIn,
+       c.EffectiveOutDate AS ComponentEffectiveOut
+FROM IFS.BomHeader h
+LEFT JOIN IFS.BomAlternative a
+  ON a.SiteCode=h.SiteCode AND a.PartNo=h.PartNo
+ AND a.EngChgLevel=h.EngChgLevel AND a.BomTypeDb=h.BomTypeDb
+LEFT JOIN IFS.BomComponent c
+  ON c.SiteCode=h.SiteCode AND c.PartNo=h.PartNo
+ AND c.EngChgLevel=h.EngChgLevel AND c.BomTypeDb=h.BomTypeDb
+ AND c.AlternativeNo=ISNULL(a.AlternativeNo,'*')
+ AND c.EffectiveInDate<=@AsOf
+ AND (c.EffectiveOutDate IS NULL OR c.EffectiveOutDate>=@AsOf)
+LEFT JOIN IFS.PartCatalog parent ON parent.PartNo=h.PartNo
+LEFT JOIN IFS.InventoryPart iparent ON iparent.SiteCode=h.SiteCode AND iparent.PartNo=h.PartNo
+LEFT JOIN IFS.PartCatalog child ON child.PartNo=c.ComponentPartNo
+LEFT JOIN IFS.InventoryPart ichild ON ichild.SiteCode=h.SiteCode AND ichild.PartNo=c.ComponentPartNo
+WHERE h.SiteCode=@SiteCode
+  AND h.EffectiveInDate<=@AsOf
+  AND (h.EffectiveOutDate IS NULL OR h.EffectiveOutDate>=@AsOf)
+  AND (@PartNo IS NULL OR (h.PartNo=@PartNo AND h.EngChgLevel=@Revision
+       AND h.BomTypeDb=@BomType AND ISNULL(a.AlternativeNo,'*')=@Alternative))
+ORDER BY h.PartNo,h.EngChgLevel,h.BomTypeDb,ISNULL(a.AlternativeNo,'*'),c.LineSequence,c.LineItemNo;", connection))
+                    {
+                        command.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 20).Value = site;
+                        command.Parameters.Add("@AsOf", SqlDbType.DateTime2).Value = _asOf.Value.Date;
+                        command.Parameters.Add("@PartNo", SqlDbType.NVarChar, 100).Value =
+                            currentOnly ? (object)selected.PartNo : DBNull.Value;
+                        command.Parameters.Add("@Revision", SqlDbType.NVarChar, 24).Value =
+                            currentOnly ? (object)selected.EngChgLevel : DBNull.Value;
+                        command.Parameters.Add("@BomType", SqlDbType.NVarChar, 80).Value =
+                            currentOnly ? (object)selected.BomTypeDb : DBNull.Value;
+                        command.Parameters.Add("@Alternative", SqlDbType.NVarChar, 80).Value =
+                            currentOnly ? (object)selected.AlternativeNo : DBNull.Value;
+                        using (var adapter = new SqlDataAdapter(command))
+                        {
+                            data = new DataTable();
+                            adapter.Fill(data);
+                        }
+                    }
+
+                    if (data.Rows.Count == 0)
+                    {
+                        MessageBox.Show("Không có dữ liệu BOM hiệu lực để xuất theo điều kiện đã chọn.", "Export BOM",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    using (var writer = new StreamWriter(dialog.FileName, false, new UTF8Encoding(true)))
+                    {
+                        for (int col = 0; col < data.Columns.Count; col++)
+                        {
+                            if (col > 0) writer.Write(",");
+                            writer.Write(Csv(data.Columns[col].ColumnName));
+                        }
+                        writer.WriteLine();
+                        foreach (DataRow row in data.Rows)
+                        {
+                            for (int col = 0; col < data.Columns.Count; col++)
+                            {
+                                if (col > 0) writer.Write(",");
+                                writer.Write(Csv(Convert.ToString(row[col], CultureInfo.InvariantCulture)));
+                            }
+                            writer.WriteLine();
+                        }
+                    }
+
+                    MessageBox.Show("Đã xuất " + data.Rows.Count + " dòng BOM.\r\n" + dialog.FileName +
+                        "\r\n\r\nFile CSV UTF-8 có thể mở trực tiếp bằng Microsoft Excel.",
+                        "Export BOM", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Xuất BOM thất bại: " + ex.Message, "Export BOM",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private static string Csv(string value)
+        {
+            if (value == null) return "";
+            return "\"" + value.Replace("\"", "\"\"") + "\"";
+        }
+
+        private static string SafeFileName(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return "NA";
+            foreach (char invalid in Path.GetInvalidFileNameChars())
+                value = value.Replace(invalid, '_');
+            return value;
         }
 
         private void LoadComponents(BomNode node)
