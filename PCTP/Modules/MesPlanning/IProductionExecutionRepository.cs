@@ -13,5 +13,9 @@ namespace PCTP.Modules.MesPlanning
             string actor, string idempotencyKey);
         DataTable ConsumeMaterial(long orderMaterialId, long productionLotId, long materialLotId,
             int fromSlotId, decimal quantity, string actor, string idempotencyKey);
+        DataTable PrepareLabels(long productionLotId, string operationNo, int targetQty, string actor);
+        DataTable PrintLabels(long productionLotId, string operationNo, string actor, bool isReprint);
+        DataTable ApplyLabel(string labelCode, string operationNo, string actor);
+        DataTable VoidLabel(string labelCode, string actor, string reason);
     }
 }
