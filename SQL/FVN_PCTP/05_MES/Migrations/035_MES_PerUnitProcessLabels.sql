@@ -227,7 +227,7 @@ BEGIN TRY
             AND l.Status<>''VOID'')<>CONVERT(int,i.InputQty)
       OR EXISTS(SELECT 1 FROM MES.FVN_ProductionLabel l
           WHERE l.ProductionLotId=i.ProductionLotId AND l.RoutingStepId=i.RoutingStepId
-            AND l.Status<>''APPLIED'')
+            AND l.Status NOT IN(''APPLIED'',''VOID''))
   )
    THROW 53550,''Every product must have exactly one applied MES label for this process before the operation can be completed.'',1;
  END');
