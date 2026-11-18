@@ -268,7 +268,7 @@ SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse
                         }
                     }
 
-                    return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migration 012 đã có.";
+                    return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migration 012 và 027 đã sẵn sàng.";
                 }), "Đang kiểm tra kết nối Oracle IFS và SQL Server FVN_PCTP...");
 
                 _status.Text = message;
@@ -396,7 +396,7 @@ ORDER BY b.SyncBatchId DESC;", connection))
             }
             catch (Exception ex)
             {
-                _status.Text = "Không đọc được lịch sử. Kiểm tra kết nối và migration 012.";
+                _status.Text = "Không đọc được lịch sử. Kiểm tra kết nối và migration 027.";
                 _details.Text = ex.ToString();
             }
         }
