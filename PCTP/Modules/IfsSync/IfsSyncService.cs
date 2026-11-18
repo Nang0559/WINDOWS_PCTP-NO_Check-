@@ -61,6 +61,11 @@ namespace PCTP.Modules.IfsSync
 
         public IfsSyncResult SyncAll()
         {
+            return SyncAll(null);
+        }
+
+        public IfsSyncResult SyncAll(Action<string> phaseChanged)
+        {
             using (var connection = new SqlConnection(_targetConnectionString))
             {
                 connection.Open();
@@ -68,7 +73,7 @@ namespace PCTP.Modules.IfsSync
 
                 try
                 {
-                    int partCatalog = StageEntity(connection, batchId, "PART_CATALOG",
+                    if (phaseChanged != null) phaseChanged("Giai đoạn 1/2: Đang đọc Oracle IFS và ghi dữ liệu vào bảng staging...");\n                    int partCatalog = StageEntity(connection, batchId, "PART_CATALOG",
                         "SELECT * FROM IFSAPP.PART_CATALOG ORDER BY PART_NO");
                     int inventoryPart = StageEntity(connection, batchId, "INVENTORY_PART",
                         "SELECT * FROM IFSAPP.INVENTORY_PART ORDER BY CONTRACT, PART_NO");
@@ -99,7 +104,7 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                             throw new InvalidOperationException("Không thể chuyển SyncBatch sang STAGED.");
                     }
 
-                    using (var command = new SqlCommand("IFS.usp_ApplySyncBatch", connection))
+                    if (phaseChanged != null) phaseChanged("Giai đoạn 2/2: Đang Apply dữ liệu vào các bảng IFS / MES trong FVN_PCTP. Vui lòng chờ...");\n\n                    using (var command = new SqlCommand("IFS.usp_ApplySyncBatch", connection))
                     {
                         command.CommandType = CommandType.StoredProcedure;
                         command.CommandTimeout = 1800;
