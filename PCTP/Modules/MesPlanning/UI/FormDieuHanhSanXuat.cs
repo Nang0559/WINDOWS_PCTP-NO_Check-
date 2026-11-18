@@ -90,7 +90,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _labels.AllowUserToDeleteRows = false;
             _labels.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
             operationPanel.Controls.Add(_labels);
-            AddField(operationPanel, "Quét LabelCode để xác nhận dán tem", _labelScan);
+            AddField(operationPanel, "Quét QR tem MES hoặc LabelCode để xác nhận dán tem", _labelScan);
             AddButton(operationPanel, "XÁC NHẬN ĐÃ DÁN TEM", ApplyLabelClick);
             AddField(operationPanel, "Lý do hủy tem chưa sử dụng", _labelVoidReason);
             AddButton(operationPanel, "HỦY TEM CHƯA DÙNG", VoidLabelClick);
