@@ -35,6 +35,8 @@ Run one file at a time, in order:
 | 023 | 023_PCTP_InspectionLog.sql | Site-scoped inspection/tem reconciliation history |
 | 024 | 024_PCTP_LegacySiteMappingAndPreflight.sql | Optional data-migration mapping tables and read-only B7R2_FCC preflight; requires source DB on the same SQL Server |
 | 025 | 025_PCTP_MESInventoryPostingAdapter.sql | PCTP slot-aware adapter to the canonical MES inventory posting procedure |
+| 026 | 026_PCTP_StockMovementGuardAndLotAdjustmentHistory.sql | Idempotency guard and LOT adjustment audit |
+| 027 | 027_IFS_WarehouseSyncAndEntityStatus.sql | Add IFS WAREHOUSE staging/apply, 800-character description and warehouse batch counts |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -43,7 +45,7 @@ SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy
 FROM MES.FVN_SchemaMigration ORDER BY MigrationVersion;
 ```
 
-Run migration 013 only after 000–012 have completed successfully. Run 014–023 only after 013, in strict order. Migration 024 is optional and is run only when preparing source-data migration; it requires `B7R2_FCC` to be visible on the same SQL Server instance.
+Run migration 013 only after 000–012 have completed successfully. Run 014–027 after 013 in version order; migration 024 is optional for source-data preflight, but 025 and later still require their documented prerequisites. Migration 027 requires migration 026.
 
 ## Architecture rules
 
@@ -112,3 +114,8 @@ Migration 024 is **not required to create the empty FVN_PCTP schema**. It create
 Migration 025 requires the MES posting procedure from migration 004. It does not depend on optional data-migration preflight 024.
 
 - `026_PCTP_StockMovementGuardAndLotAdjustmentHistory.sql`: creates `dbo.FVN_StockMovementGuard` and `dbo.FVN_StockLotAdjustmentHistory` (replace `PCTPStockMovementGuard` / `PCTPStockLotAdjustmentHistory`). Prerequisite: 025.
+
+
+## Migration 027 — IFS Warehouse synchronization
+
+Run `027_IFS_WarehouseSyncAndEntityStatus.sql` after migration 026 and after the FVN_ table-name standardization in migration 013. It extends the existing IFS sync batch/staging contract to include `IFSAPP.WAREHOUSE`, applies the warehouse snapshot to `MES.FVN_IfsWarehouse`, and keeps the IFS source read-only. Oracle `CONTRACT`, `WAREHOUSE_ID`, `DESCRIPTION`, `OBJKEY`, and `OBJVERSION` are mapped to SiteCode, WarehouseCode, Description, SourceRowKey, and source-payload version respectively. IFS WAREHOUSE has no active-state column; a row returned by IFS is projected as IsActive=1, and missing rows are not automatically deactivated. The IFS sync form displays per-entity source batch counts, target counts, latest batch state and errors.
