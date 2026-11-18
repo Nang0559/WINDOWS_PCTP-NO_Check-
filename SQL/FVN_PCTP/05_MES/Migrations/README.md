@@ -158,3 +158,25 @@ Important source prerequisite: confirm the live IFS view metadata for
 `SUPPLIER_INFO_GENERAL` before running the first sync. The C# extraction
 expects `SUPPLIER_ID`, `NAME`, `OBJKEY`, and `OBJVERSION`; a source-view
 column mismatch will stop the batch and record entity `SUPPLIER`.
+
+
+## Migration 029 — FVN-owned ItemId5 and SupplierId5
+
+Run `029_FVN_InternalItemAndSupplierIdentity.sql` after migration 028.
+
+IFS keys remain unchanged and read-only:
+- Item key: `(SiteCode, PartNo)` from `IFS.FVN_InventoryPart`.
+- Supplier key: `SupplierCode` = the exact IFS `SUPPLIER_ID` string (including alphanumeric values such as `100002A`).
+
+FVN_PCTP owns separate identity tables:
+- `MES.FVN_ItemIdentity`: numeric `ItemIdentityId IDENTITY` plus stable unique `ItemId5` for each `(SiteCode, PartNo)`.
+- `MES.FVN_SupplierIdentity`: numeric `SupplierIdentityId IDENTITY` plus stable unique `SupplierId5` for each IFS `SupplierCode`.
+
+The 5-character tokens are FVN-generated base-36 identifiers. Existing `ItemId5` values issued by migration 028 are copied without change. New tokens are allocated under application locks and are never recycled. Supplier names are refreshed from the IFS mirror; the IFS `SUPPLIER_ID` is never cast to a number.
+
+Migration 029 replaces the component LOT builder to use:
+`YYMMDD + SupplierId5 + ItemId5 + DocNo`.
+Production LOT remains exactly 20 characters:
+`YYMMDD + ItemId5 + ShiftCode(2) + LineCode(3) + DepartmentCode(4)`.
+
+The compatibility procedure `dbo.usp_FVN_PartIdentity_AllocateItemId5` delegates to the new MES identity allocator. New application code should call the canonical MES procedures and must not generate the 5-character values itself.
