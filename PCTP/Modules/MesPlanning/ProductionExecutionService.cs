@@ -53,5 +53,36 @@ namespace PCTP.Modules.MesPlanning
             return _repository.ConsumeMaterial(orderMaterialId, productionLotId, materialLotId,
                 fromSlotId, quantity, actor.Trim(), Guid.NewGuid().ToString("N"));
         }
+        public DataTable PrepareLabels(long productionLotId, string operationNo, int targetQty, string actor)
+        {
+            if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) ||
+                targetQty <= 0 || string.IsNullOrWhiteSpace(actor))
+                throw new ArgumentException("LOT, công đoạn, số lượng tem và người thao tác là bắt buộc.");
+            return _repository.PrepareLabels(productionLotId, operationNo.Trim(), targetQty, actor.Trim());
+        }
+
+        public DataTable PrintLabels(long productionLotId, string operationNo, string actor, bool isReprint)
+        {
+            if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) || string.IsNullOrWhiteSpace(actor))
+                throw new ArgumentException("LOT, công đoạn và người in là bắt buộc.");
+            return _repository.PrintLabels(productionLotId, operationNo.Trim(), actor.Trim(), isReprint);
+        }
+
+        public DataTable ApplyLabel(string labelCode, string operationNo, string actor)
+        {
+            if (string.IsNullOrWhiteSpace(labelCode) || string.IsNullOrWhiteSpace(operationNo) ||
+                string.IsNullOrWhiteSpace(actor))
+                throw new ArgumentException("Mã tem, công đoạn và người thao tác là bắt buộc.");
+            return _repository.ApplyLabel(labelCode.Trim(), operationNo.Trim(), actor.Trim());
+        }
+
+        public DataTable VoidLabel(string labelCode, string actor, string reason)
+        {
+            if (string.IsNullOrWhiteSpace(labelCode) || string.IsNullOrWhiteSpace(actor) ||
+                string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("Mã tem, người thao tác và lý do hủy là bắt buộc.");
+            return _repository.VoidLabel(labelCode.Trim(), actor.Trim(), reason.Trim());
+        }
+
     }
 }
