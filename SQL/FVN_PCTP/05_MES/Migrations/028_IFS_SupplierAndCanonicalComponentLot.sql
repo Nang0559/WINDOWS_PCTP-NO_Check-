@@ -167,18 +167,10 @@ BEGIN TRY
     END;
     ');
 
-    /* SupplierCode is now a real FK to IFS. Stop rather than orphan existing lot references. */
-    IF EXISTS
-    (
-        SELECT 1
-        FROM MES.FVN_MaterialLot ml
-        LEFT JOIN IFS.FVN_Supplier s ON s.SupplierCode=ml.SupplierCode
-        WHERE ml.SupplierCode IS NOT NULL AND s.SupplierCode IS NULL
-    )
-        THROW 52813, 'Existing MES LOT rows contain SupplierCode values not yet present in IFS.FVN_Supplier. Reconcile these codes before adding the supplier FK.', 1;
-
+    /* Keep legacy LOT rows readable. The untrusted FK enforces every new/changed
+       SupplierCode immediately while allowing pre-existing Bravo codes to be reconciled. */
     IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_FVN_MaterialLot_IFSSupplier')
-        ALTER TABLE MES.FVN_MaterialLot WITH CHECK
+        ALTER TABLE MES.FVN_MaterialLot WITH NOCHECK
             ADD CONSTRAINT FK_FVN_MaterialLot_IFSSupplier
             FOREIGN KEY(SupplierCode) REFERENCES IFS.FVN_Supplier(SupplierCode);
 
