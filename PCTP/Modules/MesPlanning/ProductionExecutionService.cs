@@ -73,7 +73,17 @@ namespace PCTP.Modules.MesPlanning
             if (string.IsNullOrWhiteSpace(labelCode) || string.IsNullOrWhiteSpace(operationNo) ||
                 string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("Mã tem, công đoạn và người thao tác là bắt buộc.");
-            return _repository.ApplyLabel(labelCode.Trim(), operationNo.Trim(), actor.Trim());
+            var token = labelCode.Trim();
+            if (token.StartsWith("FVN2|", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = token.Split('|');
+                if (parts.Length != 4 || !parts[1].StartsWith("L", StringComparison.OrdinalIgnoreCase))
+                    throw new ArgumentException("QR tem MES không đúng định dạng FVN2|LabelCode|LOT|OperationNo.");
+                token = parts[1];
+                if (!string.Equals(parts[3], operationNo.Trim(), StringComparison.OrdinalIgnoreCase))
+                    throw new ArgumentException("QR tem thuộc công đoạn khác với công đoạn đang thao tác.");
+            }
+            return _repository.ApplyLabel(token, operationNo.Trim(), actor.Trim());
         }
 
         public DataTable VoidLabel(string labelCode, string actor, string reason)
