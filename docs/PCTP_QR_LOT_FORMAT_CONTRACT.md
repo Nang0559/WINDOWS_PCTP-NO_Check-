@@ -52,7 +52,7 @@ The operator-confirmed total-label example is exactly 28 characters:
 | 12 | 1 | `3` | Production shift |
 | 13 | 1 | `0` | Gear |
 | 14–16 | 3 | `077` | Production line |
-| 17–20 | 4 | `1700` | Machine code |
+| 17–20 | 4 | `1700` | Department code |
 | 21–24 | 4 | `0751` | Daily label sequence |
 | 25–28 | 4 | `2000` | Quantity encoded in LOTNO |
 
@@ -62,7 +62,7 @@ Thus the canonical stock LOT identity is the first 20 characters:
 26103000272300771700
 ```
 
-The final 8 characters (daily label sequence + embedded quantity) distinguish a printed label, not a different stock LOT. Never use the complete 28-character label token as a separate stock LOT identity when matching total and box labels. The 20-character base consists of YYMMDD (6) + ItemId5 (5) + ShiftCode (2: shift + gear) + LineCode (3) + MachineCode (4).
+The final 8 characters (daily label sequence + embedded quantity) distinguish a printed label, not a different stock LOT. Never use the complete 28-character label token as a separate stock LOT identity when matching total and box labels. The 20-character base consists of YYMMDD (6) + ItemId5 (5) + ShiftCode (2: shift + gear) + LineCode (3) + DepartmentCode (4).
 
 ## 2.1 Separate LOT identity for purchased components
 
@@ -87,7 +87,7 @@ YYMMDD + SupplierCode + ItemId5 + DocNo
 This is a separate LOT family from production/finished goods. Never inject
 SupplierCode into production LOTs, and never drop it from purchased-component
 LOTs. SQL generation is centralized in `MES.usp_FVN_BuildComponentLotNo`;
-applications must not concatenate this format independently. Production/finished LOTs are generated separately by `MES.usp_FVN_BuildProductionLotNo` after validating the active `dbo.FVN_ProductionLine` and `dbo.FVN_ProductionMachine` mapping. Their code lengths are ShiftCode=2 (shift + gear), LineCode=3, MachineCode=4.
+applications must not concatenate this format independently. Production/finished LOTs are generated separately by `MES.usp_FVN_BuildProductionLotNo` after validating the active `dbo.FVN_ProductionLine` and `dbo.FVN_ProductionDepartment` mapping. Their code lengths are ShiftCode=2 (shift + gear), LineCode=3, MachineCode=4.
 
 ## 3. Customer Gear validation
 
