@@ -8,6 +8,7 @@ using PCTP.Acess_Image;
 using PCTP.Common;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Modules.KhoVatLy;
+using PCTP.Modules.MesBom;
 using PCTP.QRCODE_HVN.ComaprePart;
 using PCTP.Shared.Helpers;
 using PCTP.Shell.Composition;
@@ -63,6 +64,7 @@ namespace PCTP
 
             // Menu chuẩn: Nhập Kho → Kho → Giao Hàng → Xử lý hàng lỗi → Tra cứu & Báo cáo → Công cụ.
             BuildStandardMenus();
+            AddMesBomNavigation();
             accordionControlElement24.Text = "Quản lý máy đọc QR";
             ApplyFluentMenuIcons();
         }
@@ -212,6 +214,26 @@ namespace PCTP
                 _dashboardBar.Refresh();
             if (_worklistBar != null)
                 _worklistBar.RefreshWorklist();
+        }
+
+
+        private void AddMesBomNavigation()
+        {
+            var group = new AccordionControlElement
+            {
+                Text = "Kỹ thuật / BOM",
+                Style = ElementStyle.Group,
+                Expanded = true
+            };
+            var item = new AccordionControlElement
+            {
+                Text = "Product Structure Graphic",
+                Style = ElementStyle.Item
+            };
+            item.Click += (s, e) =>
+                FormWindowManager.ShowSingle(this, () => new FormProductStructureGraphic());
+            group.Elements.Add(item);
+            accordionControl.Elements.Add(group);
         }
 
         private void accordionControl_SelectedElementChanged(object sender, SelectedElementChangedEventArgs e) { }
