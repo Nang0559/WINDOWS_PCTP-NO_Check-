@@ -262,7 +262,7 @@ VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
 
             using (var bulk = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, null))
             {
-                bulk.DestinationTableName = "[FVN_PCTP].[IFS].[SyncStageRow]";
+                bulk.DestinationTableName = "[IFS].[SyncStageRow]";
                 bulk.BatchSize = 2000;
                 bulk.BulkCopyTimeout = 1800;
                 foreach (DataColumn column in stage.Columns)
