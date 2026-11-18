@@ -984,6 +984,9 @@
     </Compile>
     <Compile Include="Modules\KhoCore\Fuction\CheckInfor.cs" />
     <Compile Include="Shared\Helpers\LotNoHelper.cs" />
+    <Compile Include="Shared\Lookup\FvnPartSiteLookupControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Shared\Lookup\StockLookupControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
