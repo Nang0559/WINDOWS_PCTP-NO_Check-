@@ -12,9 +12,9 @@ namespace PCTP.Common
     {
         /// <summary>Quá ngắn hoặc rỗng, không nhận diện được.</summary>
         Unknown = 0,
-        /// <summary>Chuẩn cũ: mã gốc 13 ký tự (YYMMDD + Id_Item + Ca + Gear). Có thể ứng với NHIỀU LOT vật lý.</summary>
+        /// <summary>Chuẩn cũ: khóa 13 ký tự (YYMMDD + ItemId5 + ShiftCode). Có thể ứng với nhiều LOT vật lý.</summary>
         Legacy13 = 1,
-        /// <summary>Chuẩn mới: 20 ký tự (mã gốc 13 + Line + Machine) = khóa duy nhất của STOCKTP.</summary>
+        /// <summary>Chuẩn sản xuất hiện hành: 20 ký tự (YYMMDD + ItemId5 + ShiftCode(2) + LineCode(3) + DepartmentCode(4)).</summary>
         Full20 = 2
     }
 
@@ -58,7 +58,7 @@ namespace PCTP.Common
         public const int LEN_MachinesCode = 4;
         public const int LEN_COUNTER = 4;
         public const int LEN_QTY = 4;
-        public const int LEN_HEAD_FIXED = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT + LEN_GEAR + LEN_LinesCode + LEN_MachinesCode;
+        public const int LEN_HEAD_FIXED = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT_CODE + LEN_LinesCode + LEN_MachinesCode;
         public const int LEN_TAIL_FIXED = LEN_COUNTER + LEN_QTY;
         public const int MIN_TOTAL_LEN = LEN_HEAD_FIXED + LEN_TAIL_FIXED;
         public const int LEN_LEGACY_KEY = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT + LEN_GEAR;
