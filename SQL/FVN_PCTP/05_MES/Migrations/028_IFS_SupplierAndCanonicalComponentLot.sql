@@ -167,7 +167,7 @@ BEGIN TRY
     END;
     ');
 
-    /* Production line/machine codes are PCTP operational masters, not IFS supplier/part data.
+    /* Production line/department codes are PCTP operational masters, not IFS supplier/part data.
        Their lengths are part of the 20-character finished LOT contract. */
     IF OBJECT_ID(N'dbo.FVN_ProductionLine',N'U') IS NULL
     BEGIN
@@ -182,13 +182,13 @@ BEGIN TRY
         );
     END;
 
-    IF OBJECT_ID(N'dbo.FVN_ProductionMachine',N'U') IS NULL
+    IF OBJECT_ID(N'dbo.FVN_ProductionDepartment',N'U') IS NULL
     BEGIN
-        CREATE TABLE dbo.FVN_ProductionMachine
+        CREATE TABLE dbo.FVN_ProductionDepartment
         (
             SiteCode nvarchar(30) NOT NULL,
-            MachineCode varchar(4) NOT NULL,
-            MachineName nvarchar(120) NOT NULL,
+            DepartmentCode varchar(4) NOT NULL,
+            DepartmentName nvarchar(120) NOT NULL,
             LineCode varchar(3) NOT NULL,
             IsActive bit NOT NULL CONSTRAINT DF_FVN_ProductionMachine_Active DEFAULT(1),
             CONSTRAINT PK_FVN_ProductionMachine PRIMARY KEY(SiteCode,MachineCode),
@@ -262,7 +262,7 @@ BEGIN TRY
         IF LEN(LTRIM(RTRIM(ISNULL(@LineCode,''''))))<>3
             THROW 52832, ''LineCode must contain exactly three characters.'', 1;
         IF LEN(LTRIM(RTRIM(ISNULL(@MachineCode,''''))))<>4
-            THROW 52833, ''MachineCode must contain exactly four characters.'', 1;
+            THROW 52833, ''DepartmentCode must contain exactly four characters.'', 1;
 
         IF NOT EXISTS(SELECT 1 FROM dbo.FVN_ProductionLine
                       WHERE SiteCode=@SiteCode AND LineCode=@LineCode AND IsActive=1)
@@ -270,7 +270,7 @@ BEGIN TRY
         IF NOT EXISTS(SELECT 1 FROM dbo.FVN_ProductionMachine
                       WHERE SiteCode=@SiteCode AND MachineCode=@MachineCode
                         AND LineCode=@LineCode AND IsActive=1)
-            THROW 52835, ''Machine is not configured as active on the selected line/site.'', 1;
+            THROW 52835, ''Department is not configured or inactive for this site.'', 1;
 
         EXEC dbo.usp_FVN_PartIdentity_AllocateItemId5
             @SiteCode=@SiteCode,@PartNo=@PartNo,@ItemId5=@ItemId5 OUTPUT;
