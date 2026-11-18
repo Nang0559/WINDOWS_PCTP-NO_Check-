@@ -190,11 +190,11 @@ BEGIN TRY
             DepartmentCode varchar(4) NOT NULL,
             DepartmentName nvarchar(120) NOT NULL,
             LineCode varchar(3) NOT NULL,
-            IsActive bit NOT NULL CONSTRAINT DF_FVN_ProductionMachine_Active DEFAULT(1),
-            CONSTRAINT PK_FVN_ProductionMachine PRIMARY KEY(SiteCode,MachineCode),
-            CONSTRAINT FK_FVN_ProductionMachine_Line FOREIGN KEY(SiteCode,LineCode)
+            IsActive bit NOT NULL CONSTRAINT DF_FVN_ProductionDepartment_Active DEFAULT(1),
+            CONSTRAINT PK_FVN_ProductionDepartment PRIMARY KEY(SiteCode,DepartmentCode),
+            CONSTRAINT FK_FVN_ProductionDepartment_Line FOREIGN KEY(SiteCode,LineCode)
                 REFERENCES dbo.FVN_ProductionLine(SiteCode,LineCode),
-            CONSTRAINT CK_FVN_ProductionMachine_Code CHECK(LEN(MachineCode)=4)
+            CONSTRAINT CK_FVN_ProductionDepartment_Code CHECK(LEN(DepartmentCode)=4)
         );
     END;
 
@@ -247,7 +247,7 @@ BEGIN TRY
         @PartNo nvarchar(100),
         @ShiftCode varchar(2),
         @LineCode varchar(3),
-        @MachineCode varchar(4),
+        @DepartmentCode varchar(4),
         @LotNo char(20) OUTPUT,
         @ItemId5 char(5) OUTPUT
     AS
@@ -261,7 +261,7 @@ BEGIN TRY
             THROW 52831, ''ShiftCode must contain exactly two characters (shift + gear)'', 1;
         IF LEN(LTRIM(RTRIM(ISNULL(@LineCode,''''))))<>3
             THROW 52832, ''LineCode must contain exactly three characters.'', 1;
-        IF LEN(LTRIM(RTRIM(ISNULL(@MachineCode,''''))))<>4
+        IF LEN(LTRIM(RTRIM(ISNULL(@DepartmentCode,''''))))<>4
             THROW 52833, ''DepartmentCode must contain exactly four characters.'', 1;
 
         IF NOT EXISTS(SELECT 1 FROM dbo.FVN_ProductionLine
