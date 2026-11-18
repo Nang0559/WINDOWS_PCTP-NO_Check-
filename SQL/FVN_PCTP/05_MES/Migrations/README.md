@@ -37,7 +37,9 @@ Run one file at a time, in order:
 | 025 | 025_PCTP_MESInventoryPostingAdapter.sql | PCTP slot-aware adapter to the canonical MES inventory posting procedure |
 | 026 | 026_PCTP_StockMovementGuardAndLotAdjustmentHistory.sql | Idempotency guard and LOT adjustment audit |
 | 027 | 027_IFS_WarehouseSyncAndEntityStatus.sql | Add IFS WAREHOUSE staging/apply, 800-character description and warehouse batch counts |
-| 028 | 028_IFS_SupplierAndCanonicalComponentLot.sql | IFS supplier master sync, five-character canonical item identity allocation and component LOT builder |\n| 029 | 029_FVN_InternalItemAndSupplierIdentity.sql | FVN-owned ItemId5 and SupplierId5 identity masters with internal IDENTITY keys and stable base-36 tokens |\n| 030 | 030_CanonicalItemIdentityInIfsApply.sql | Makes MES.FVN_ItemIdentity the only ItemId5 allocator used by IFS apply; dbo.FVN_PartIdentity remains compatibility-only |
+| 028 | 028_IFS_SupplierAndCanonicalComponentLot.sql | IFS supplier master sync, five-character canonical item identity allocation and component LOT builder |
+| 029 | 029_FVN_InternalItemAndSupplierIdentity.sql | FVN-owned ItemId5 and SupplierId5 identity masters with internal IDENTITY keys and stable base-36 tokens |
+| 030 | 030_CanonicalItemIdentityInIfsApply.sql | Makes MES.FVN_ItemIdentity the only ItemId5 allocator used by IFS apply; dbo.FVN_PartIdentity remains compatibility-only |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
