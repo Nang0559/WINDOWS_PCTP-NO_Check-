@@ -291,6 +291,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         public event EventHandler UploadGiaoDBClicked = delegate { };
         public event EventHandler LuuGiaoDBClicked = delegate { };
         public event EventHandler<TTPHIEUEventArgs> CapNhapTTPHIEUClicked = delegate { };
+        public event EventHandler<TTPHIEUEventArgs> NoteEdited = delegate { };
         public event EventHandler<ChonLotThuCongEventArgs> ChonLotThuCongClicked = delegate { };
         public event EventHandler HoanThanhYMVNClicked = delegate { };
         public event EventHandler UploadMilkrunSPClicked = delegate { };
@@ -313,6 +314,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
             SetupGridDonHangYMVN(_cfg.Delivery.LoadTuBangRieng);
             _phieuGridControl.OrderView.ShowingEditor += GridViewDONHANG_ShowingEditor_LOT;
+            _phieuGridControl.NoteEdited += (stt, note) => NoteEdited.Invoke(this, new TTPHIEUEventArgs(stt, note));
             if (dateNX.DateTime == DateTime.MinValue || dateNX.DateTime.Year < 2000) dateNX.DateTime = DateTime.Now;
             if (_cfg.Delivery.CoGear) btnUploadMilkrun.Click += btnUploadMilkrun_Click;
             else if (_cfg.Delivery.LoadTheoNgay) btnUploadMilkrun.Click += btnUploadMilkrun_Click;

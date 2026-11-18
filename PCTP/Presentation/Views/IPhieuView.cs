@@ -71,6 +71,8 @@ namespace PCTP.Presentation.Views
         event EventHandler HoanThanhClicked;
         event EventHandler LoaiPhieuChanged;
         event EventHandler<LayLaiLotEventArgs> LayLaiLotNoClicked;
-        event EventHandler<TTPHIEUEventArgs> CapNhapTTPHIEUClicked;   
+        event EventHandler<TTPHIEUEventArgs> CapNhapTTPHIEUClicked;
+        /// <summary>Người dùng vừa sửa ô Ghi Chú trên lưới (Stt + GhiChu — dùng chung kiểu tham số với TTPHIEUEventArgs).</summary>
+        event EventHandler<TTPHIEUEventArgs> NoteEdited;   
     }
 }

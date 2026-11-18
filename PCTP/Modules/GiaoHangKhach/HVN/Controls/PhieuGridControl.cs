@@ -73,6 +73,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             bandedGridColumn4 = new BandedGridColumn();
 
             ConfigureGrid();
+            GridViewDONHANG.CellValueChanged += GridViewDONHANG_NoteCellValueChanged;
 
             gridCtrDONHANG.Dock = DockStyle.Fill;
             Controls.Add(gridCtrDONHANG);
@@ -86,6 +87,16 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         {
             gridCtrDONHANG.DataSource = data;
             GridViewDONHANG.BestFitColumns();
+        }
+
+        /// <summary>Bắn khi người dùng sửa xong ô Ghi Chú (Note) của 1 dòng: (STT, nội dung).</summary>
+        public event Action<int, string> NoteEdited;
+
+        private void GridViewDONHANG_NoteCellValueChanged(object sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e)
+        {
+            if (e.Column == null || !string.Equals(e.Column.FieldName, "Note", StringComparison.OrdinalIgnoreCase)) return;
+            if (!int.TryParse(Convert.ToString(GridViewDONHANG.GetRowCellValue(e.RowHandle, "STT"))?.Trim(), out int stt) || stt <= 0) return;
+            NoteEdited?.Invoke(stt, Convert.ToString(e.Value) ?? "");
         }
 
         public DataTable GetDataTable()

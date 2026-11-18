@@ -285,6 +285,16 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 : string.Empty;
         }
 
+        public int LuuGhiChuVaoTmp(string tmpTable, int stt, string note)
+        {
+            if (stt <= 0) return 0;
+            var dt = new DataTable();
+            dt.Columns.Add("STT", typeof(int));
+            dt.Columns.Add("Note", typeof(string));
+            dt.Rows.Add(stt, note ?? "");
+            return LuuGhiChuVaoTmp(tmpTable, dt);
+        }
+
         // ============================================================
         // LuuGhiChuVaoTmp
         // ============================================================

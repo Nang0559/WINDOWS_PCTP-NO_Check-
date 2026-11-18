@@ -1063,6 +1063,12 @@ BEGIN
             -- PO_NO / PO_ITEM: chi sao chep khi bang TMP cua khach hang co cot nay
             -- (HVN MP/SP, 100003). Tranh mat PO trong ledger ma khong vo bang khong co cot.
             DECLARE @LuuPoCols NVARCHAR(100) = N'', @LuuPoSel NVARCHAR(200) = N'';
+            DECLARE @LuuNoteCols NVARCHAR(20) = N'', @LuuNoteSel NVARCHAR(50) = N'';
+            -- Note: chi sao chep khi CA bang TMP cua khach hang va LUUPHIEUGIAOHANG deu co cot Note
+            -- (tranh vo proc o bang TMP chua co cot nay).
+            IF COL_LENGTH(N'dbo.' + @TMPTABLE, N'Note') IS NOT NULL
+               AND COL_LENGTH(N'dbo.LUUPHIEUGIAOHANG', N'Note') IS NOT NULL
+                SELECT @LuuNoteCols = N', Note', @LuuNoteSel = N', LEFT(tmp.Note, 250)';
             IF COL_LENGTH(N'dbo.' + @TMPTABLE, N'PO_NO') IS NOT NULL
                 SELECT @LuuPoCols += N', PO_NO', @LuuPoSel += N', LEFT(tmp.PO_NO, 50)';
             IF COL_LENGTH(N'dbo.' + @TMPTABLE, N'PO_ITEM') IS NOT NULL
@@ -1086,8 +1092,7 @@ BEGIN
                     NHAMAY,  
                     GIOGIAOFCC,  
                     HOP,  
-                    STATUSDOC,  
-                    Note' + @LuuPoCols + N'  
+                    STATUSDOC' + @LuuNoteCols + @LuuPoCols + N'  
                 )  
                 SELECT  
                     tmp.STT,  
@@ -1105,8 +1110,7 @@ BEGIN
                     LEFT(@NHAMAY, 60),  
                     LEFT(@GIOGIAOFCC, 50),  
                     LEFT(tmp.HOP, 50),  
-                    LEFT(tmp.STATUSDOC, 50),  
-                    LEFT(tmp.Note, 250)' + @LuuPoSel + N'  
+                    LEFT(tmp.STATUSDOC, 50)' + @LuuNoteSel + @LuuPoSel + N'  
                 FROM [' + @TMPTABLE + N'] tmp  
                 WHERE tmp.STT IN  
                 (  
