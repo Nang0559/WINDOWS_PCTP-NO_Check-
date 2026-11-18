@@ -35,6 +35,8 @@ Run one file at a time, in order:
 | 023 | 023_PCTP_InspectionLog.sql | Site-scoped inspection/tem reconciliation history |
 | 024 | 024_PCTP_LegacySiteMappingAndPreflight.sql | Optional data-migration mapping tables and read-only B7R2_FCC preflight; requires source DB on the same SQL Server |
 | 025 | 025_PCTP_MESInventoryPostingAdapter.sql | PCTP slot-aware adapter to the canonical MES inventory posting procedure |
+| 026 | 026_PCTP_StockMovementGuardAndLotAdjustmentHistory.sql | Idempotency guard and LOT adjustment audit |
+| 027 | 027_IFS_WarehouseSyncAndEntityStatus.sql | Add IFS WAREHOUSE staging/apply, 800-character description and warehouse batch counts |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -43,9 +45,9 @@ SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy
 FROM MES.FVN_SchemaMigration ORDER BY MigrationVersion;
 ```
 
-Run migration 013 only after 000–012 have completed successfully. Run 014–023 only after 013, in strict order. Migration 024 is optional and is run only when preparing source-data migration; it requires `B7R2_FCC` to be visible on the same SQL Server instance.
+Run migration 013 only after 000–012 have completed successfully. Run 014–027 after 013 in version order; migration 024 is optional for source-data preflight, but 025 and later still require their documented prerequisites. Migration 027 requires migration 026.
 
-| 027 | 027_IFS_WarehouseSyncAndEntityStatus.sql | Add IFS WAREHOUSE staging/apply, 800-character description and warehouse batch counts |\n\n## Architecture rules
+## Architecture rules
 
 - IFS9 is read-only and authoritative for synchronized part/site/location data. MES.Ifs* tables are read models, not manually maintained masters.
 - Part and location identity is scoped by SiteCode plus source code until global uniqueness is proven.
