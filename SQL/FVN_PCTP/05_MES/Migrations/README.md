@@ -194,3 +194,8 @@ Run `030_CanonicalItemIdentityInIfsApply.sql` after migration 029. Migration 028
 ## Migration 031 — MES-owned component purchase orders and LOT release
 
 Run `031_MES_ComponentPurchaseOrderReleaseAndLabels.sql` after migration 030. Component purchase orders and their statuses are owned entirely by MES_PCTP; no IFS purchase-order status is read or required. IFS is referenced only as the read-only Site/Part/Supplier master source. Excel import creates/updates MES-owned DRAFT orders; validation moves an order to VALIDATED. Only the MES release procedure issues a stable component LOT per order line and a persistent `FVN1|<LOTNO>` QR payload. Releasing an already released order is idempotent. Reprinting records an audit row and returns the exact original LOT and QR payload; it never allocates a new LOT. Receipt processing must consume this issued LOT and post stock through the established MES stock-movement contract; this migration does not directly update inventory balance or claim to implement the WinForms Excel/scan UI.
+
+
+## Migration 032 — Component LOT receiving
+
+Run `032_MES_ComponentLotCanonicalReceiptPosting.sql` after 031. It links each MES-issued component QR LOT to `MES.FVN_MaterialLot` at release time (initially BLOCKED), then posts every accepted receiving quantity through `dbo.usp_FVN_PCTP_PostStockMovement`. Partial receipts are supported across multiple receipt documents; the receipt-line idempotency key prevents duplicate posting. The procedure requires an active `dbo.FVN_SlotMesLocation` mapping for the selected Site/Slot. It does not write inventory balances directly. Use `MES.usp_FVN_ComponentReceipt_Post` for the receiving transaction.

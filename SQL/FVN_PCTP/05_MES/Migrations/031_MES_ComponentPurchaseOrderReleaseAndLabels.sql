@@ -16,8 +16,8 @@ IF NOT EXISTS(SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion='030'
     THROW 53102, 'Migration 030 must be applied before migration 031.', 1;
 IF EXISTS(SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion='031')
     RETURN;
-IF OBJECT_ID(N'MES.FVN_AllocateItemId5',N'P') IS NULL
- OR OBJECT_ID(N'MES.FVN_AllocateSupplierId5',N'P') IS NULL
+IF OBJECT_ID(N'MES.usp_FVN_AllocateItemId5',N'P') IS NULL
+ OR OBJECT_ID(N'MES.usp_FVN_AllocateSupplierId5',N'P') IS NULL
     THROW 53103, 'Run migration 029 identity allocators first.', 1;
 
 BEGIN TRY
