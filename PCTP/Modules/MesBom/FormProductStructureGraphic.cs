@@ -40,6 +40,8 @@ namespace PCTP.Modules.MesBom
             public string BomTypeDb;
             public string AlternativeNo;
             public string Description;
+            public DateTime EffectiveInDate;
+            public DateTime? EffectiveOutDate;
             public int Depth;
         }
 
@@ -273,6 +275,10 @@ ORDER BY CASE WHEN a.AlternativeNo='*' THEN 0 ELSE 1 END,h.EffectiveInDate DESC,
                         BomTypeDb = Convert.ToString(reader["BomTypeDb"]),
                         AlternativeNo = Convert.ToString(reader["AlternativeNo"]),
                         Description = Convert.ToString(reader["Description"]),
+                        EffectiveInDate = Convert.ToDateTime(reader["EffectiveInDate"], CultureInfo.InvariantCulture),
+                        EffectiveOutDate = reader.IsDBNull(reader.GetOrdinal("EffectiveOutDate"))
+                            ? (DateTime?)null
+                            : Convert.ToDateTime(reader["EffectiveOutDate"], CultureInfo.InvariantCulture),
                         Depth = 0
                     };
                 }
