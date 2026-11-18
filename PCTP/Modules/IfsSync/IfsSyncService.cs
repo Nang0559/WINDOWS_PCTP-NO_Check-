@@ -223,9 +223,30 @@ VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
 
         private static void BulkStage(SqlConnection connection, DataTable stage)
         {
+            // SqlBulkCopy asks SQL Server for destination-column collation metadata.
+            // Use an explicitly database-qualified destination so metadata lookup
+            // cannot resolve against a different current database/context.
+            using (var check = new SqlCommand(@"
+SELECT DB_NAME(), OBJECT_ID(N'[IFS].[SyncStageRow]', N'U');", connection))
+            using (var reader = check.ExecuteReader(CommandBehavior.SingleRow))
+            {
+                if (!reader.Read())
+                    throw new InvalidOperationException("Không xác định được database đích khi stage IFS.");
+
+                string databaseName = reader.IsDBNull(0) ? null : reader.GetString(0);
+                object tableObjectId = reader.IsDBNull(1) ? null : reader.GetValue(1);
+                if (!string.Equals(databaseName, "FVN_PCTP", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        "Từ chối stage IFS: database hiện tại là '" + (databaseName ?? "(NULL)") +
+                        "', yêu cầu FVN_PCTP.");
+                if (tableObjectId == null || tableObjectId == DBNull.Value)
+                    throw new InvalidOperationException(
+                        "Không tìm thấy bảng [FVN_PCTP].[IFS].[SyncStageRow]. Hãy kiểm tra migration 012 trên FVN_PCTP.");
+            }
+
             using (var bulk = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, null))
             {
-                bulk.DestinationTableName = "IFS.SyncStageRow";
+                bulk.DestinationTableName = "[FVN_PCTP].[IFS].[SyncStageRow]";
                 bulk.BatchSize = 2000;
                 bulk.BulkCopyTimeout = 1800;
                 foreach (DataColumn column in stage.Columns)
