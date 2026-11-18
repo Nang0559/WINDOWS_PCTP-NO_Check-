@@ -250,7 +250,22 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         {
             foreach (DataRow row in _phieuBottomStateControl.GetSelectedGhepLotRows())
             {
-                yield return new GhepLotItem { MaHang = row[0].ToString(), GioXuat = int.TryParse(row[1].ToString(), out int gio) ? gio : 0, Lot = row[2].ToString() };
+                // Cột Giờ: HVN là số giờ ("15"), YMVN là "HH:mm" ("18:35") nên int.TryParse thất bại => lấy phần giờ.
+                string gioText = row[1].ToString();
+                int gio;
+                if (!int.TryParse(gioText, out gio))
+                {
+                    TimeSpan ts;
+                    gio = TimeSpan.TryParse(gioText, out ts) ? ts.Hours : 0;
+                }
+                yield return new GhepLotItem
+                {
+                    MaHang = row[0].ToString(),
+                    GioXuat = gio,
+                    Lot = row[2].ToString(),
+                    // Usp_Qrcode_gheplot nhánh Gear trả thêm cột GearName; HVN không có cột này.
+                    GearName = row.Table.Columns.Contains("GearName") ? Convert.ToString(row["GearName"]).Trim() : string.Empty
+                };
             }
         }
         public int GetFocusedDocQRStt() => _docQrControl != null ? _docQrControl.GetFocusedStt() : -1;

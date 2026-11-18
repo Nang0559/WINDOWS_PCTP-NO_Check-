@@ -11,5 +11,7 @@ namespace PCTP.Domain.Entities
         public string MaHang { get; set; }
         public int GioXuat { get; set; }
         public string Lot { get; set; }
+        /// <summary>Tên Gear (B20Gear.Name) của dòng ghép — chỉ YMVN (CoGear) có; khách khác để rỗng.</summary>
+        public string GearName { get; set; }
     }
 }

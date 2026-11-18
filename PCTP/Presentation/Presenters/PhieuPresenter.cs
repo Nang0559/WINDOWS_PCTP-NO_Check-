@@ -171,7 +171,65 @@ namespace PCTP.Presentation.Presenters
             }, "Đang khởi tạo biểu mẫu in...");
             if (showReport != null) showReport();
         }
-        private void OnInGhepLot(object sender, EventArgs e) { var selectedRows = _v.GetSelectedGhepLotRows(); DataTable reportData = null; _c.RunWithLoadingSync(() => reportData = _c.InPhieuSvc.InGhepLot(selectedRows.Any() ? selectedRows : null, Environment.MachineName), "Đang tổng hợp dữ liệu ghép LOT..."); if (reportData != null) new ReportPrintTool(new GHEPLOT { DataSource = reportData }).ShowPreviewDialog(); }
+        private void OnInGhepLot(object sender, EventArgs e)
+        {
+            List<GhepLotItem> selectedRows = _v.GetSelectedGhepLotRows().ToList();
+            bool ymvn = _c.Cfg.Delivery.CoGear;
+
+            // YMVN: tem phải dùng mẫu GHEPLOT_YMVN và điền GEAR vào ô dưới nhãn "Gear" (mẫu đọc [Model]).
+            // Usp_gheplotPrint chỉ trả B20Item.model nên nếu không thay thì tem in Model thay vì Gear.
+            var gearByPayload = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (ymvn)
+            {
+                if (selectedRows.Count == 0)
+                {
+                    MessageBox.Show("Hãy chọn dòng ghép LOT cần in.", "In ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                foreach (GhepLotItem item in selectedRows)
+                {
+                    if (string.IsNullOrWhiteSpace(item.GearName))
+                    {
+                        MessageBox.Show("Dòng ghép LOT của mã " + item.MaHang + " không có Gear. Bấm \"Kiểm tra ghép LOT\" để tải lại rồi chọn dòng cần in.",
+                            "In ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    gearByPayload[(item.Lot ?? string.Empty).Trim()] = item.GearName.Trim();
+                }
+            }
+
+            DataTable reportData = null;
+            _c.RunWithLoadingSync(() => reportData = _c.InPhieuSvc.InGhepLot(selectedRows.Count > 0 ? selectedRows : null, Environment.MachineName), "Đang tổng hợp dữ liệu ghép LOT...");
+            if (reportData == null) return;
+
+            XtraReport report;
+            if (ymvn)
+            {
+                if (!reportData.Columns.Contains("Model") || !reportData.Columns.Contains("ItemLotCode"))
+                {
+                    MessageBox.Show("Dữ liệu in thiếu cột Model/ItemLotCode nên không điền được Gear.", "In ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                foreach (DataRow row in reportData.Rows)
+                {
+                    string payload = Convert.ToString(row["ItemLotCode"]).Trim();
+                    string gear;
+                    if (!gearByPayload.TryGetValue(payload, out gear))
+                    {
+                        MessageBox.Show("Không tìm thấy Gear cho tem LOT '" + payload + "'. Hãy bấm \"Kiểm tra ghép LOT\" rồi in lại.", "In ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+                    row["Model"] = gear;
+                }
+                report = new GHEPLOT_YMVN { DataSource = reportData };
+            }
+            else
+            {
+                report = new GHEPLOT { DataSource = reportData };
+            }
+            // Preview là dialog modal nên mở NGOÀI RunWithLoadingSync (xem chú thích ở OnInPhieu).
+            new ReportPrintTool(report).ShowPreviewDialog();
+        }
         private void OnInTachLot(object sender, EventArgs e) => _v.ShowTachLot();
         private void OnKiemTraGhepLot(object sender, EventArgs e) => _c.RunWithLoading(() => { DataTable dt = _c.PhieuSvc.LoadGhepLot(); _c.UiContext.Post(_ => _v.BindGhepLot(dt), null); }, "Đang kiểm tra ghép LOT...");
         private void OnKiemTraMaNG(object sender, EventArgs e) { string ma = _v.GetFocusedDonHangMaHang(); if (!string.IsNullOrWhiteSpace(ma)) _v.ShowKiemTraMaNG(ma); }
