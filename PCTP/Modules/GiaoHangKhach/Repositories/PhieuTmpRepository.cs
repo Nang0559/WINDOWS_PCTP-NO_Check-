@@ -286,6 +286,49 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         }
 
         // ============================================================
+        // LuuGhiChuVaoTmp
+        // ============================================================
+        public int LuuGhiChuVaoTmp(string tmpTable, DataTable donHang)
+        {
+            if (donHang == null || donHang.Rows.Count == 0) return 0;
+            if (!donHang.Columns.Contains("Note") || !donHang.Columns.Contains("STT")) return 0;
+            Db.ValidateTableName(tmpTable);
+
+            // Độ dài tối đa của TMP.Note (ký tự). Không có cột Note -> bỏ qua, không làm vỡ CNK.
+            DataTable meta = LoadData(
+                @"SELECT c.max_length, t.name AS type_name
+                  FROM sys.columns c
+                  JOIN sys.types t ON t.user_type_id = c.user_type_id
+                  WHERE c.object_id = OBJECT_ID(@t) AND c.name = 'Note'",
+                new SqlParameter("@t", SqlDbType.NVarChar, 256) { Value = "dbo." + tmpTable });
+            if (meta.Rows.Count == 0) return 0;
+
+            int bytes = Convert.ToInt32(meta.Rows[0]["max_length"]);
+            bool unicode = Convert.ToString(meta.Rows[0]["type_name"]).StartsWith("n", StringComparison.OrdinalIgnoreCase);
+            int maxChars = bytes < 0 ? int.MaxValue : (unicode ? bytes / 2 : bytes);
+
+            string sql = $@"UPDATE [{tmpTable}] SET Note = @note
+                            WHERE STT = @stt
+                              AND (STATUS <> 'OK' OR STATUS IS NULL)
+                              AND ISNULL(Note, '') <> @note";
+
+            int updated = 0;
+            foreach (DataRow row in donHang.Rows)
+            {
+                if (row.RowState == DataRowState.Deleted) continue;
+                if (!int.TryParse(Convert.ToString(row["STT"])?.Trim(), out int stt) || stt <= 0) continue;
+
+                string note = row["Note"] == DBNull.Value ? "" : (Convert.ToString(row["Note"]) ?? "").Trim();
+                if (note.Length > maxChars) note = note.Substring(0, maxChars);
+
+                updated += ExecuteNonQuery(sql,
+                    new SqlParameter("@stt", SqlDbType.Int) { Value = stt },
+                    new SqlParameter("@note", SqlDbType.NVarChar, -1) { Value = note });
+            }
+            return updated;
+        }
+
+        // ============================================================
         // LoadTuTmpTable
         // ============================================================
         public DataTable LoadTuTmpTable(string tmpTable)

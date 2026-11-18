@@ -14,6 +14,12 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
     public interface IPhieuTmpRepository
     {
         DataTable LoadTuTmpTable(string tmpTable);
+        /// <summary>
+        /// Ghi cột Note (Ghi Chú) người dùng gõ trên lưới xuống bảng TMP theo STT, chỉ với dòng chưa chốt
+        /// (STATUS &lt;&gt; 'OK'). Bắt buộc gọi TRƯỚC Usp_Qrcode_Update_Stock2405 vì proc chép Note từ TMP sang
+        /// LUUPHIEUGIAOHANG. Trả về số dòng TMP đã cập nhật; bảng TMP không có cột Note thì trả 0.
+        /// </summary>
+        int LuuGhiChuVaoTmp(string tmpTable, DataTable donHang);
         DataTable GetDonHangHienTai(string tenBan);
         /// <summary>Dòng đơn của phiên đang bắn (STATUS &lt;&gt; 'OK') kèm GEAR/SOLUONG — nguồn đối chiếu Gear/số lượng YMVN.</summary>
         DataTable LoadTmpOrderForGear(string tmpTable);

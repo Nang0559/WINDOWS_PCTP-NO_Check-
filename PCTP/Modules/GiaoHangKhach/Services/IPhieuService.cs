@@ -42,6 +42,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         string CanhBaoLuoiRongGiaoDB(DateTime ngayGiao, int addNm);
         int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu);
         void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu);
+        /// <summary>Lưu Ghi Chú trên lưới xuống bảng TMP đang dùng; gọi ngay trước CapNhapKho.</summary>
+        void LuuGhiChuTuLuoi(DataTable donHang);
         void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "");
         void CapNhapKhoYMVN(string ngayGiao, string gioXuat, string nhaMay, DataTable donHang);
         void HoanThanhYMVN(bool isLoaiSP = false);

@@ -90,6 +90,10 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public DataTable GetDataTable()
         {
+            // Ô đang gõ (vd: Ghi Chú) chưa commit vào DataTable cho tới khi rời ô/dòng.
+            // Chốt trước khi snapshot để không mất giá trị vừa nhập.
+            GridViewDONHANG.CloseEditor();
+            GridViewDONHANG.UpdateCurrentRow();
             return gridCtrDONHANG.DataSource as DataTable;
         }
 

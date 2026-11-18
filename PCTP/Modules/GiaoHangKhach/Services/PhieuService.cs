@@ -181,6 +181,14 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public string CanhBaoLuoiRongGiaoDB(DateTime ngayGiao, int addNm) => _giaoDbService.CanhBaoLuoiRong(ngayGiao, addNm);
         public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) => _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu);
         public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu) => _phieuRepo.CapNhapTTPHIEU(nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu);
+        public void LuuGhiChuTuLuoi(DataTable donHang)
+        {
+            // Cùng cách chọn bảng TMP với PhieuKhoService.CapNhapKho.
+            bool useGiaoDbTables = _isGiaoDb && _cfg.Delivery.CoConfigGiaoDB;
+            bool isSP = useGiaoDbTables ? false : _isLoaiSP;
+            string tmpTable = _cfg.Delivery.GetTmpTable(isSP, useGiaoDbTables);
+            _phieuRepo.LuuGhiChuVaoTmp(tmpTable, donHang);
+        }
         public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "") => _khoService.CapNhapKho(gioGiaoFcc, nhaMay, gioMa, _isLoaiSP, _isGiaoDb);
         public void CapNhapKhoYMVN(string ngayGiao, string gioXuat, string nhaMay, DataTable donHang) => _ymvnService.CapNhapKho(ngayGiao, gioXuat, nhaMay, donHang);
         public void HoanThanhYMVN(bool isLoaiSP = false) => _ymvnService.HoanThanh(isLoaiSP);
