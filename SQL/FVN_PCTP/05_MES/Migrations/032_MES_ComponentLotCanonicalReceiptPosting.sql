@@ -145,7 +145,7 @@ BEGIN TRY
 
    DECLARE @LineId bigint,@PartNo nvarchar(100),@Qty decimal(18,3),
     @ItemId5 char(5),@SupplierId5 char(5),@DocNo nvarchar(40),
-    @LotNo nvarchar(120),@Qr nvarchar(500),@MaterialLotId bigint;
+    @LotNo nvarchar(120),@Qr nvarchar(500),@MaterialLotId bigint,@ComponentLotId bigint;
    EXEC MES.usp_FVN_AllocateSupplierId5 @SupplierCode=@SupplierCode,@SupplierId5=@SupplierId5 OUTPUT;
    DECLARE c CURSOR LOCAL FAST_FORWARD FOR
     SELECT PurchaseOrderLineId,PartNo,OrderQty FROM MES.FVN_ComponentPurchaseOrderLine
