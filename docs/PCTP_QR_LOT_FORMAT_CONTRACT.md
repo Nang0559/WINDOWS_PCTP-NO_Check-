@@ -52,7 +52,7 @@ The operator-confirmed total-label example is exactly 28 characters:
 | 12 | 1 | `3` | Production shift |
 | 13 | 1 | `0` | Gear |
 | 14–16 | 3 | `077` | Production line |
-| 17–20 | 4 | `1700` | Department |
+| 17–20 | 4 | `1700` | Machine code |
 | 21–24 | 4 | `0751` | Daily label sequence |
 | 25–28 | 4 | `2000` | Quantity encoded in LOTNO |
 
@@ -63,6 +63,31 @@ Thus the canonical stock LOT identity is the first 20 characters:
 ```
 
 The final 8 characters (daily label sequence + embedded quantity) distinguish a printed label, not a different stock LOT. Never use the complete 28-character label token as a separate stock LOT identity when matching total and box labels.
+
+## 2.1 Separate LOT identity for purchased components
+
+Purchased-component LOTs are not forced into the 20-character production LOT
+layout. They preserve supplier identity and use this semantic composition:
+
+```text
+YYMMDD + SupplierCode + ItemId5 + DocNo
+```
+
+- `SupplierCode` replaces the legacy Bravo field name `Code0`. It is the
+  supplier identifier from the IFS supplier master, not a free-text alias.
+- `ItemId5` is a stable five-character MES identity mapped to the IFS
+  `(SiteCode, PartNo)`. Existing Bravo QR item codes are preserved as legacy
+  mappings; new identities are allocated once and reused.
+- `DocNo` is the receipt/request document number that provides the source
+  document trace.
+- Component LOT length is variable and is validated against the 120-character
+  storage limit. SupplierCode must already exist in the synchronized IFS
+  supplier master before a new component LOT is generated.
+
+This is a separate LOT family from production/finished goods. Never inject
+SupplierCode into production LOTs, and never drop it from purchased-component
+LOTs. SQL generation is centralized in `MES.usp_FVN_BuildComponentLotNo`;
+applications must not concatenate this format independently.
 
 ## 3. Customer Gear validation
 
