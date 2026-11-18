@@ -351,6 +351,7 @@ SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse
             finally
             {
                 SetBusy(false, _status.Text);
+                RefreshHistory();
             }
         }
 
