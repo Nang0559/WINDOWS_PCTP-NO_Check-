@@ -301,6 +301,45 @@ BEGIN TRY
   END CATCH
  END');
 
+
+ EXEC(N'
+ CREATE PROCEDURE MES.usp_FVN_ProductionPlan_List
+  @SiteCode nvarchar(30)=NULL,@FromDate date=NULL,@ToDate date=NULL
+ AS
+ BEGIN
+  SET NOCOUNT ON;
+  SELECT l.ProductionPlanLineId,p.ProductionPlanId,p.SiteCode,p.PlanNo,
+   ISNULL(l.ProductionDate,p.PlanDate) AS ProductionDate,l.ShiftCode,l.ProductionLineCode,
+   l.ProductPartNo,ip.Description AS ProductDescription,l.PlannedQty,l.UomCode,
+   l.PlannedStartUtc,l.PlannedEndUtc,p.Status
+  FROM MES.FVN_ProductionPlanLine l
+  JOIN MES.FVN_ProductionPlan p ON p.ProductionPlanId=l.ProductionPlanId
+  LEFT JOIN IFS.FVN_InventoryPart ip ON ip.SiteCode=l.SiteCode AND ip.PartNo=l.ProductPartNo
+  WHERE (@SiteCode IS NULL OR p.SiteCode=@SiteCode)
+   AND (@FromDate IS NULL OR ISNULL(l.ProductionDate,p.PlanDate)>=@FromDate)
+   AND (@ToDate IS NULL OR ISNULL(l.ProductionDate,p.PlanDate)<=@ToDate)
+   AND p.Status NOT IN(''CANCELLED'',''CLOSED'')
+  ORDER BY ISNULL(l.ProductionDate,p.PlanDate),p.SiteCode,l.ShiftCode,l.ProductionLineCode,p.PlanNo,l.[LineNo];
+ END');
+
+ EXEC(N'
+ CREATE PROCEDURE MES.usp_FVN_ComponentDemand_List
+  @ProductionPlanLineId bigint
+ AS
+ BEGIN
+  SET NOCOUNT ON;
+  SELECT h.ComponentDemandId,h.Status AS DemandStatus,l.ComponentDemandLineId,
+   l.ComponentPartNo,ip.Description AS ComponentDescription,l.RequiredQty,
+   l.PartAvailableQty,l.NetRequiredQty,l.IssuedQty,
+   CASE WHEN l.NetRequiredQty-l.IssuedQty>0 THEN l.NetRequiredQty-l.IssuedQty ELSE 0 END AS OutstandingQty,
+   l.UomCode,l.OperationNo
+  FROM MES.FVN_ComponentDemandHeader h
+  JOIN MES.FVN_ComponentDemandLine l ON l.ComponentDemandId=h.ComponentDemandId
+  LEFT JOIN IFS.FVN_InventoryPart ip ON ip.SiteCode=l.SiteCode AND ip.PartNo=l.ComponentPartNo
+  WHERE h.ProductionPlanLineId=@ProductionPlanLineId
+  ORDER BY l.ComponentPartNo;
+ END');
+
  INSERT MES.FVN_SchemaMigration(MigrationVersion,MigrationName)
  VALUES('033',N'Production shifts, IFS BOM component demand and PART to WIP issue');
  COMMIT;
