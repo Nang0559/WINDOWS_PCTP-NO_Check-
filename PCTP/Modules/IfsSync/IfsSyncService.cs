@@ -223,51 +223,101 @@ VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
 
         private static void BulkStage(SqlConnection connection, DataTable stage)
         {
-            // SqlBulkCopy asks SQL Server for destination-column collation metadata.
-            // Use an explicitly database-qualified destination so metadata lookup
-            // cannot resolve against a different current database/context.
-            string databaseName;
-            using (var check = new SqlCommand("SELECT DB_NAME();", connection))
-            {
-                databaseName = Convert.ToString(check.ExecuteScalar());
-            }
+            if (stage == null || stage.Rows.Count == 0)
+                return;
 
-            if (!string.Equals(databaseName, "FVN_PCTP", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException(
-                    "Từ chối stage IFS: database hiện tại là '" + (databaseName ?? "(NULL)") +
-                    "', yêu cầu FVN_PCTP.");
-
-            // Probe the actual destination table instead of OBJECT_ID, which can
-            // return NULL for a valid table when metadata visibility is restricted.
-            try
+            // Do not use SqlBulkCopy here. On some SQL Server/provider combinations
+            // its destination metadata lookup fails with "Failed to obtain column
+            // collation information", even when the target table is accessible.
+            // Parameterized INSERT avoids that metadata path entirely.
+            const int rowsPerCommand = 150; // 150 x 12 parameters = 1800 (< SQL Server 2100 limit)
+            const int parameterCount = 12;
+            string[] columns =
             {
-                using (var check = new SqlCommand(
-                    "SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];", connection))
+                "SyncBatchId", "EntityName", "SiteCode", "PartNo", "EngChgLevel",
+                "BomTypeDb", "AlternativeNo", "LineItemNo", "SourceRowKey",
+                "SourceObjVersion", "PayloadJson", "SourceHash"
+            };
+
+            for (int offset = 0; offset < stage.Rows.Count; offset += rowsPerCommand)
+            {
+                int take = Math.Min(rowsPerCommand, stage.Rows.Count - offset);
+                var sql = new StringBuilder();
+                sql.Append("INSERT INTO [IFS].[SyncStageRow] (");
+                sql.Append(string.Join(",", columns));
+                sql.Append(") VALUES ");
+
+                using (var command = new SqlCommand())
                 {
-                    check.ExecuteNonQuery();
-                }
-            }
-            catch (SqlException ex)
-            {
-                if (ex.Number == 208)
-                    throw new InvalidOperationException(
-                        "Không tìm thấy bảng [IFS].[SyncStageRow] trong FVN_PCTP. " +
-                        "Kiểm tra migration 012. SQL: " + ex.Message, ex);
-                if (ex.Number == 229)
-                    throw new InvalidOperationException(
-                        "Tài khoản SQL của ứng dụng thiếu quyền SELECT trên [IFS].[SyncStageRow]. " +
-                        "SQL: " + ex.Message, ex);
-                throw;
-            }
+                    command.Connection = connection;
+                    command.CommandTimeout = 1800;
 
-            using (var bulk = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, null))
-            {
-                bulk.DestinationTableName = "[IFS].[SyncStageRow]";
-                bulk.BatchSize = 2000;
-                bulk.BulkCopyTimeout = 1800;
-                foreach (DataColumn column in stage.Columns)
-                    bulk.ColumnMappings.Add(column.ColumnName, column.ColumnName);
-                bulk.WriteToServer(stage);
+                    for (int rowIndex = 0; rowIndex < take; rowIndex++)
+                    {
+                        if (rowIndex > 0) sql.Append(",");
+                        sql.Append("(");
+
+                        for (int columnIndex = 0; columnIndex < parameterCount; columnIndex++)
+                        {
+                            if (columnIndex > 0) sql.Append(",");
+                            string parameterName = "@p" + rowIndex + "_" + columnIndex;
+                            sql.Append(parameterName);
+
+                            DataRow row = stage.Rows[offset + rowIndex];
+                            object value = row[columns[columnIndex]];
+                            SqlParameter parameter;
+
+                            switch (columnIndex)
+                            {
+                                case 0:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.BigInt);
+                                    break;
+                                case 1:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.VarChar, 30);
+                                    break;
+                                case 2:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, 30);
+                                    break;
+                                case 3:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, 100);
+                                    break;
+                                case 4:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, 24);
+                                    break;
+                                case 5:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, 80);
+                                    break;
+                                case 6:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, 80);
+                                    break;
+                                case 7:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.Decimal);
+                                    parameter.Precision = 18;
+                                    parameter.Scale = 0;
+                                    break;
+                                case 8:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, 200);
+                                    break;
+                                case 9:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, 30);
+                                    break;
+                                case 10:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, -1);
+                                    break;
+                                default:
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.VarBinary, 32);
+                                    break;
+                            }
+
+                            parameter.Value = value ?? DBNull.Value;
+                        }
+
+                        sql.Append(")");
+                    }
+
+                    command.CommandText = sql.ToString();
+                    command.ExecuteNonQuery();
+                }
             }
         }
 
