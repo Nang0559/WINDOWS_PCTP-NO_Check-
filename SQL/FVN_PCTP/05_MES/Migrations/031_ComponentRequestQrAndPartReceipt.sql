@@ -279,7 +279,8 @@ BEGIN TRY
             DECLARE @RequestLineId bigint,@PartNo nvarchar(100),@RequestQty decimal(19,6),
                     @AlreadyReceived decimal(19,6),@Uom nvarchar(30),@ItemId5 char(5),
                     @RequestNo nvarchar(40),@RequestId bigint,@ReceiptId bigint,
-                    @LotNo nvarchar(120),@MaterialLotId bigint,@TxnId bigint;
+                    @LotNo nvarchar(120),@MaterialLotId bigint,@TxnId bigint,
+                    @LotRequestDate date,@IdempotencyKey nvarchar(180);
 
             SELECT @RequestLineId=l.ComponentRequestLineId,@PartNo=l.PartNo,
                    @RequestQty=l.RequestQty,@AlreadyReceived=l.ReceivedQty,@Uom=l.UomCode,
@@ -322,8 +323,10 @@ BEGIN TRY
                 SELECT @ReceiptId=ComponentReceiptId FROM MES.FVN_ComponentReceipt
                 WHERE SiteCode=@SiteCode AND ReceiptNo=@ReceiptNo;
 
+            SET @LotRequestDate=CONVERT(date,@ReceivedAtUtc);
+            SET @IdempotencyKey=N''COMPONENT_RECEIPT:''+@SiteCode+N'':''+@ReceiptNo+N'':''+CONVERT(nvarchar(12),@ReceiptLineNo);
             EXEC MES.usp_FVN_BuildComponentLotNo
-                @RequestDate=CONVERT(date,@ReceivedAtUtc),
+                @RequestDate=@LotRequestDate,
                 @SiteCode=@SiteCode,@PartNo=@PartNo,@SupplierCode=@SupplierCode,
                 @DocNo=@DocNo,@LotNo=@LotNo OUTPUT,@ItemId5=@ItemId5 OUTPUT;
 
@@ -340,7 +343,7 @@ BEGIN TRY
                 @SiteCode=@SiteCode,@PartNo=@PartNo,@MaterialLotId=@MaterialLotId,
                 @MovementType=''RECEIPT'',@Quantity=@ReceivedQty,@UomCode=@Uom,
                 @ReferenceType=''COMPONENT_RECEIPT'',
-                @IdempotencyKey=N''COMPONENT_RECEIPT:''+@SiteCode+N'':''+@ReceiptNo+N'':''+CONVERT(nvarchar(12),@ReceiptLineNo),
+                @IdempotencyKey=@IdempotencyKey,
                 @TransactionAtUtc=@ReceivedAtUtc,@ActorCode=@ReceivedBy,
                 @InventoryTransactionId=@TxnId OUTPUT,
                 @ToLocationNo=@TargetLocationNo,@ToStockState=''AVAILABLE'',
