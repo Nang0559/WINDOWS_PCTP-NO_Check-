@@ -71,20 +71,27 @@ namespace PCTP.Modules.IfsSync
             {
                 connection.Open();
                 long batchId = BeginBatch(connection);
+                string currentEntity = null;
 
                 try
                 {
                     if (phaseChanged != null) phaseChanged("Giai đoạn 1/2: Đang đọc Oracle IFS và ghi dữ liệu vào bảng staging...");
+                    currentEntity = "PART_CATALOG";
                     int partCatalog = StageEntity(connection, batchId, "PART_CATALOG",
                         "SELECT * FROM IFSAPP.PART_CATALOG ORDER BY PART_NO");
+                    currentEntity = "INVENTORY_PART";
                     int inventoryPart = StageEntity(connection, batchId, "INVENTORY_PART",
                         "SELECT * FROM IFSAPP.INVENTORY_PART ORDER BY CONTRACT, PART_NO");
+                    currentEntity = "BOM_HEADER";
                     int bomHeader = StageEntity(connection, batchId, "BOM_HEADER",
                         "SELECT * FROM IFSAPP.MANUF_STRUCTURE_HEAD ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB");
+                    currentEntity = "BOM_ALTERNATIVE";
                     int bomAlternative = StageEntity(connection, batchId, "BOM_ALTERNATIVE",
                         "SELECT * FROM IFSAPP.MANUF_STRUCT_ALTERNATE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO");
+                    currentEntity = "BOM_COMPONENT";
                     int bomComponent = StageEntity(connection, batchId, "BOM_COMPONENT",
                         "SELECT * FROM IFSAPP.MANUF_STRUCTURE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO, LINE_ITEM_NO");
+                    currentEntity = "WAREHOUSE";
                     int warehouse = StageEntity(connection, batchId, "WAREHOUSE",
                         "SELECT CONTRACT, WAREHOUSE_ID, DESCRIPTION, OBJKEY, OBJVERSION FROM IFSAPP.WAREHOUSE ORDER BY CONTRACT, WAREHOUSE_ID");
 
@@ -110,7 +117,7 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                             throw new InvalidOperationException("Không thể chuyển SyncBatch sang STAGED.");
                     }
 
-                    if (phaseChanged != null) phaseChanged("Giai đoạn 2/2: Đang Apply dữ liệu vào các bảng IFS / MES trong FVN_PCTP. Vui lòng chờ...");
+                    currentEntity = null; // Apply errors are batch-level unless SQL reports a specific entity.\n                    if (phaseChanged != null) phaseChanged("Giai đoạn 2/2: Đang Apply dữ liệu vào các bảng IFS / MES trong FVN_PCTP. Vui lòng chờ...");
 
                     using (var command = new SqlCommand("IFS.usp_ApplySyncBatch", connection))
                     {
@@ -148,10 +155,12 @@ WHERE SyncBatchId=@SyncBatchId AND Status<>'APPLIED';", connection))
                             command.ExecuteNonQuery();
                         }
                         using (var error = new SqlCommand(@"
-INSERT IFS.SyncError(SyncBatchId, ErrorCode, ErrorMessage, ErrorDetails, LoggedAtUtc)
-VALUES(@SyncBatchId, 'SYNC_FAILED', @ErrorMessage, @ErrorDetails, SYSUTCDATETIME());", connection))
+INSERT IFS.SyncError(SyncBatchId, EntityName, ErrorCode, ErrorMessage, ErrorDetails, LoggedAtUtc)
+VALUES(@SyncBatchId, @EntityName, 'SYNC_FAILED', @ErrorMessage, @ErrorDetails, SYSUTCDATETIME());", connection))
                         {
                             error.Parameters.AddWithValue("@SyncBatchId", batchId);
+                            error.Parameters.Add("@EntityName", SqlDbType.VarChar, 30).Value =
+                                string.IsNullOrWhiteSpace(currentEntity) ? (object)DBNull.Value : currentEntity;
                             error.Parameters.Add("@ErrorMessage", SqlDbType.NVarChar, 2000).Value =
                                 ex.Message.Length > 2000 ? ex.Message.Substring(0, 2000) : ex.Message;
                             error.Parameters.Add("@ErrorDetails", SqlDbType.NVarChar, -1).Value = ex.ToString();
