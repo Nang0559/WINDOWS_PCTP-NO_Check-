@@ -131,6 +131,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 "    'NG'                                 AS STATUS, " +
                 "    'NG'                                 AS STATUSDOC, " +
                 "    ''                                   AS TTPHIEU, " +
+                "    ''                                   AS Note, " +
                 "    o.NgayGiao                           AS NGAYGIAO, " +
                 "    o.Oder_no                            AS ORDER_NO " +
                 $"FROM [{tenBang}] o " +
@@ -619,9 +620,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         // ============================================================
 
         private void MergeLotTuBangRieng(
-            DataTable dt,
-            string ngayGiao,
-            string tenNhaMay)
+     DataTable dt,
+     string ngayGiao,
+     string tenNhaMay)
         {
             if (dt == null || dt.Rows.Count == 0)
                 return;
@@ -635,6 +636,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string safeNhaMay =
                 tenNhaMay.Replace("'", "''");
 
+            // Note chỉ có ở một số DB/khách hàng: chỉ SELECT khi cột tồn tại.
+            object coNote = _db.ExecuteScalar(
+                "SELECT CASE WHEN COL_LENGTH('dbo.LUUPHIEUGIAOHANG', 'Note') IS NOT NULL THEN 1 ELSE 0 END");
+            string noteSelect =
+                Convert.ToInt32(coNote) == 1
+                    ? "    ISNULL(Note,'') AS Note, "
+                    : "";
+
             string sql =
                 "SELECT " +
                 "    MAHANG, " +
@@ -642,6 +651,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 "    LOT, " +
                 "    STATUS, " +
                 "    STATUSDOC, " +
+                noteSelect +
                 "    ISNULL(PO_NO,'') AS PO_NO, " +
                 "    ISNULL(SOLUONG,0) AS SOLUONG, " +
                 "    ISNULL(GearYMVN,'') AS GEAR " +
@@ -655,8 +665,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (luuDt.Rows.Count == 0)
                 return;
 
-            // Định danh dòng đơn = PO + mã hàng + ngày + giờ:phút. Logic ghép nằm trong
-            // OrderLotMerger (có test) — không tự ghép chuỗi "mã hàng|giờ" ở đây nữa.
             OrderLotMerger.Merge(dt, luuDt);
         }
         public Dictionary<string, int> GetQcDongGoiBatch(
