@@ -137,8 +137,6 @@ BEGIN TRY
    IF @StepId IS NULL THROW 53520,''Operation does not belong to this production LOT.'',1;
    IF NOT EXISTS(SELECT 1 FROM MES.FVN_ProductionLabel WHERE ProductionLotId=@ProductionLotId AND RoutingStepId=@StepId AND Status<>''VOID'')
     THROW 53521,''No labels reserved. Prepare labels before printing.'',1;
-   IF EXISTS(SELECT 1 FROM MES.FVN_ProductionLabel WHERE ProductionLotId=@ProductionLotId AND RoutingStepId=@StepId AND Status=''APPLIED'')
-    THROW 53522,''Some labels are already applied; use reprint only for remaining printed labels.'',1;
    UPDATE MES.FVN_ProductionLabel SET Status=''PRINTED'',PrintedAtUtc=SYSUTCDATETIME(),PrintedBy=@ActorCode
    WHERE ProductionLotId=@ProductionLotId AND RoutingStepId=@StepId AND Status=''RESERVED'';
    INSERT MES.FVN_ProductionLabelEvent(ProductionLabelId,EventType,ActorCode)
