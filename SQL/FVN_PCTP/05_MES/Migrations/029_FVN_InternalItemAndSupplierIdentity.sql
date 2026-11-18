@@ -32,9 +32,11 @@ BEGIN TRY
         AS
         BEGIN
             DECLARE @Digits varchar(36)=''0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'';
-            DECLARE @N bigint=@Value;
+            DECLARE @N bigint;
             DECLARE @Result varchar(5)='''' ;
-            IF @N IS NULL OR @N<0 OR @N>=60466176 RETURN NULL;
+            /* Alphabetic namespace avoids collisions with migration 028 numeric ItemId5 values. */
+            IF @Value IS NULL OR @Value<0 OR @Value>=43670016 RETURN NULL;
+            SET @N=@Value+16796160;
             WHILE @N>0
             BEGIN
                 SET @Result=SUBSTRING(@Digits,CONVERT(int,(@N % 36)+1),1)+@Result;
