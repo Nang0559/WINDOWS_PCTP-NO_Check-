@@ -171,7 +171,7 @@ namespace PCTP.Modules.IfsSync
                         throw new InvalidOperationException("Chưa cấu hình IFS_ORACLE.");
 
                     if (string.IsNullOrWhiteSpace(TargetConnectionString) ||
-                        TargetConnectionString.IndexOf("IFS_ORACLE", StringComparison.OrdinalIgnoreCase) >= 0)
+                        TargetConnectionString.IndexOf("FVN_PCTP", StringComparison.OrdinalIgnoreCase) >= 0)
                         throw new InvalidOperationException("Chưa cấu hình FVN_PCTP.");
 
                     using (var oracle = new OracleConnection(OracleConnectionString))
