@@ -54,7 +54,7 @@ namespace PCTP.Modules.NhapKho.UI
             AddField(root, 1, "Số phiếu nhận", _receiptNo);
             AddField(root, 2, "QR tem linh kiện", _qr);
             AddField(root, 3, "Số lượng nhận", _quantity);
-            AddField(root, 4, "Slot đích (ID)", _slot);
+            AddField(root, 4, "Slot nhập kho PART", _slot);
             AddField(root, 5, "Người nhận", _receivedBy);
 
             _quantity.DecimalPlaces = 3;

@@ -27,6 +27,7 @@ JOIN dbo.FVN_Warehouse w ON w.SiteCode=r.SiteCode AND w.WarehouseId=r.WarehouseI
 JOIN dbo.FVN_SlotMesLocation sm ON sm.SiteCode=s.SiteCode AND sm.SlotId=s.SlotId
  AND sm.IsPrimary=1 AND sm.IsActive=1
 JOIN MES.FVN_IfsInventoryLocation loc ON loc.SiteCode=sm.SiteCode AND loc.LocationNo=sm.LocationNo AND loc.IsActive=1
+JOIN dbo.FVN_InventoryAreaSlot ar ON ar.SiteCode=s.SiteCode AND ar.SlotId=s.SlotId AND ar.AreaCode='PART' AND ar.IsActive=1
 WHERE s.SiteCode=@SiteCode AND s.IsActive=1
 ORDER BY w.Name,r.RackName,s.SlotNumber;", cn))
             {
