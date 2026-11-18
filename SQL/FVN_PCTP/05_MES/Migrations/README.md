@@ -306,3 +306,26 @@ execution before its LOT can be consumed by the parent. Automatic recursive
 subassembly order scheduling is not inferred because each child may require a
 different production line, shift, route and effective schedule. The genealogy
 report itself traverses all recorded levels recursively.
+
+## Migration 035 — per-product labels prepared at each process
+
+Run `035_MES_PerUnitProcessLabels.sql` after migration 034. Each physical
+product receives a unique MES `LabelCode`; the label references, but never
+replaces, the existing 20-character production LOT. Labels are reserved for
+the selected routing operation when production prepares that process. The
+target quantity is the cumulative number of labels required for that LOT and
+operation; increasing it creates only the additional labels.
+
+Use `MES.usp_FVN_ProductionLabel_Prepare` before printing,
+`MES.usp_FVN_ProductionLabel_Print` to authorize initial print/reprint,
+`MES.usp_FVN_ProductionLabel_Apply` after scanning the label at the process,
+and `MES.usp_FVN_ProductionLabel_Void` to cancel an unused label with a
+mandatory reason. Applied labels cannot be voided. Reprints return the same
+LabelCode and QR payload; they do not allocate another product identity.
+Label reservations and print/apply/void events are audited independently of
+actual production quantities and genealogy.
+
+The current WinForms print surface sends a readable label sheet containing
+LabelCode, production LOT, operation and QR payload text. A QR-capable label
+printer/template must encode the exact `QrPayload` value as a QR symbol;
+plain text printing is not a substitute for a scannable QR symbol.
