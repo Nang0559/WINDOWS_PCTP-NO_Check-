@@ -222,6 +222,62 @@ BEGIN TRY
   ORDER BY e.OccurredAtUtc,e.WorkflowEventId;
  END');
 
+ /* Keep legacy plan/order writers aligned with the workflow projection.
+    The trigger only translates established business status values; it never creates stock movements. */
+ EXEC(N'
+ CREATE TRIGGER MES.tr_FVN_ProductionPlan_WorkflowSync
+ ON MES.FVN_ProductionPlan
+ AFTER INSERT,UPDATE
+ AS
+ BEGIN
+  SET NOCOUNT ON;
+  ;WITH M AS(
+   SELECT i.ProductionPlanId,
+    CASE i.Status WHEN ''IMPORTED'' THEN 0 WHEN ''VALIDATED'' THEN 10 WHEN ''FIRM'' THEN 20
+     WHEN ''CANCELLED'' THEN 900 ELSE i.WorkflowStatusCode END TargetStatus,
+    d.WorkflowStatusCode PreviousStatus,i.WorkflowStatusCode CurrentStatus
+   FROM inserted i LEFT JOIN deleted d ON d.ProductionPlanId=i.ProductionPlanId
+  )
+  UPDATE p SET WorkflowStatusCode=m.TargetStatus
+  FROM MES.FVN_ProductionPlan p JOIN M m ON m.ProductionPlanId=p.ProductionPlanId
+  WHERE m.TargetStatus IS NOT NULL AND ISNULL(m.CurrentStatus,-1)<>m.TargetStatus;
+ END');
+
+ EXEC(N'
+ CREATE TRIGGER MES.tr_FVN_ProductionOrder_WorkflowSync
+ ON MES.FVN_ProductionOrder
+ AFTER INSERT,UPDATE
+ AS
+ BEGIN
+  SET NOCOUNT ON;
+  DECLARE @Changed TABLE(ProductionOrderId bigint,FromStatus int,ToStatus int,ActorCode nvarchar(100));
+  ;WITH M AS(
+   SELECT i.ProductionOrderId,
+    CASE i.Status WHEN ''CREATED'' THEN 0 WHEN ''RELEASED'' THEN 10 WHEN ''RUNNING'' THEN 20
+     WHEN ''PAUSED'' THEN 30 WHEN ''COMPLETED'' THEN 40 WHEN ''CLOSED'' THEN 50
+     WHEN ''CANCELLED'' THEN 900 ELSE i.WorkflowStatusCode END TargetStatus,
+    d.WorkflowStatusCode PreviousStatus,i.WorkflowStatusCode CurrentStatus,
+    COALESCE(i.ReleasedBy,i.CreatedBy) ActorCode
+   FROM inserted i LEFT JOIN deleted d ON d.ProductionOrderId=i.ProductionOrderId
+  )
+  UPDATE p SET WorkflowStatusCode=m.TargetStatus
+  OUTPUT inserted.ProductionOrderId,deleted.WorkflowStatusCode,inserted.WorkflowStatusCode,m.ActorCode
+   INTO @Changed(ProductionOrderId,FromStatus,ToStatus,ActorCode)
+  FROM MES.FVN_ProductionOrder p JOIN M m ON m.ProductionOrderId=p.ProductionOrderId
+  WHERE m.TargetStatus IS NOT NULL AND ISNULL(m.CurrentStatus,-1)<>m.TargetStatus;
+
+  INSERT MES.FVN_ProductionWorkflowEvent(EntityType,EntityId,ProcessCode,FromStatus,ToStatus,
+   ActionName,ActorCode)
+  SELECT ''ORDER'',c.ProductionOrderId,''MES_PRODUCTION_ORDER'',ISNULL(c.FromStatus,0),c.ToStatus,
+   CASE c.ToStatus WHEN 10 THEN ''RELEASE'' WHEN 20 THEN ''START'' WHEN 30 THEN ''PAUSE''
+    WHEN 40 THEN ''COMPLETE'' WHEN 50 THEN ''CLOSE'' WHEN 900 THEN ''CANCEL'' ELSE ''SYNC'' END,
+   COALESCE(NULLIF(c.ActorCode,N''''),ORIGINAL_LOGIN())
+  FROM @Changed c
+  WHERE c.FromStatus IS NOT NULL AND EXISTS(SELECT 1 FROM dbo.FVN_sys_WorkflowTransitions t
+   WHERE t.ProcessCode=''MES_PRODUCTION_ORDER'' AND t.FromStatus=c.FromStatus
+    AND t.ToStatus=c.ToStatus AND t.IsActive=1);
+ END');
+
  /* A newly created production LOT receives one independent state per configured routing step. */
  EXEC(N'
  CREATE TRIGGER MES.tr_FVN_ProductionLot_WorkflowInit
