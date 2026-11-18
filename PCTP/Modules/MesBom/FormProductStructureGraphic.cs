@@ -289,7 +289,7 @@ SELECT c.LineItemNo,c.ComponentPartNo,ISNULL(pc.Description,ip.Description) AS D
        c.ComponentScrap,c.ConsumptionItem,c.PhantomConsume,c.EffectiveInDate,c.EffectiveOutDate
 FROM IFS.BomComponent c
 LEFT JOIN IFS.PartCatalog pc ON pc.PartNo=c.ComponentPartNo
-LEFT JOIN IFS.InventoryPart ip ON ip.SiteCode=c.ComponentContract AND ip.PartNo=c.ComponentPartNo
+LEFT JOIN IFS.InventoryPart ip ON ip.SiteCode=c.SiteCode AND ip.PartNo=c.ComponentPartNo
 WHERE c.SiteCode=@SiteCode AND c.PartNo=@PartNo AND c.EngChgLevel=@Revision
  AND c.BomTypeDb=@BomType AND c.AlternativeNo=@Alternative
  AND c.EffectiveInDate<=@AsOf AND (c.EffectiveOutDate IS NULL OR c.EffectiveOutDate>=@AsOf)
