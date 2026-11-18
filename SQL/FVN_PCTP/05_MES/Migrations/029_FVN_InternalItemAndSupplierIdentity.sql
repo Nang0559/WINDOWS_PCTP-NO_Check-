@@ -148,6 +148,16 @@ BEGIN TRY
                 UPDATE MES.FVN_ItemIdentity SET ItemId5=@Candidate WHERE ItemIdentityId=@IdentityId;
                 SET @ItemId5=@Candidate;
             END;
+
+            /* Maintain the pre-existing extension table for legacy PCTP readers. */
+            IF EXISTS(SELECT 1 FROM dbo.FVN_PartIdentity WHERE SiteCode=@SiteCode AND PartNo=@PartNo)
+                UPDATE dbo.FVN_PartIdentity SET ItemId5=@ItemId5
+                WHERE SiteCode=@SiteCode AND PartNo=@PartNo
+                  AND (ItemId5 IS NULL OR ItemId5=@ItemId5);
+            ELSE
+                INSERT dbo.FVN_PartIdentity(SiteCode,PartNo,ItemId5)
+                VALUES(@SiteCode,@PartNo,@ItemId5);
+
             COMMIT TRANSACTION;
         END TRY
         BEGIN CATCH
