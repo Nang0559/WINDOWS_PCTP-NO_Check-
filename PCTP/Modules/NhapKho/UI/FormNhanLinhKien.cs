@@ -1,3 +1,4 @@
+using PCTP.Infrastructure.Security;
 using PCTP.Modules.NhapKho.ComponentReceiving;
 using System;
 using System.Drawing;
@@ -27,6 +28,7 @@ namespace PCTP.Modules.NhapKho.UI
 
         public FormNhanLinhKien(IComponentReceivingService service, IComponentSlotLookupService slotLookup = null)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.RECEIPT", "VIEW");
             _service = service ?? throw new ArgumentNullException(nameof(service));
             _slotLookup = slotLookup ?? new ComponentSlotLookupService(new ComponentSlotLookupRepository());
             Text = "Nhận linh kiện về kho";
