@@ -281,7 +281,7 @@ BEGIN TRY
   SELECT ''ORDER'',c.ProductionOrderId,''MES_PRODUCTION_ORDER'',ISNULL(c.FromStatus,0),c.ToStatus,
    CASE c.ToStatus WHEN 10 THEN ''RELEASE'' WHEN 20 THEN ''START'' WHEN 30 THEN ''PAUSE''
     WHEN 40 THEN ''COMPLETE'' WHEN 50 THEN ''CLOSE'' WHEN 900 THEN ''CANCEL'' ELSE ''SYNC'' END,
-   COALESCE(NULLIF(po.ReleasedBy,N''''),po.CreatedBy,ORIGINAL_LOGIN())
+   COALESCE(NULLIF(po.ReleasedBy,N''''),ORIGINAL_LOGIN())
   FROM @Changed c JOIN MES.FVN_ProductionOrder po ON po.ProductionOrderId=c.ProductionOrderId
   WHERE c.FromStatus IS NOT NULL AND EXISTS(SELECT 1 FROM dbo.FVN_sys_WorkflowTransitions t
    WHERE t.ProcessCode=''MES_PRODUCTION_ORDER'' AND t.FromStatus=c.FromStatus
