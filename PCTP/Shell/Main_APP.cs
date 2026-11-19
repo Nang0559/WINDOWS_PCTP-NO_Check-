@@ -306,11 +306,8 @@ namespace PCTP
                 Style = ElementStyle.Group,
                 Expanded = true
             };
-            AddMesMenuItem(mesGroup, "menuMesComponentReceipt", "Nhận linh kiện / Quét QR",
-                "WAREHOUSE.COMPONENT_RECEIPT", () => new FormKiemKeHangVeList());
-            AddMesMenuItem(mesGroup, "menuMesComponentDemand", "Nhu cầu & cấp linh kiện PART → WIP",
-                "MES.COMPONENT_DEMAND", () => new FormYeuCauVaXuatLinhKien(),
-                "MES.COMPONENT_ISSUE");
+            AddMesMenuItem(mesGroup, "menuMesPartWarehouse", "Kho linh kiện PART (PO / QR / Tồn / Cấp WIP)",
+                "WAREHOUSE.COMPONENT_STOCK", () => new FormKhoLinhKien());
             AddMesMenuItem(mesGroup, "menuMesPlanUpload", "Upload kế hoạch sản xuất",
                 "MES.PLAN_UPLOAD", () => new FormUploadKeHoachSanXuat());
             AddMesMenuItem(mesGroup, "menuMesProductionExecution", "Điều hành lệnh / LOT / công đoạn",
