@@ -129,13 +129,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _workingState.SaveFromSource(context, ifs, "Usp_Qrcode_LOAD_PHIEU_DOCQR2405");
         }
 
-        public bool KiemTraMaTrongPhieu(string maHang) => _phieuRepo.KiemTraMaTrongPhieu(maHang, GetTenBan());
+        public bool KiemTraMaTrongPhieu(string maHang) { DemandShippingSite("VIEW"); return _phieuRepo.KiemTraMaTrongPhieu(maHang, GetTenBan()); }
         public bool CheckCoLotChuaCNK(DataTable donHang) { foreach (DataRow row in donHang.Rows) { string lot = row["LOT"]?.ToString().Trim() ?? ""; string status = row["STATUS"]?.ToString().Trim() ?? ""; if (lot != "" && status != "OK") return true; } return false; }
         public bool CheckCanCapNhapKho(DataTable donHang) { foreach (DataRow row in donHang.Rows) if (row["LOT"]?.ToString().Trim() != "") return true; return false; }
-        public bool CheckCoMaNG() => _phieuRepo.CheckCoMaNG(GetTenBan());
-        public DataTable TinhLechIFS(DataTable donHangBangRieng, string ngayXuatIFS) { if (!_cfg.Delivery.LoadTuBangRieng || _ifsDataCache == null) return new DataTable(); return _phieuRepo.SoSanhLechIFS(donHangBangRieng, _ifsDataCache); }
-        public TrangThaiBan GetTrangThaiDangBan() => _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.MP });
-        public TrangThaiBan GetTrangThaiDangBanSP() { if (!_cfg.Delivery.CoConfigSP) return new TrangThaiBan { DangBan = false }; return _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.SP }); }
+        public bool CheckCoMaNG() { DemandShippingSite("VIEW"); return _phieuRepo.CheckCoMaNG(GetTenBan()); }
+        public DataTable TinhLechIFS(DataTable donHangBangRieng, string ngayXuatIFS) { DemandShippingSite("VIEW"); if (!_cfg.Delivery.LoadTuBangRieng || _ifsDataCache == null) return new DataTable(); return _phieuRepo.SoSanhLechIFS(donHangBangRieng, _ifsDataCache); }
+        public TrangThaiBan GetTrangThaiDangBan() { DemandShippingSite("VIEW"); return _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.MP }); }
+        public TrangThaiBan GetTrangThaiDangBanSP() { DemandShippingSite("VIEW"); if (!_cfg.Delivery.CoConfigSP) return new TrangThaiBan { DangBan = false }; return _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.SP }); }
         public bool XoaDocQRCode(bool isSP = false) { DemandShippingSite("DELETE"); _phieuRepo.XoaDocQRCode(GetDocQrTableActive(isSP)); return true; }
         public DataTable GetDonHangHienTai(string tenbang) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW"); return _phieuRepo.GetDonHangHienTai(tenbang); }
         public DataTable GetDonHangYmvnTuTmp() { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW"); return _phieuRepo.LoadTmpOrderForGear(GetTenBan()); }
