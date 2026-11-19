@@ -59,6 +59,31 @@ namespace PCTP.Modules.MesPlanning
             }
         }
 
+        public DataTable GetRoutingSteps(long productionLotId)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"
+SELECT rs.RoutingStepId,rs.OperationNo,rs.OperationName,rs.SequenceNo,rs.TransferMode,
+       rs.IsFinalOutput,ISNULL(w.StatusCode,0) AS WorkflowStatusCode,
+       CASE ISNULL(w.StatusCode,0) WHEN 0 THEN N'Chưa chuẩn bị'
+            WHEN 10 THEN N'Đang chuẩn bị' WHEN 20 THEN N'Sẵn sàng'
+            WHEN 30 THEN N'Đang chạy' WHEN 40 THEN N'Tạm dừng'
+            WHEN 50 THEN N'Hoàn thành' WHEN 900 THEN N'Đã hủy' ELSE N'Không rõ' END AS WorkflowStatus
+FROM MES.FVN_ProductionLot pl
+JOIN MES.FVN_ProductionOrder po ON po.ProductionOrderId=pl.ProductionOrderId
+JOIN MES.FVN_ProductionRoutingStep rs ON rs.RoutingId=po.RoutingId AND rs.IsActive=1
+LEFT JOIN MES.FVN_ProductionOperationWorkflow w
+ ON w.ProductionLotId=pl.ProductionLotId AND w.RoutingStepId=rs.RoutingStepId
+WHERE pl.ProductionLotId=@ProductionLotId
+ORDER BY rs.SequenceNo;", cn))
+            {
+                cmd.Parameters.Add("@ProductionLotId", SqlDbType.BigInt).Value = productionLotId;
+                var table = new DataTable();
+                using (var adapter = new SqlDataAdapter(cmd)) adapter.Fill(table);
+                return table;
+            }
+        }
+
         public DataTable GetOrderMaterials(long orderId)
         {
             return Execute("MES.usp_FVN_ProductionOrder_MaterialList", cmd =>
