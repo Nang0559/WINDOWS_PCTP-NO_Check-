@@ -149,6 +149,44 @@ ORDER BY rs.SequenceNo;", cn))
             });
         }
 
+        public long ResolveMaterialLotIdByQr(long productionLotId, string lotNo)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"
+SELECT TOP(1) ml.MaterialLotId
+FROM MES.FVN_MaterialLot ml
+JOIN MES.FVN_ProductionLot pl ON pl.SiteCode=ml.SiteCode
+WHERE pl.ProductionLotId=@ProductionLotId AND ml.LotNo=@LotNo
+  AND ml.LotStatus IN('AVAILABLE','RECEIVED');", cn))
+            {
+                cmd.Parameters.Add("@ProductionLotId", SqlDbType.BigInt).Value = productionLotId;
+                cmd.Parameters.Add("@LotNo", SqlDbType.NVarChar, 120).Value = lotNo;
+                cn.Open();
+                var value = cmd.ExecuteScalar();
+                if (value == null || value == DBNull.Value)
+                    throw new InvalidOperationException("Không tìm thấy LOT linh kiện trong cùng Site với LOT sản xuất.");
+                return Convert.ToInt64(value);
+            }
+        }
+
+        public DataTable ConsumeMaterialByQr(long orderMaterialId, long productionLotId, string qrRawValue,
+            int fromSlotId, decimal quantity, string actor, string idempotencyKey)
+        {
+            string lotNo = qrRawValue.Substring(5).Trim();
+            long materialLotId = ResolveMaterialLotIdByQr(productionLotId, lotNo);
+            return Execute("MES.usp_FVN_ProductionMaterial_Consume", cmd =>
+            {
+                cmd.Parameters.Add("@ProductionOrderMaterialId", SqlDbType.BigInt).Value = orderMaterialId;
+                cmd.Parameters.Add("@ProductionLotId", SqlDbType.BigInt).Value = productionLotId;
+                cmd.Parameters.Add("@MaterialLotId", SqlDbType.BigInt).Value = materialLotId;
+                cmd.Parameters.Add("@FromSlotId", SqlDbType.Int).Value = fromSlotId;
+                AddDecimal(cmd, "@Quantity", quantity);
+                cmd.Parameters.Add("@OperatorCode", SqlDbType.NVarChar, 100).Value = actor;
+                cmd.Parameters.Add("@IdempotencyKey", SqlDbType.NVarChar, 180).Value = idempotencyKey;
+                cmd.Parameters.Add("@QrRawValue", SqlDbType.NVarChar, 1000).Value = qrRawValue;
+            });
+        }
+
         public DataTable ConsumeMaterial(long orderMaterialId, long productionLotId, long materialLotId,
             int fromSlotId, decimal quantity, string actor, string idempotencyKey)
         {
