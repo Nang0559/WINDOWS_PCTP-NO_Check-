@@ -6,7 +6,7 @@ using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
-    public sealed class FormTruyXuatLinhKien : Form
+    public sealed class FormTruyXuatLinhKien : DevExpress.XtraEditors.XtraForm
     {
         private readonly IProductionTraceService _service;
         private readonly TextBox _lotNo = new TextBox();
