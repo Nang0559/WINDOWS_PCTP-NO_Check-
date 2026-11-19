@@ -339,6 +339,8 @@ namespace PCTP.Modules.MesPlanning.UI
                     session.HasDataScope("MES.PLAN_UPLOAD", "SITE", site, site))
                     row["MyTask"] = "FIRM kế hoạch";
                 else if (stage == "COMPONENTS" &&
+                    !string.IsNullOrWhiteSpace(Convert.ToString(row["DemandStatus"])) &&
+                    SafeDecimal(row["OutstandingComponentQty"]) > 0m &&
                     session.HasPermission("MES.COMPONENT_DEMAND", "VIEW") &&
                     session.HasPermission("MES.COMPONENT_ISSUE", "VIEW") &&
                     session.HasPermission("MES.COMPONENT_ISSUE", "CONFIRM") &&
