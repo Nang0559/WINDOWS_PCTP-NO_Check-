@@ -56,6 +56,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
         private readonly Func<IReworkPhase4Service> _phase4Provider;
 
+        public string SiteCode => _stockMovement.SiteCode;
+
         public ReworkStockService(
             IUnitOfWork uow,
             ISlotService slotService,
