@@ -392,3 +392,25 @@ both the successful FIRM transition and rollback behavior with a plan whose
 IFS BOM is missing or ambiguous. Migration 038 has not been executed by the
 application developer; database deployment and validation remain an operator
 step.
+
+
+## Migration 039 — trusted Document Runtime metadata
+
+Run `039_MES_DocumentMetadataRegistry.sql` after migration 038. It creates
+presentation metadata tables for document definitions, layouts, fields,
+toolbar commands and configuration audit. These tables are not an executable
+workflow or SQL-command registry.
+
+The trusted C# `PCTP.Framework.Documents.DocumentRegistry` remains the
+allow-list for module codes, schema-qualified read views, workflow codes,
+command codes, permission codes and stored-procedure bindings. SQL metadata
+may configure captions, field order, editor types, visibility and layout only.
+The runtime must reject a SQL definition that does not exactly match the
+registered module/view/workflow/command contract. Never execute SQL text,
+procedure names or expressions supplied by metadata or by the client.
+
+Migration 039 intentionally does not seed a document definition until the
+actual production read views and command procedures have been verified against
+the existing MES schema. It does not grant broad DML permissions; deployment
+must assign only the least-privilege administration and runtime permissions
+after reviewing the existing SEC/database-role model.
