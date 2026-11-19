@@ -105,7 +105,7 @@ BEGIN TRY
    CASE
     WHEN pf.PlanWorkflowStatusCode<20 AND pf.PlanStatus<>N''FIRM'' THEN N''PLAN''
     WHEN dem.ComponentDemandId IS NULL OR dem.OutstandingQty>0 THEN N''COMPONENTS''
-    WHEN ord.ProductionOrderId IS NULL THEN N''ORDER''
+    WHEN ord.ProductionOrderId IS NULL OR ISNULL(lot.ProductionLotCount,0)=0 THEN N''ORDER''
     WHEN op.OperationCount>op.CompletedOperationCount THEN N''PRODUCTION''
     WHEN ord.OrderStatus IN(N''COMPLETED'',N''CLOSED'') OR ord.OrderWorkflowStatusCode IN(40,50) THEN N''DONE''
     ELSE N''PRODUCTION'' END FlowStage,
@@ -114,12 +114,13 @@ BEGIN TRY
     WHEN dem.ComponentDemandId IS NULL THEN N''Chưa có yêu cầu linh kiện''
     WHEN dem.OutstandingQty>0 THEN N''Còn thiếu linh kiện: ''+CONVERT(nvarchar(40),dem.OutstandingQty)
     WHEN ord.ProductionOrderId IS NULL THEN N''Chưa tạo lệnh sản xuất''
+    WHEN ISNULL(lot.ProductionLotCount,0)=0 THEN N''Đã có lệnh, đang chờ tạo LOT sản xuất''
     WHEN op.OperationCount>op.CompletedOperationCount THEN N''Còn công đoạn chưa hoàn thành''
     ELSE N''Không có điểm chờ được suy ra'' END WaitingReason,
    CASE
     WHEN pf.PlanWorkflowStatusCode<20 AND pf.PlanStatus<>N''FIRM'' THEN N''PLANNING''
     WHEN dem.ComponentDemandId IS NULL OR dem.OutstandingQty>0 THEN N''PART''
-    WHEN ord.ProductionOrderId IS NULL THEN N''PRODUCTION''
+    WHEN ord.ProductionOrderId IS NULL OR ISNULL(lot.ProductionLotCount,0)=0 THEN N''PRODUCTION''
     WHEN op.OperationCount>op.CompletedOperationCount THEN N''PRODUCTION''
     ELSE NULL END WaitingAt
   FROM PlanFlow pf
