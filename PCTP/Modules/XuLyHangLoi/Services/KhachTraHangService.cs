@@ -425,7 +425,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         {
             AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            if (string.IsNullOrWhiteSpace(dinhDanhPhieuGiao));
+            if (string.IsNullOrWhiteSpace(dinhDanhPhieuGiao))
                 throw new ArgumentException(
                     "DinhDanhPhieuGiao không được rỗng.",
                     nameof(dinhDanhPhieuGiao));
