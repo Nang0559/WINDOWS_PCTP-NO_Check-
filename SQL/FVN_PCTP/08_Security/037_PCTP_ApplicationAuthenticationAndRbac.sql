@@ -405,7 +405,14 @@ BEGIN TRY
    IF NOT EXISTS(SELECT 1 FROM SEC.UserRole WHERE UserId=@UserId AND RoleId=@RoleId)
     INSERT SEC.UserRole(UserId,RoleId,AssignedByUserId) VALUES(@UserId,@RoleId,@ActorUserId);
   END
-  ELSE DELETE SEC.UserRole WHERE UserId=@UserId AND RoleId=@RoleId;
+  ELSE
+  BEGIN
+   IF EXISTS(SELECT 1 FROM SEC.Role WHERE RoleId=@RoleId AND RoleCode=''SYSTEM_ADMIN'')
+    AND (SELECT COUNT(*) FROM SEC.UserRole ur JOIN SEC.UserAccount u ON u.UserId=ur.UserId
+      WHERE ur.RoleId=@RoleId AND u.IsActive=1)<=1
+     THROW 53727,''Cannot remove the last active system administrator.'',1;
+   DELETE SEC.UserRole WHERE UserId=@UserId AND RoleId=@RoleId;
+  END;
   INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId,AfterJson)
    VALUES(@ActorUserId,''USER_ROLE_CHANGED'',''USER'',CONVERT(nvarchar(100),@UserId),
     N''{"roleId":''+CONVERT(nvarchar(20),@RoleId)+N'',"assigned":''+CASE WHEN @IsAssigned=1 THEN N''true'' ELSE N''false'' END+N''}'');
@@ -417,6 +424,12 @@ BEGIN TRY
  AS
  BEGIN
   SET NOCOUNT ON; SET XACT_ABORT ON;
+  IF @IsActive=0 AND EXISTS(SELECT 1 FROM SEC.UserRole ur JOIN SEC.Role r ON r.RoleId=ur.RoleId
+    WHERE ur.UserId=@UserId AND r.RoleCode=''SYSTEM_ADMIN'')
+   AND (SELECT COUNT(*) FROM SEC.UserRole ur JOIN SEC.Role r ON r.RoleId=ur.RoleId
+    JOIN SEC.UserAccount u ON u.UserId=ur.UserId
+    WHERE r.RoleCode=''SYSTEM_ADMIN'' AND r.IsActive=1 AND u.IsActive=1)<=1
+   THROW 53728,''Cannot deactivate the last active system administrator.'',1;
   UPDATE SEC.UserAccount SET IsActive=@IsActive,UpdatedAtUtc=SYSUTCDATETIME(),UpdatedByUserId=@ActorUserId
   WHERE UserId=@UserId;
   IF @@ROWCOUNT=0 THROW 53721,''User not found.'',1;
@@ -472,6 +485,11 @@ BEGIN TRY
   IF @ScopeType NOT IN(''ALL'',''SITE'',''DEPARTMENT'',''WAREHOUSE'',''LINE'',''PROCESS'',''OWN'')
    THROW 53725,''Invalid scope type.'',1;
   IF @ScopeType=''ALL'' AND @ScopeValue<>N''*'' THROW 53726,''ALL scope must use *.'',1;
+  IF @ScopeType=''SITE'' AND NOT EXISTS(SELECT 1 FROM dbo.FVN_PCTPSite
+    WHERE SiteCode=@ScopeValue AND IsActive=1)
+   THROW 53729,''Site scope must reference an active PCTP site.'',1;
+  IF NULLIF(LTRIM(RTRIM(@ScopeValue)),N'''') IS NULL
+   THROW 53730,''Scope value is required.'',1;
   IF EXISTS(SELECT 1 FROM SEC.RoleDataScope WHERE RoleId=@RoleId
    AND ISNULL(FunctionCode,'''')=ISNULL(@FunctionCode,'''') AND ScopeType=@ScopeType
    AND ScopeValue=@ScopeValue AND ISNULL(SiteCode,'''')=ISNULL(@SiteCode,''''))
