@@ -18,7 +18,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
     public class FormQCXacNhanCuoi : XtraForm
     {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+    
         private readonly IQTChungService _qtChungService;
         private readonly int _phieuXuLyId;
         private readonly IReworkStockService _reworkStockService; // null → chỉ dùng SL lỗi của phiếu
@@ -65,6 +65,7 @@ namespace PCTP.Modules.XuLyHangLoi
             ISlotService slotService,
             IReworkStockService reworkStockService = null)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
             _reworkStockService = reworkStockService;
 
             _qtChungService = qtChungService
