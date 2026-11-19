@@ -86,6 +86,11 @@ namespace PCTP.Infrastructure.Stock
             return lot == null ? (int?)null : lot.SlotVatLyId;
         }
 
+        public string GetWarehouseNameBySlotId(int slotId)
+        {
+            return _legacy.GetWarehouseNameBySlotId(slotId);
+        }
+
         public void LockSlotForUpdate(int slotId)
         {
             if (slotId <= 0)
