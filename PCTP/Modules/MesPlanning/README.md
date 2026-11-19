@@ -111,7 +111,7 @@ This avoids a second UI-only completion path. DIRECT/VIA_WIP transfer behavior s
 
 Label preparation, print authorization, QR apply and void use the existing `IProductionExecutionService` methods. Actual component consumption selects the order material line, production LOT, source slot and quantity, then scans the supplier/component QR in `FVN1|LOT` format. The service resolves that LOT only within the production LOT's Site; the repository calls the existing consumption procedure and preserves the raw QR for audit. SQL validates the component PartNo, available balance and slot before posting the transaction and genealogy link. BOM demand is not treated as actual consumption.
 
-Order transitions use the shared workflow service: RELEASE is performed by the existing order creation routine; START, PAUSE, RESUME, COMPLETE and CLOSE are workflow transitions. SQL guards prevent completion while routing execution is incomplete and prevent close while labels remain unused.
+Order creation starts in CREATED. RELEASE (0 → 10) is an explicit APPROVE transition, followed by START (10 → 20), PAUSE, RESUME, COMPLETE and CLOSE through the shared workflow service. SQL guards prevent completion while routing execution is incomplete and prevent close while labels remain unused.
 
 ## 6. Genealogy and timeline
 
