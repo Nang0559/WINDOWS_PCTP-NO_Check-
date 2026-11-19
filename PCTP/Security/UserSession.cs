@@ -28,6 +28,7 @@ namespace PCTP.Security
         public string UserName { get; private set; }
         public string DisplayName { get; private set; }
         public string EmployeeCode { get; private set; }
+        public string ActorCode => string.IsNullOrWhiteSpace(EmployeeCode) ? UserName : EmployeeCode;
         public bool MustChangePassword { get; private set; }
         public IReadOnlyList<UserPermission> Permissions { get; private set; }
         public IReadOnlyList<UserDataScope> DataScopes { get; private set; }
