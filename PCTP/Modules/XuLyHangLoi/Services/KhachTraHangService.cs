@@ -68,6 +68,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             AuthorizationGuard.Demand("QUALITY.RETURN", "CREATE");
             if (phieu == null)
                 throw new ArgumentNullException(nameof(phieu));
+            phieu.CreatedBy = AuthorizationGuard.ActorCode;
+            phieu.UpdatedBy = AuthorizationGuard.ActorCode;
 
             if (phieu.Nguon != NguonXuLyBatThuong.KhachTra)
                 throw new InvalidOperationException(
@@ -422,7 +424,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string nguoiThucHien)
         {
             AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
-            if (string.IsNullOrWhiteSpace(dinhDanhPhieuGiao))
+            nguoiThucHien = AuthorizationGuard.ActorCode;
+            if (string.IsNullOrWhiteSpace(dinhDanhPhieuGiao));
                 throw new ArgumentException(
                     "DinhDanhPhieuGiao không được rỗng.",
                     nameof(dinhDanhPhieuGiao));
