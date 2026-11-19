@@ -3,6 +3,7 @@ using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Models;
 using PCTP.Infrastructure.Security;
+using PCTP.Modules.GiaoHangKhach;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +25,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         public List<Rack> GetByWarehouse(int warehouseId)
         {
             string warehouse = _repository.GetWarehouseNameById(warehouseId);
-            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_VIEW", "VIEW", "WAREHOUSE", warehouse, null);
+            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_VIEW", "VIEW", "WAREHOUSE", warehouse, AppSettingsSiteContext.Default.SiteCode);
             if (warehouseId <= 0)
                 throw new ArgumentException(
                     "WarehouseId không hợp lệ.",
@@ -44,7 +45,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             var rack = _repository.GetById(rackId);
             if (rack != null)
                 AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_VIEW", "VIEW", "WAREHOUSE",
-                    _repository.GetWarehouseNameById(rack.WarehouseId), null);
+                    _repository.GetWarehouseNameById(rack.WarehouseId), AppSettingsSiteContext.Default.SiteCode);
             return rack;
         }
 
@@ -55,7 +56,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             int columnCount)
         {
             AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_ADJUST", "ADMIN", "WAREHOUSE",
-                _repository.GetWarehouseNameById(warehouseId), null);
+                _repository.GetWarehouseNameById(warehouseId), AppSettingsSiteContext.Default.SiteCode);
             if (warehouseId <= 0)
                 throw new ArgumentException(
                     "WarehouseId không hợp lệ.");
@@ -89,7 +90,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             int columnCount)
         {
             AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_ADJUST", "ADMIN", "WAREHOUSE",
-                _repository.GetWarehouseNameByRackId(rackId), null);
+                _repository.GetWarehouseNameByRackId(rackId), AppSettingsSiteContext.Default.SiteCode);
             if (rackId <= 0)
                 throw new ArgumentException(
                     "RackId không hợp lệ.");
@@ -123,7 +124,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         {
             var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             return (_repository.GetRackRenderInfos() ?? new List<RackRenderInfo>())
-                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.WarehouseName, null)).ToList();
+                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.WarehouseName, AppSettingsSiteContext.Default.SiteCode)).ToList();
         }
     }
 }
