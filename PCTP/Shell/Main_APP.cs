@@ -166,7 +166,7 @@ namespace PCTP
         {
             _dashboardFactory = new MainAppDashboardFactory();
             _dashboardBar = _dashboardFactory.Create(OpenNhapKhoFromDashboard);
-            _worklistBar = _dashboardFactory.CreateWorklist(OpenNhapKhoFromDashboard, OpenHangChoGiao);
+            _worklistBar = _dashboardFactory.CreateWorklist(OpenNhapKhoFromDashboard, () => OpenHangChoGiao(this, EventArgs.Empty));
             _controlCenter = new WmsControlCenterBar(_wmsHelp);
             _controlCenter.RefreshRequested += ControlCenter_RefreshRequested;
 
