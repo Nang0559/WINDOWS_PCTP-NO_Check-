@@ -93,6 +93,90 @@ BEGIN TRY
     END');
 
     /*
+      The shared workflow transition validates that every line already has
+      demand before it updates the plan to FIRM. This wrapper creates missing
+      demands first, then invokes the shared transition in the same SQL
+      transaction. The shared workflow engine remains the authority for
+      transition permission/state/audit.
+    */
+    EXEC(N'
+    CREATE PROCEDURE MES.usp_FVN_ProductionPlan_Firm
+        @ProductionPlanId bigint,
+        @FromStatus int,
+        @ToStatus int,
+        @ActorCode nvarchar(100),
+        @Reason nvarchar(500) = NULL,
+        @CorrelationId uniqueidentifier = NULL
+    AS
+    BEGIN
+        SET NOCOUNT ON;
+        SET XACT_ABORT ON;
+
+        IF @ProductionPlanId <= 0 OR NULLIF(LTRIM(RTRIM(@ActorCode)), N'''') IS NULL
+            THROW 53820, ''Plan ID and actor are required.'', 1;
+        IF @ToStatus <> 20
+            THROW 53821, ''This procedure only supports the transition to FIRM.'', 1;
+
+        BEGIN TRY
+            BEGIN TRANSACTION;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM MES.FVN_ProductionPlan WITH (UPDLOCK, HOLDLOCK)
+                WHERE ProductionPlanId = @ProductionPlanId
+                  AND ISNULL(WorkflowStatusCode, 0) = @FromStatus
+            )
+                THROW 53822, ''Plan not found or current state has changed.'', 1;
+
+            IF NOT EXISTS (
+                SELECT 1 FROM MES.FVN_ProductionPlanLine
+                WHERE ProductionPlanId = @ProductionPlanId
+            )
+                THROW 53823, ''Cannot firm an empty production plan.'', 1;
+
+            DECLARE @LineId bigint;
+            DECLARE plan_lines CURSOR LOCAL FAST_FORWARD FOR
+                SELECT ProductionPlanLineId
+                FROM MES.FVN_ProductionPlanLine WITH (UPDLOCK, HOLDLOCK)
+                WHERE ProductionPlanId = @ProductionPlanId
+                ORDER BY [LineNo], ProductionPlanLineId;
+
+            OPEN plan_lines;
+            FETCH NEXT FROM plan_lines INTO @LineId;
+            WHILE @@FETCH_STATUS = 0
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM MES.FVN_ComponentDemandHeader WITH (UPDLOCK, HOLDLOCK)
+                    WHERE ProductionPlanLineId = @LineId
+                )
+                    EXEC MES.usp_FVN_GenerateComponentDemand
+                        @ProductionPlanLineId = @LineId,
+                        @CreatedBy = @ActorCode;
+
+                FETCH NEXT FROM plan_lines INTO @LineId;
+            END;
+            CLOSE plan_lines;
+            DEALLOCATE plan_lines;
+
+            EXEC MES.usp_FVN_ProductionWorkflow_Transition
+                @EntityType = ''PLAN'',
+                @EntityId = @ProductionPlanId,
+                @RelatedId = NULL,
+                @FromStatus = @FromStatus,
+                @ToStatus = @ToStatus,
+                @ActorCode = @ActorCode,
+                @Reason = @Reason,
+                @CorrelationId = @CorrelationId;
+
+            COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+            IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH;
+    END');
+
+    /*
       A plan entering FIRM creates one BOM demand per plan line.
       This trigger participates in the caller transaction; any BOM resolution
       error aborts the status transition instead of leaving a FIRM plan without
