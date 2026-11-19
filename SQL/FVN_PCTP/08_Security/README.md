@@ -24,6 +24,8 @@ must be added to the catalog and granted explicitly.
 - Reset passwords require a change at next login.
 - Login success/failure and account/role/permission changes are audited.
 - Passwords, hashes and salts must never be written to audit logs.
+- When an account is linked to an EmployeeCode, that code is used as the trusted
+  actor in guarded business services; otherwise the account username is used.
 
 ## Authorization model
 
