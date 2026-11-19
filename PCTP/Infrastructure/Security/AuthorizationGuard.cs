@@ -6,6 +6,16 @@ namespace PCTP.Infrastructure.Security
     /// <summary>Central fail-closed authorization guard for application services.</summary>
     public static class AuthorizationGuard
     {
+        public static string ActorCode
+        {
+            get
+            {
+                var session = UserSession.Current;
+                if (session == null) throw new UnauthorizedAccessException("Phiên đăng nhập không tồn tại.");
+                return session.ActorCode;
+            }
+        }
+
         public static UserSession Demand(string functionCode, string actionCode)
         {
             var session = UserSession.Current;
