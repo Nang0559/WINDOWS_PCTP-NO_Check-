@@ -251,7 +251,7 @@ BEGIN TRY
   IF NOT EXISTS(SELECT 1 FROM SEC.UserAccount WHERE UserId=@UserId AND IsActive=1)
    THROW 53710,''Account is inactive or unavailable.'',1;
   ;WITH RoleGrant AS(
-   SELECT p.FunctionCode,p.ActionCode,MAX(CONVERT(int,p.IsAllowed)) IsAllowed
+   SELECT p.FunctionCode,p.ActionCode,MIN(CONVERT(int,p.IsAllowed)) IsAllowed
    FROM SEC.UserRole ur JOIN SEC.Role r ON r.RoleId=ur.RoleId AND r.IsActive=1
    JOIN SEC.RoleFunctionPermission p ON p.RoleId=r.RoleId
    WHERE ur.UserId=@UserId GROUP BY p.FunctionCode,p.ActionCode
