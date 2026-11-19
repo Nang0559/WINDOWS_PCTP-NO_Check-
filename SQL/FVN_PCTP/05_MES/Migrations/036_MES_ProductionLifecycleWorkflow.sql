@@ -267,8 +267,7 @@ BEGIN TRY
     CASE i.Status WHEN ''CREATED'' THEN 0 WHEN ''RELEASED'' THEN 10 WHEN ''RUNNING'' THEN 20
      WHEN ''PAUSED'' THEN 30 WHEN ''COMPLETED'' THEN 40 WHEN ''CLOSED'' THEN 50
      WHEN ''CANCELLED'' THEN 900 ELSE i.WorkflowStatusCode END TargetStatus,
-    d.WorkflowStatusCode PreviousStatus,i.WorkflowStatusCode CurrentStatus,
-    i.ProductionOrderId
+    d.WorkflowStatusCode PreviousStatus,i.WorkflowStatusCode CurrentStatus
    FROM inserted i LEFT JOIN deleted d ON d.ProductionOrderId=i.ProductionOrderId
   )
   UPDATE p SET WorkflowStatusCode=m.TargetStatus
