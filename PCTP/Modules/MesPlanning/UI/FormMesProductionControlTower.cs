@@ -64,7 +64,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 }
                 LoadFlow();
             };
-            FormClosed += (s, e) => { _refreshTimer.Stop(); _worker.Dispose(); };
+            FormClosed += (s, e) => { _refreshTimer.Stop(); };
         }
 
         private void BuildUi()
@@ -156,6 +156,27 @@ namespace PCTP.Modules.MesPlanning.UI
             _view.OptionsSelection.EnableAppearanceFocusedCell = false;
             _view.FocusRectStyle = DrawFocusRectStyle.RowFocus;
             _view.RowCellStyle += View_RowCellStyle;
+            _view.CustomColumnDisplayText += (s, e) =>
+            {
+                if (e.Column.FieldName == "IsRelatedDepartment")
+                    e.DisplayText = Convert.ToBoolean(e.Value) ? "Liên quan · chỉ xem" : "Phạm vi của tôi";
+                else if (e.Column.FieldName == "FlowStage")
+                {
+                    string stage = Convert.ToString(e.Value);
+                    e.DisplayText = stage == "PLAN" ? "Kế hoạch" :
+                        stage == "COMPONENTS" ? "Cấp linh kiện" :
+                        stage == "ORDER" ? "Chờ lệnh SX" :
+                        stage == "PRODUCTION" ? "Đang sản xuất" :
+                        stage == "DONE" ? "Hoàn thành" : stage;
+                }
+                else if (e.Column.FieldName == "WaitingAt")
+                {
+                    string waiting = Convert.ToString(e.Value);
+                    e.DisplayText = waiting == "PLANNING" ? "Kế hoạch" :
+                        waiting == "PART" ? "Kho linh kiện" :
+                        waiting == "PRODUCTION" ? "Sản xuất" : waiting;
+                }
+            };
             _view.FocusedRowChanged += (s, e) => ShowSelectedDetails();
             _details.Dock = DockStyle.Fill;
             _details.Properties.ReadOnly = true;
@@ -284,23 +305,24 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void UpdateKpis()
         {
-            int total = _data.Rows.Count;
-            int components = 0, production = 0, done = 0, related = 0;
+            int[] values = new int[5];
             foreach (DataRow row in _data.Rows)
             {
-                string stage = Convert.ToString(row["FlowStage"]);
-                if (stage == "COMPONENTS") components++;
-                else if (stage == "PRODUCTION" || stage == "ORDER") production++;
-                else if (stage == "DONE") done++;
-                if (Convert.ToBoolean(row["IsRelatedDepartment"])) related++;
+                switch (Convert.ToString(row["FlowStage"]))
+                {
+                    case "PLAN": values[0]++; break;
+                    case "COMPONENTS": values[1]++; break;
+                    case "ORDER": values[2]++; break;
+                    case "PRODUCTION": values[3]++; break;
+                    case "DONE": values[4]++; break;
+                }
             }
-            int[] values = { total, components, production, done, related };
             for (int i = 0; i < values.Length; i++) _kpiValues[i].Text = values[i].ToString("N0");
         }
 
         private void SetKpiCaptions()
         {
-            string[] captions = { "KẾ HOẠCH TRONG PHẠM VI", "ĐANG CHỜ LINH KIỆN", "ĐANG / CHỜ SẢN XUẤT", "ĐÃ HOÀN THÀNH", "BỘ PHẬN LIÊN QUAN" };
+            string[] captions = { "01  KẾ HOẠCH", "02  CẤP LINH KIỆN", "03  LỆNH SẢN XUẤT", "04  SẢN XUẤT THỰC TẾ", "05  HOÀN THÀNH" };
             for (int i = 0; i < captions.Length; i++) _kpiCaptions[i].Text = captions[i];
         }
 
