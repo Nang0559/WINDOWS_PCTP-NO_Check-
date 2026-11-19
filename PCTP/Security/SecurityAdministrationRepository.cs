@@ -165,5 +165,60 @@ namespace PCTP.Security
                 p.Add("@ActorUserId", SqlDbType.BigInt).Value = actorId;
             });
         }
+
+        public DataTable ListUserOverrides(long userId)
+        {
+            Demand("ADMIN.USER_MANAGEMENT", "VIEW");
+            return Query("SEC.usp_Admin_ListUserFunctionOverrides",
+                p => p.Add("@UserId", SqlDbType.BigInt).Value = userId);
+        }
+
+        public DataTable ListUserScopes(long userId)
+        {
+            Demand("ADMIN.USER_MANAGEMENT", "VIEW");
+            return Query("SEC.usp_Admin_ListUserDataScopes",
+                p => p.Add("@UserId", SqlDbType.BigInt).Value = userId);
+        }
+
+        public void SaveUserOverride(long userId, string functionCode, string actionCode, string effect, long actorId)
+        {
+            Demand("ADMIN.USER_MANAGEMENT", "ADMIN");
+            if (effect != null && effect != "ALLOW" && effect != "DENY")
+                throw new ArgumentException("Hiệu lực quyền phải là ALLOW, DENY hoặc để trống để kế thừa.", nameof(effect));
+            Execute("SEC.usp_Admin_SaveUserFunctionOverride", p =>
+            {
+                p.Add("@UserId", SqlDbType.BigInt).Value = userId;
+                p.Add("@FunctionCode", SqlDbType.VarChar, 100).Value = functionCode;
+                p.Add("@ActionCode", SqlDbType.VarChar, 20).Value = actionCode;
+                p.Add("@Effect", SqlDbType.VarChar, 5).Value = (object)effect ?? DBNull.Value;
+                p.Add("@ActorUserId", SqlDbType.BigInt).Value = actorId;
+            });
+        }
+
+        public void SaveUserScope(long userId, string functionCode, string scopeType, string scopeValue,
+            string siteCode, bool allowed, long actorId)
+        {
+            Demand("ADMIN.USER_MANAGEMENT", "ADMIN");
+            Execute("SEC.usp_Admin_SaveUserDataScope", p =>
+            {
+                p.Add("@UserId", SqlDbType.BigInt).Value = userId;
+                p.Add("@FunctionCode", SqlDbType.VarChar, 100).Value = (object)functionCode ?? DBNull.Value;
+                p.Add("@ScopeType", SqlDbType.VarChar, 20).Value = scopeType;
+                p.Add("@ScopeValue", SqlDbType.NVarChar, 100).Value = scopeValue;
+                p.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = (object)siteCode ?? DBNull.Value;
+                p.Add("@IsAllowed", SqlDbType.Bit).Value = allowed;
+                p.Add("@ActorUserId", SqlDbType.BigInt).Value = actorId;
+            });
+        }
+
+        public void DeleteUserScope(long scopeId, long actorId)
+        {
+            Demand("ADMIN.USER_MANAGEMENT", "ADMIN");
+            Execute("SEC.usp_Admin_DeleteUserDataScope", p =>
+            {
+                p.Add("@UserDataScopeId", SqlDbType.BigInt).Value = scopeId;
+                p.Add("@ActorUserId", SqlDbType.BigInt).Value = actorId;
+            });
+        }
     }
 }
