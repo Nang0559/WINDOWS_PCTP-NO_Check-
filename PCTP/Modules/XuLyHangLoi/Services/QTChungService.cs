@@ -309,6 +309,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat, Guid operationId)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
             nguoiXuat = AuthorizationGuard.ActorCode;
             ValidateNguoiThucHien(nguoiXuat);
             if (slotId <= 0) return ScanResult.Fail("SlotId không hợp lệ.");
@@ -731,6 +732,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
         /// </summary>
         public ScanResult DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien, Action beforeStatusUpdate)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
             nguoiThucHien = AuthorizationGuard.ActorCode;
             ValidateNguoiThucHien(nguoiThucHien);
             var phieu = GetRequired(phieuXuLyId);
