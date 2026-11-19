@@ -102,14 +102,26 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 if (lot == "" || status == "OK")
                     continue;
 
-                bool ok = _phieuRepo.CapNhapKhoYMVN(
-                    stt,
-                    lot,
-                    maHang,
-                    ngayGiao,
-                    giogiao,
-                    nhaMay,
-                    out DS_ERR_CNK err);
+                bool ok;
+                DS_ERR_CNK err;
+                try
+                {
+                    ok = _phieuRepo.CapNhapKhoYMVN(
+                        stt,
+                        lot,
+                        maHang,
+                        ngayGiao,
+                        giogiao,
+                        nhaMay,
+                        out err);
+                }
+                catch (Exception ex)
+                {
+                    // Repo đã rollback giao dịch của STT này. Ghi lỗi theo STT rồi xử lý tiếp các STT còn lại;
+                    // luôn publish KhoUpdatedEvent bên dưới để lưới tải lại đúng trạng thái TMP (STT đã OK từ trước/lần này).
+                    ok = false;
+                    err = new DS_ERR_CNK { MH = maHang, LOT = lot, SLC = 0, SLTK = 0, SLT = 0, Ms = "STT " + stt + ": " + ex.Message };
+                }
 
                 if (ok)
                     soLot++;

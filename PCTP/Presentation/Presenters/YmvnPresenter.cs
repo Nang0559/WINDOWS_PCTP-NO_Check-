@@ -1,3 +1,4 @@
+using System.Data;
 using PCTP.ClassSQL;
 using PCTP.Domain.Events;
 using PCTP.Modules.GiaoHangKhach.Services;
@@ -23,6 +24,59 @@ namespace PCTP.Presentation.Presenters
             _c.DocQrView.DocQRCodeClicked += OnDocQrStarted;
             _c.DocQrView.XoaToanBoQRClicked += OnDocQrCancelled;
             _c.Bus.Subscribe<HoanThanhYMVNCompletedEvent>(OnHoanThanhYMVNCompleted);
+            // Khóa checkbox giờ theo DỮ LIỆU (như HVN khóa theo phiên QR còn dữ liệu): còn dòng TMP chưa cập nhật kho
+            // hoặc YMVN_DOCQRCODE còn dữ liệu thì giữ khóa, kể cả sau khi mở lại form.
+            _c.Bus.Subscribe<PhieuLoadedEvent>(OnPhieuLoadedApplyLock);
+            _c.Bus.Subscribe<KhoUpdatedEvent>(OnKhoUpdatedApplyLock);
+        }
+
+        private void OnPhieuLoadedApplyLock(PhieuLoadedEvent e) { ApplyDataLock(); }
+        private void OnKhoUpdatedApplyLock(KhoUpdatedEvent e) { ApplyDataLock(); }
+
+        /// <summary>
+        /// Khóa checkbox giờ YMVN khi còn dữ liệu dở dang: YMVN_DOCQRCODE còn dòng, hoặc TMPPHIEUGIAOHANG_100002
+        /// còn dòng đã có LOT mà STATUS chưa 'OK'. Hết cả hai thì mở khóa (chỉ khi trước đó do chính logic này khóa).
+        /// </summary>
+        private void ApplyDataLock()
+        {
+            if (!_c.Cfg.Delivery.CoGear) return;
+            bool pending;
+            try
+            {
+                pending = _c.QrSvc.CoDocQRNao();
+                if (!pending)
+                {
+                    DataTable tmp = _c.PhieuSvc.GetDonHangHienTai(_c.Cfg.Delivery.TmpTable);
+                    if (tmp != null && tmp.Columns.Contains("LOT") && tmp.Columns.Contains("STATUS"))
+                    {
+                        foreach (DataRow r in tmp.Rows)
+                        {
+                            string lot = Convert.ToString(r["LOT"]).Trim();
+                            string st = Convert.ToString(r["STATUS"]).Trim();
+                            if (lot.Length > 0 && !string.Equals(st, "OK", StringComparison.OrdinalIgnoreCase)) { pending = true; break; }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[YMVN ApplyDataLock] " + ex.Message);
+                return;
+            }
+
+            _c.RunOnUi(() =>
+            {
+                if (pending)
+                {
+                    if (_qrSessionLocked) return;
+                    _v.LockCheckListYMVN();
+                    _qrSessionLocked = true;
+                }
+                else
+                {
+                    UnlockQrSession();
+                }
+            });
         }
 
         private void OnDocQrStarted(object sender, EventArgs e)
@@ -107,10 +161,21 @@ namespace PCTP.Presentation.Presenters
                     // SetCheckedGiosYMVN restore the newly delivered hours before the
                     // checklist becomes interactive again.
                     _c.LoadPhieuHienTai();
-                    UnlockQrSession();
+                    ApplyDataLock(); // chỉ mở khóa giờ khi TMP đã cập nhật hết và YMVN_DOCQRCODE trống
                     _c.QrSvc.SetCheDoBanSP(false);
                     _c.PhieuView.UnlockAllRadio();
                     _c.PhieuView.SwitchToPhieuView();
+
+                    // Giống HVN (PhieuPresenter.OnHoanThanh): kết thúc phiên QR. Nếu không reset, IsBanQR kẹt true
+                    // nên nút "Lấy Lại Lot" (điều kiện !IsBanQR) bị ẩn và đổi ngày/giờ bị chặn.
+                    _c.IsBanQR = false;
+                    _c.QrSvc.SetCheDoBan("");
+                    _c.ClearDeliverySession();
+                    _c.DocQrView.UnlockDocQrDeliveryContext();
+                    _c.PhieuView.UnlockDatePicker();
+                    DataTable hienTai = _c.PhieuView.GetDonHangTable();
+                    if (hienTai != null)
+                        _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(hienTai));
                 }, null);
             }, "Đang xử lý hoàn thành...");
         }
@@ -170,6 +235,8 @@ namespace PCTP.Presentation.Presenters
             _c.DocQrView.DocQRCodeClicked -= OnDocQrStarted;
             _c.DocQrView.XoaToanBoQRClicked -= OnDocQrCancelled;
             _c.Bus.Unsubscribe<HoanThanhYMVNCompletedEvent>(OnHoanThanhYMVNCompleted);
+            _c.Bus.Unsubscribe<PhieuLoadedEvent>(OnPhieuLoadedApplyLock);
+            _c.Bus.Unsubscribe<KhoUpdatedEvent>(OnKhoUpdatedApplyLock);
         }
     }
 }

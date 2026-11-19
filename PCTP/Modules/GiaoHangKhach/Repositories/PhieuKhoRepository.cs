@@ -324,6 +324,32 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     return false;
                 }
 
+                // STT này ĐÃ nằm trong LUUPHIEUGIAOHANG (kho đã trừ ở lần trước) nhưng TMP vẫn 'NG' → trạng thái lệch.
+                // KHÔNG trừ kho lần hai, KHÔNG chèn LUU lần hai (sẽ vi phạm UQ_LUUPHIEU): chỉ đồng bộ TMP sang 'OK'
+                // để lưới/TMP khớp với kho rồi báo thành công cho dòng này.
+                int daLuu = Convert.ToInt32(ExecuteScalar(
+                    $@"SELECT COUNT(*) FROM [{tmpTable}] t
+                       WHERE t.STT = @stt AND t.MAHANG = @maHang AND t.STATUS = 'NG'
+                         AND EXISTS (SELECT 1 FROM LUUPHIEUGIAOHANG l
+                                     WHERE l.STT = t.STT AND l.MAHANG = t.MAHANG AND l.NGAYGIAO = t.NGAYGIAO
+                                       AND ISNULL(l.CUA,'') = ISNULL(t.CUA,'') AND ISNULL(l.TRUYEN,'') = ISNULL(t.TRUYEN,'')
+                                       AND l.SOLUONG = t.SOLUONG AND ISNULL(l.GIOGIAO,'') = ISNULL(t.GIOGIAO,'')
+                                       AND ISNULL(l.NHAMAY,'') = @nhaMay)",
+                    new SqlParameter("@stt", SqlDbType.Int) { Value = stt },
+                    new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" },
+                    new SqlParameter("@nhaMay", SqlDbType.NVarChar, 200) { Value = nhaMay ?? "" }));
+                if (daLuu > 0)
+                {
+                    int dongBo = ExecuteNonQuery(
+                        $"UPDATE [{tmpTable}] SET STATUS = 'OK' WHERE STT = @stt AND MAHANG = @maHang AND STATUS = 'NG'",
+                        new SqlParameter("@stt", SqlDbType.Int) { Value = stt },
+                        new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" });
+                    if (dongBo != 1)
+                        throw new InvalidOperationException($"Không đồng bộ được trạng thái TMP cho STT={stt} / {maHang} (đã có trong LUUPHIEUGIAOHANG).");
+                    Uow.Commit();
+                    return false; // không trừ kho: presenter tải lại lưới để hiện đúng trạng thái OK
+                }
+
                 foreach (var item in lotsToProcess)
                 {
                     string lotKey = item.LotKey;

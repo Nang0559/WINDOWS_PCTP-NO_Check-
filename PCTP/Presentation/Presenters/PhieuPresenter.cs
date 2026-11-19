@@ -180,9 +180,52 @@ namespace PCTP.Presentation.Presenters
             foreach (string raw in lots)
             {
                 string lot = raw.Trim();
+                int dash = lot.IndexOf('-');
+                if (dash > 0) lot = lot.Substring(0, dash);
                 if (lot.Length < 13 || lot[12] != '0') return false;
             }
             return true;
+        }
+        /// <summary>
+        /// Tìm Gear cho một dòng tem in. Khớp chính xác theo chuỗi LOT ghép; nếu SP in trả chuỗi LOT khác dạng
+        /// (vd. không có đuôi -SL, hoặc chỉ một LOT trong chuỗi) thì khớp theo từng LOT 20 ký tự.
+        /// Hàng không Gear (ký tự 13 của LOT = '0') luôn in được với ô Gear trống, không báo lỗi.
+        /// </summary>
+        private static bool TryResolveGear(Dictionary<string, string> gearByPayload, string payload, out string gear)
+        {
+            if (gearByPayload.TryGetValue(payload, out gear)) return true;
+
+            string norm = NormalizeLotKey(payload);
+            foreach (KeyValuePair<string, string> kv in gearByPayload)
+            {
+                string k = NormalizeLotKey(kv.Key);
+                if (k.Length > 0 && (k == norm || k.IndexOf(norm, StringComparison.OrdinalIgnoreCase) >= 0 || norm.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    gear = kv.Value;
+                    return true;
+                }
+            }
+
+            if (IsLotNoGear(payload))
+            {
+                gear = string.Empty;
+                return true;
+            }
+            gear = null;
+            return false;
+        }
+        /// <summary>Bỏ khoảng trắng và đuôi "-SL" của từng LOT: "A-5, B-3" -> "A,B".</summary>
+        private static string NormalizeLotKey(string lotGhep)
+        {
+            if (string.IsNullOrWhiteSpace(lotGhep)) return string.Empty;
+            var parts = new List<string>();
+            foreach (string raw in lotGhep.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string t = raw.Trim();
+                int dash = t.IndexOf('-');
+                parts.Add(dash > 0 ? t.Substring(0, dash) : t);
+            }
+            return string.Join(",", parts);
         }
         private void OnInGhepLot(object sender, EventArgs e)
         {
@@ -230,7 +273,7 @@ namespace PCTP.Presentation.Presenters
                 {
                     string payload = Convert.ToString(row["ItemLotCode"]).Trim();
                     string gear;
-                    if (!gearByPayload.TryGetValue(payload, out gear))
+                    if (!TryResolveGear(gearByPayload, payload, out gear))
                     {
                         MessageBox.Show("Không tìm thấy Gear cho tem LOT '" + payload + "'. Hãy bấm \"Kiểm tra ghép LOT\" rồi in lại.", "In ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;

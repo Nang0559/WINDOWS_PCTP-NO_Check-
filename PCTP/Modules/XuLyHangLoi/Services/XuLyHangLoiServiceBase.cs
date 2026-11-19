@@ -102,15 +102,19 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     {
                         Ma = (x.MaHang ?? string.Empty).Trim().ToUpperInvariant(),
                         Lot = (x.LotNo ?? string.Empty).Trim().ToUpperInvariant(),
-                        Slot = x.SlotIdNguon ?? 0
+                        Slot = x.SlotIdNguon ?? 0,
+                        // Mỗi SlotLot (tem) là một dòng riêng: nhiều SlotLot cùng Slot + LOT là hợp lệ.
+                        // Chỉ coi là trùng khi cùng SlotLotId (hoặc dòng cũ chưa có SlotLotId: SlotLot = 0).
+                        SlotLot = x.SlotLotIdNguon ?? 0
                     })
                     .Where(g => g.Count() > 1)
-                    .Select(g => "- " + g.Key.Ma + " / LOT " + g.Key.Lot + " (SlotId " + g.Key.Slot + ")")
+                    .Select(g => "- " + g.Key.Ma + " / LOT " + g.Key.Lot + " (SlotId " + g.Key.Slot
+                        + (g.Key.SlotLot > 0 ? ", SlotLotId " + g.Key.SlotLot : string.Empty) + ")")
                     .ToList();
 
                 if (trungSlot.Count > 0)
                     throw new InvalidOperationException(
-                        "Cùng một LOT chỉ được có nhiều dòng khi KHÁC Slot. Dòng trùng LOT + Slot:\n"
+                        "Cùng một LOT chỉ được có nhiều dòng khi KHÁC Slot hoặc KHÁC SlotLot (tem). Dòng trùng:\n"
                         + string.Join("\n", trungSlot));
 
                 if (LotGuard == null)
