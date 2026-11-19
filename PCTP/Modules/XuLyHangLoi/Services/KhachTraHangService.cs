@@ -1,4 +1,5 @@
 ﻿using PCTP.Modules.XuLyHangLoi.Enums;
+using PCTP.Infrastructure.Security;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Shared.Common;
@@ -64,6 +65,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public int TiepNhanPhieuKhachTra(PhieuTraHang phieu)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CREATE");
             if (phieu == null)
                 throw new ArgumentNullException(nameof(phieu));
 
@@ -134,6 +136,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             DateTime? ngayGiao,
             string lotNo)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
             if (!string.IsNullOrWhiteSpace(lotNo))
             {
                 return _phieuGiaoRepo.TimTheoLot(lotNo);
@@ -166,6 +169,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             DateTime tuNgay,
             DateTime denNgay)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
             if (string.IsNullOrWhiteSpace(maHang))
                 throw new ArgumentException(
                     "Phải có Mã hàng để tìm phiếu giao.",
@@ -198,6 +202,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public int? LaySoLuongDaGiao(string dinhDanhPhieuGiao, string lotNo)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
             if (string.IsNullOrWhiteSpace(dinhDanhPhieuGiao))
                 return null;
 
@@ -342,6 +347,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int phieuKhachTraItemId,
             string dinhDanhPhieuGiao)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "EDIT");
             if (phieuKhachTraItemId <= 0)
                 throw new ArgumentException(
                     "phieuKhachTraItemId không hợp lệ.",
@@ -415,6 +421,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string soPhieuKhachTra,
             string nguoiThucHien)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
             if (string.IsNullOrWhiteSpace(dinhDanhPhieuGiao))
                 throw new ArgumentException(
                     "DinhDanhPhieuGiao không được rỗng.",
