@@ -13,6 +13,8 @@ namespace PCTP.Modules.MesPlanning.UI
     public sealed class FormDieuHanhSanXuat : XtraForm
     {
         private readonly IProductionExecutionService _service;
+        private readonly IProductionWorkflowService _workflow;
+        private readonly TextBox _routingStepId = new TextBox();
         private readonly TextBox _planLineId = new TextBox(), _orderNo = new TextBox();
         private readonly TextBox _orderId = new TextBox(), _goodQty = new TextBox(), _ngQty = new TextBox();
         private readonly TextBox _lotId = new TextBox(), _operationLotId = new TextBox(), _consumeProductionLotId = new TextBox();
@@ -32,14 +34,20 @@ namespace PCTP.Modules.MesPlanning.UI
         private int _printIndex;
 
         public FormDieuHanhSanXuat()
-            : this(new ProductionExecutionService(new ProductionExecutionRepository()))
+            : this(new ProductionExecutionService(new ProductionExecutionRepository()), MesWorkflowComposition.Create())
         {
         }
 
         public FormDieuHanhSanXuat(IProductionExecutionService service)
+            : this(service, MesWorkflowComposition.Create())
+        {
+        }
+
+        public FormDieuHanhSanXuat(IProductionExecutionService service, IProductionWorkflowService workflow)
         {
             AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "VIEW");
             _service = service ?? throw new ArgumentNullException(nameof(service));
+            _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
             Text = "Điều hành sản xuất MES";
             StartPosition = FormStartPosition.CenterParent;
             Size = new Size(1120, 760);
@@ -71,11 +79,26 @@ namespace PCTP.Modules.MesPlanning.UI
             _finished.AutoSize = true;
             orderPanel.Controls.Add(_finished);
             AddButton(orderPanel, "TẠO LOT SẢN XUẤT", CreateLotClick);
+            AddButton(orderPanel, "RELEASE LỆNH", (s, e) => TransitionOrder(10));
+            AddButton(orderPanel, "START LỆNH", (s, e) => TransitionOrder(20));
+            AddButton(orderPanel, "PAUSE LỆNH", (s, e) => TransitionOrder(30));
+            AddButton(orderPanel, "RESUME LỆNH", (s, e) => TransitionOrder(20));
+            AddButton(orderPanel, "COMPLETE LỆNH", (s, e) => TransitionOrder(40));
+            AddButton(orderPanel, "CLOSE LỆNH", (s, e) => TransitionOrder(50));
+            AddButton(orderPanel, "LỊCH SỬ LỆNH", (s, e) => OpenTimeline("ORDER", _orderId));
             orderTab.Controls.Add(orderPanel);
 
             var operationPanel = Panel();
             AddField(operationPanel, "ProductionLotId", _operationLotId);
             AddField(operationPanel, "OperationNo", _operationNo);
+            AddField(operationPanel, "RoutingStepId (workflow)", _routingStepId);
+            AddButton(operationPanel, "PREPARE", (s, e) => TransitionOperation(10));
+            AddButton(operationPanel, "READY", (s, e) => TransitionOperation(20));
+            AddButton(operationPanel, "START", (s, e) => TransitionOperation(30));
+            AddButton(operationPanel, "PAUSE", (s, e) => TransitionOperation(40));
+            AddButton(operationPanel, "RESUME", (s, e) => TransitionOperation(30));
+            AddButton(operationPanel, "COMPLETE", (s, e) => TransitionOperation(50));
+            AddButton(operationPanel, "LỊCH SỬ LOT", (s, e) => OpenTimeline("OPERATION", _operationLotId));
             AddField(operationPanel, "InputQty", _inputQty);
             AddField(operationPanel, "GoodQty", _opGoodQty);
             AddField(operationPanel, "NgQty", _opNgQty);
@@ -351,6 +374,45 @@ namespace PCTP.Modules.MesPlanning.UI
                     Convert.ToInt32(LongValue(_consumeSlot, "FromSlotId")),
                     DecimalValue(_consumeQty, "Quantity", false), Environment.UserName);
                 return "Đã ghi nhận tiêu hao LOT và liên kết genealogy thực tế.";
+            });
+        }
+
+        private void TransitionOrder(int targetStatus)
+        {
+            Run(() =>
+            {
+                long id = LongValue(_orderId, "ProductionOrderId");
+                int current = _workflow.GetCurrentStatus("ORDER", id);
+                _workflow.TransitionOrder(id, current, targetStatus, AuthorizationGuard.ActorCode,
+                    "Điều hành từ form MES");
+                return "Đã chuyển trạng thái lệnh " + id + " từ " + current + " sang " + targetStatus + ".";
+            });
+        }
+
+        private void TransitionOperation(int targetStatus)
+        {
+            Run(() =>
+            {
+                long lotId = LongValue(_operationLotId, "ProductionLotId");
+                long stepId = LongValue(_routingStepId, "RoutingStepId");
+                int current = _workflow.GetCurrentStatus("OPERATION", lotId, stepId);
+                _workflow.TransitionOperation(lotId, stepId, current, targetStatus,
+                    AuthorizationGuard.ActorCode, "Điều hành công đoạn " + _operationNo.Text);
+                return "Đã chuyển trạng thái công đoạn " + stepId + " từ " + current + " sang " + targetStatus + ".";
+            });
+        }
+
+        private void OpenTimeline(string entityType, TextBox idInput)
+        {
+            Run(() =>
+            {
+                long id = LongValue(idInput, entityType == "ORDER" ? "ProductionOrderId" : "ProductionLotId");
+                using (var form = new FormProductionWorkflowTimeline(_workflow))
+                {
+                    form.SetEntity(entityType, id);
+                    form.ShowDialog(this);
+                }
+                return "Đã xem lịch sử workflow " + entityType + " #" + id + ".";
             });
         }
 
