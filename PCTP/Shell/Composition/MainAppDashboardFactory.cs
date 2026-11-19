@@ -1,5 +1,7 @@
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.NhapKho;
+using PCTP.Modules.XuatKho.Interfaces;
+using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Shared.Common;
 using PCTP.Shell.Widgets;
@@ -17,6 +19,7 @@ namespace PCTP.Shell.Composition
     {
         private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepository;
         private readonly INhapKhoDashboardRepository _dashboardRepository;
+        private readonly IHangChoGiaoRepository _hangChoGiaoRepository;
 
         internal MainAppDashboardFactory()
         {
@@ -26,6 +29,7 @@ namespace PCTP.Shell.Composition
 
             _phieuXuLyRepository = new PhieuXuLyBatThuongRepository(sql, uow);
             _dashboardRepository = new NhapKhoDashboardRepository(sql, uow);
+            _hangChoGiaoRepository = new HangChoGiaoRepository(sql, uow);
         }
 
         internal WarehouseDashboardBar Create(Action openNhapKho)
@@ -39,15 +43,19 @@ namespace PCTP.Shell.Composition
                 openNhapKho);
         }
 
-        internal WmsWorklistBar CreateWorklist(Action openNhapKho)
+        internal WmsWorklistBar CreateWorklist(Action openNhapKho, Action openHangChoGiao)
         {
             if (openNhapKho == null)
                 throw new ArgumentNullException("openNhapKho");
+            if (openHangChoGiao == null)
+                throw new ArgumentNullException("openHangChoGiao");
 
             return new WmsWorklistBar(
                 _phieuXuLyRepository,
                 _dashboardRepository,
-                openNhapKho);
+                _hangChoGiaoRepository,
+                openNhapKho,
+                openHangChoGiao);
         }
     }
 }
