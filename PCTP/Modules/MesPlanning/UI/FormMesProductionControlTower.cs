@@ -31,6 +31,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly PCTP.Shared.MesControls.FvnHoldAlertControl _holdAlert = new PCTP.Shared.MesControls.FvnHoldAlertControl();
         private readonly LabelControl _status = new LabelControl();
         private readonly LabelControl _refreshStamp = new LabelControl();
+        private readonly CheckEdit _onlyMyTasks = new CheckEdit();
         private readonly SimpleButton _openPlan = new SimpleButton();
         private readonly SimpleButton _openPart = new SimpleButton();
         private readonly SimpleButton _openProduction = new SimpleButton();
@@ -182,6 +183,11 @@ namespace PCTP.Modules.MesPlanning.UI
             split.Panel2.Controls.Add(detailPanel);
 
             var footer = new PanelControl { Dock = DockStyle.Fill, BorderStyle = BorderStyles.NoBorder };
+            _onlyMyTasks.Text = "Chỉ việc của tôi";
+            _onlyMyTasks.Dock = DockStyle.Left;
+            _onlyMyTasks.Width = 130;
+            _onlyMyTasks.CheckedChanged += (s, e) =>
+                _view.ActiveFilterString = _onlyMyTasks.Checked ? "[MyTask] <> 'Theo dõi'" : string.Empty;
             _status.Dock = DockStyle.Fill;
             _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _refreshStamp.Dock = DockStyle.Right;
@@ -190,6 +196,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _refreshStamp.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             footer.Controls.Add(_status);
             footer.Controls.Add(_refreshStamp);
+            footer.Controls.Add(_onlyMyTasks);
 
             root.Controls.Add(header, 0, 0);
             root.Controls.Add(kpis, 0, 1);
