@@ -2,6 +2,7 @@ using System;
 using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -22,6 +23,7 @@ namespace PCTP.Modules.MesPlanning.UI
         public FormTruyXuatLinhKien(IProductionTraceService service)
         {
             _service = service ?? throw new ArgumentNullException(nameof(service));
+            AuthorizationGuard.Demand("REPORT.COMPONENT_TRACEABILITY", "VIEW");
             Text = "Truy xuất linh kiện / LOT sản xuất";
             StartPosition = FormStartPosition.CenterParent;
             Size = new Size(1380, 820);
