@@ -151,7 +151,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             DateTime importDate,
             int quantity)
         {
-            DemandWarehouse("WAREHOUSE.STOCK_ADJUST", "CONFIRM", WarehouseForSlot(slotId));
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 return false;
 
@@ -183,7 +183,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
          int slotId,
          List<LotInfo> lots)
         {
-            DemandWarehouse("WAREHOUSE.RECEIPT", "CONFIRM", WarehouseForSlot(slotId));
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException(
                     "SlotId không hợp lệ.",
@@ -223,7 +223,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         {
             var lotRow = _repository.GetSlotLotById(slotLotId);
             if (lotRow == null) throw new InvalidOperationException("SlotLot không tồn tại.");
-            DemandWarehouse("QUALITY.RETURN", "CONFIRM", WarehouseForSlot(lotRow.SlotVatLyId));
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(lotRow.SlotVatLyId));
             var current = _repository.GetSlotLotById(slotLotId);
             if (current == null)
                 throw new InvalidOperationException($"Không tìm thấy SlotLot Id={slotLotId}.");
