@@ -90,7 +90,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public List<LotInfo> GetLotsCanRework(string maHang, string lotNo)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
             if (string.IsNullOrWhiteSpace(maHang))
                 throw new ArgumentException("MaHang không được rỗng.", nameof(maHang));
 
@@ -146,7 +146,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public List<LotInfo> GetLotsCanReworkByPhieuXuLy(int phieuXuLyId)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
             if (phieuXuLyId <= 0)
                 throw new ArgumentException("phieuXuLyId không hợp lệ.", nameof(phieuXuLyId));
 
@@ -180,7 +180,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string nguoiXuat,
             Guid operationId)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
             nguoiXuat = AuthorizationGuard.ActorCode;
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
@@ -351,7 +351,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public ReworkPhase4Plan GetReworkPlan(int phieuXuLyId)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
             var phase4 = _phase4Provider == null ? null : _phase4Provider();
             if (phase4 == null)
                 throw new InvalidOperationException(
@@ -367,7 +367,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int? slotIdNG,
             string nguoiNhap)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
             nguoiNhap = AuthorizationGuard.ActorCode;
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
@@ -477,7 +477,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string nguoiThucHien,
             Guid operationId)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
             nguoiThucHien = AuthorizationGuard.ActorCode;
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
@@ -632,7 +632,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             IList<KhachTraNhapNGLine> lines,
             string nguoiNhap)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
             nguoiNhap = AuthorizationGuard.ActorCode;
             if (phieuTraHangId <= 0)
                 return ScanResult.Fail("phieuTraHangId không hợp lệ.");
@@ -750,7 +750,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int slotIdOK,
             string nguoiNhap)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
             nguoiNhap = AuthorizationGuard.ActorCode;
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
@@ -833,7 +833,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int phieuXuLyId,
             string nguoiThucHien)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CANCEL");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CANCEL", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
             nguoiThucHien = AuthorizationGuard.ActorCode;
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
