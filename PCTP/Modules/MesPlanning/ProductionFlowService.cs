@@ -20,6 +20,15 @@ namespace PCTP.Modules.MesPlanning
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         }
 
+        public long GetChangeVersion(string siteCode)
+        {
+            siteCode = (siteCode ?? string.Empty).Trim();
+            if (siteCode.Length == 0) throw new ArgumentException("SiteCode là bắt buộc.");
+            var session = AuthorizationGuard.Demand("MES.PRODUCTION_FLOW", "VIEW");
+            BuildDepartmentScope(session, siteCode);
+            return _repository.GetChangeVersion();
+        }
+
         public DataTable GetDashboard(string siteCode, DateTime? fromDate, DateTime? toDate)
         {
             siteCode = (siteCode ?? string.Empty).Trim();
