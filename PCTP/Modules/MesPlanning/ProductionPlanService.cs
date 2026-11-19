@@ -1,4 +1,5 @@
 using System;
+using PCTP.Infrastructure.Security;
 using System.Collections.Generic;
 using System.Linq;
 namespace PCTP.Modules.MesPlanning
@@ -10,6 +11,10 @@ namespace PCTP.Modules.MesPlanning
         { _repository = repository ?? throw new ArgumentNullException(nameof(repository)); }
         public void ImportRows(IList<ProductionPlanImportRow> rows, string sourceFileName, string createdBy)
         {
+            AuthorizationGuard.Demand("MES.PLAN_UPLOAD", "CREATE");
+            if (rows != null)
+                foreach (var row in rows)
+                    AuthorizationGuard.DemandActionAndScope("MES.PLAN_UPLOAD", "CREATE", "SITE", row.SiteCode, row.SiteCode);
             if (rows == null || rows.Count == 0) throw new ArgumentException("File không có dữ liệu kế hoạch.");
             var duplicate = rows.GroupBy(x => (x.PlanNo ?? "").Trim() + "|" + x.LineNo).FirstOrDefault(g => g.Count() > 1);
             if (duplicate != null) throw new ArgumentException("File có PlanNo/LineNo trùng: " + duplicate.Key);
