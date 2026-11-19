@@ -3,7 +3,7 @@
 ## Migration
 
 Run `037_PCTP_ApplicationAuthenticationAndRbac.sql` against `FVN_PCTP`
-after MES migration 036. The script creates the `SEC` schema, application
+after MES migration 036, then run `038_PCTP_PerAccountAuthorizationAdministration.sql`. The script creates the `SEC` schema, application
 accounts, roles, function/action permissions, data scopes, login audit and
 administration audit. It does not create SQL Server logins or database users.
 
@@ -33,10 +33,7 @@ must be added to the catalog and granted explicitly.
 - Permissions are explicit pairs of `FunctionCode + ActionCode`: VIEW,
   CREATE, EDIT, DELETE, CONFIRM, APPROVE, CANCEL, EXPORT, PRINT, ADMIN.
 - When multiple assigned roles disagree, an explicit role DENY wins over role
-  ALLOW. The schema supports per-user ALLOW/DENY overrides as the final
-  account-specific decision; the current administration screen exposes role
-  permissions and role scopes only. User-specific overrides/scopes are reserved
-  for a later admin UI increment and should not be edited manually in normal use.
+  ALLOW. The administration screen exposes per-account function overrides (`ALLOW`, `DENY`, `INHERIT`) and per-account data scopes. A per-account function override is the final decision after role aggregation. For data scopes, once a user-specific scope policy exists for a function, it acts as that account's complete allow-list for that function; role scopes are used only when no matching user policy is configured. A missing match in an active user policy is denied.
 - The SYSTEM_ADMIN role's grants and ALL scope cannot be revoked through the
   application; the last active system administrator cannot be deactivated or
   removed from that role.
@@ -58,8 +55,9 @@ catalog row and wire its service-layer guard before exposing any new function.
    MES operator, QC, shipping, report viewer, etc.).
 5. Configure each role's function/action matrix and data scopes.
 6. Create user accounts, link EmployeeCode where applicable, and assign roles.
-7. Test with a non-admin account; verify denied actions and out-of-scope sites.
-8. Review `SEC.LoginAudit` and `SEC.AdminAudit`.
+7. Where needed, configure per-account function overrides and data-scope allow-lists. Use `INHERIT` to remove an override and return to role permissions.
+8. Test with a non-admin account; verify denied actions and out-of-scope sites.
+9. Review `SEC.LoginAudit` and `SEC.AdminAudit`.
 
 ## Important deployment boundary
 
