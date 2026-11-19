@@ -268,8 +268,8 @@ namespace PCTP.Modules.MesPlanning.UI
             _worker.RunWorkerAsync(new LoadArgs
             {
                 Site = _site.Text.Trim(),
-                From = _from.EditValue == null ? (DateTime?)null : Convert.ToDateTime(_from.EditValue).Date,
-                To = _to.EditValue == null ? (DateTime?)null : Convert.ToDateTime(_to.EditValue).Date
+                From = _from.EditValue == null || _from.EditValue == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(_from.EditValue).Date,
+                To = _to.EditValue == null || _to.EditValue == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(_to.EditValue).Date
             });
         }
 
