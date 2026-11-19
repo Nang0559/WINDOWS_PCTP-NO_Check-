@@ -17,7 +17,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
     public partial class FormQCDinhHuong : XtraForm
     {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+    
         private readonly IQTChungService _qtChungService;
         private readonly int _phieuXuLyId;
 
@@ -45,6 +45,7 @@ namespace PCTP.Modules.XuLyHangLoi
             IQTChungService qtChungService,
             int phieuXuLyId)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
             _qtChungService = qtChungService
                 ?? throw new ArgumentNullException(nameof(qtChungService));
 
