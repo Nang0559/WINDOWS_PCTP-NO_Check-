@@ -10,6 +10,7 @@ namespace PCTP.Security
         private readonly TextBox _next = new TextBox();
         private readonly TextBox _confirm = new TextBox();
         public string NewPassword { get; private set; }
+        public string CurrentPassword => _current.Text;
 
         public ChangePasswordDialog(bool firstPassword)
         {
