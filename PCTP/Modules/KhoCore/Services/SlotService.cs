@@ -211,6 +211,13 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
                 quantity);
         }
         // Kho/Services/SlotService.cs — implement
+        public string GetWarehouseNameBySlotId(int slotId)
+        {
+            string warehouse = WarehouseForSlot(slotId);
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", warehouse);
+            return warehouse;
+        }
+
         public SlotLotInfo GetLotsBySlotLotId(int slotLotId)
         {
             var row = _repository.GetSlotLotById(slotLotId);
