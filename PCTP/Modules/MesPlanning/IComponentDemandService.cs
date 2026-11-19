@@ -4,8 +4,8 @@ namespace PCTP.Modules.MesPlanning
     public interface IComponentDemandService
     {
         DataTable GetPlanLines(string site);
-        long GenerateDemand(long planLineId,string user);
-        DataTable GetDemandLines(long planLineId);
+        long GenerateDemand(long planLineId,string siteCode,string user);
+        DataTable GetDemandLines(long planLineId,string siteCode);
         DataTable GetPartLots(string site,string partNo,string areaCode);
         DataTable GetWipSlots(string site);
         DataTable PostIssue(string site,string issueNo,long demandLineId,long lotId,int fromSlot,int toSlot,decimal qty,string user);
