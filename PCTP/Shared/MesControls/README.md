@@ -14,6 +14,7 @@ procedures, or make workflow state transitions.
 | `FvnScopeBadgeControl` | Shows owned-scope vs related read-only context | `SetRelated(bool)` |
 | `FvnHoldAlertControl` | Shows current dependency / waiting point and reason | `SetDependency(waitingAt, reason, relatedReadOnly)` |
 | `FvnDepartmentTaskGridControl` | Standard non-editable department task grid | `Grid`, `View`, `Bind(dataSource)` |
+| `FvnSiteDateRangeFilterControl` | Reusable Site and date-range filter | `SiteCode`, `FromDate`, `ToDate`, `RefreshRequested`, `SetBusy(bool)` |
 | `FvnWorkflowTimelineControl` | Standard non-editable workflow event timeline | `Bind(events, entityType, entityId)`, `Clear(message)` |
 
 ## Access-mode rules
