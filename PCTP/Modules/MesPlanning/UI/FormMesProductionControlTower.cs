@@ -268,7 +268,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void ConfigureColumns()
         {
-            string[] hidden = { "ProductionPlanLineId", "ProductionPlanId", "ProductionOrderId", "ComponentDemandId", "PlanWorkflowStatusCode", "OrderWorkflowStatusCode" };
+            string[] hidden = { "ProductionPlanLineId", "ProductionPlanId", "ProductionOrderId", "LatestProductionLotId", "ComponentDemandId", "PlanWorkflowStatusCode", "OrderWorkflowStatusCode" };
             foreach (var name in hidden)
                 if (_taskGrid.View.Columns[name] != null) _taskGrid.View.Columns[name].Visible = false;
             SetCaption("IsRelatedDepartment", "Phạm vi");
@@ -461,7 +461,9 @@ namespace PCTP.Modules.MesPlanning.UI
                 {
                     long planId = SafeLong(row["ProductionPlanId"]);
                     long orderId = SafeLong(row["ProductionOrderId"]);
-                    if (orderId > 0) timeline.SetEntity("ORDER", orderId);
+                    long lotId = row.Table.Columns.Contains("LatestProductionLotId") ? SafeLong(row["LatestProductionLotId"]) : 0L;
+                    if (lotId > 0) timeline.SetEntity("OPERATION", lotId);
+                    else if (orderId > 0) timeline.SetEntity("ORDER", orderId);
                     else timeline.SetEntity("PLAN", planId);
                     timeline.ShowDialog(this);
                 }
