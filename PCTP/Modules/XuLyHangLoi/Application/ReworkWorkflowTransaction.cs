@@ -1,6 +1,7 @@
 using System;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Common;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.XuLyHangLoi.Application
 {
@@ -18,6 +19,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
 
         public void Execute(PhieuXuLyBatThuong ticket, Action persist)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
             if (ticket == null) throw new ArgumentNullException(nameof(ticket));
             if (persist == null) throw new ArgumentNullException(nameof(persist));
 
