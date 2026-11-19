@@ -1,6 +1,7 @@
 ﻿using PCTP.Modules.KhoCore.Interfaces;
 using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoCore.Repositories;
+using PCTP.Infrastructure.Security;
 using System;
 using System.Collections.Generic;
 
@@ -15,16 +16,22 @@ namespace PCTP.Modules.KhoCore.Services
             => _repo = repo
                 ?? throw new ArgumentNullException(nameof(repo));
 
-        public List<InspectionConfig> GetAll() => _repo.GetAll();
+        public List<InspectionConfig> GetAll()
+        {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
+            return _repo.GetAll();
+        }
 
         public InspectionConfig GetByItemCode(string itemCode)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             if (string.IsNullOrWhiteSpace(itemCode)) return null;
             return _repo.GetByItemCode(itemCode);
         }
 
         public void Save(InspectionConfig cfg)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "ADMIN");
             if (cfg == null)
                 throw new ArgumentNullException(nameof(cfg));
             if (string.IsNullOrWhiteSpace(cfg.ItemCode))
@@ -40,6 +47,7 @@ namespace PCTP.Modules.KhoCore.Services
 
         public void Delete(int configId)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "ADMIN");
             if (configId <= 0)
                 throw new ArgumentException("ConfigId không hợp lệ.");
             _repo.Delete(configId);
@@ -48,6 +56,7 @@ namespace PCTP.Modules.KhoCore.Services
         // ✅ Dùng trong luồng xuất kho — kiểm tra nhanh
         public bool NeedsInspection(string itemCode)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             if (string.IsNullOrWhiteSpace(itemCode)) return false;
             var cfg = _repo.GetByItemCode(itemCode);
             return cfg != null && cfg.IsActive;
