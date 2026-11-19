@@ -66,38 +66,88 @@ namespace PCTP.Modules.IfsSync
             return SyncAll(null);
         }
 
+        private static readonly IDictionary<string, string> EntityQueries =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "PART_CATALOG", "SELECT * FROM IFSAPP.PART_CATALOG ORDER BY PART_NO" },
+                { "INVENTORY_PART", "SELECT * FROM IFSAPP.INVENTORY_PART ORDER BY CONTRACT, PART_NO" },
+                { "BOM_HEADER", "SELECT * FROM IFSAPP.MANUF_STRUCTURE_HEAD ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB" },
+                { "BOM_ALTERNATIVE", "SELECT * FROM IFSAPP.MANUF_STRUCT_ALTERNATE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO" },
+                { "BOM_COMPONENT", "SELECT * FROM IFSAPP.MANUF_STRUCTURE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO, LINE_ITEM_NO" },
+                { "WAREHOUSE", "SELECT CONTRACT, WAREHOUSE_ID, DESCRIPTION, OBJKEY, OBJVERSION FROM IFSAPP.WAREHOUSE ORDER BY CONTRACT, WAREHOUSE_ID" },
+                { "SUPPLIER", "SELECT SUPPLIER_ID, NAME, OBJKEY, OBJVERSION FROM IFSAPP.SUPPLIER_INFO_GENERAL ORDER BY SUPPLIER_ID" }
+            };
+
+        public IfsSyncResult SyncAll()
+        {
+            return SyncAll(null);
+        }
+
         public IfsSyncResult SyncAll(Action<string> phaseChanged)
+        {
+            return SyncEntities(new List<string>(EntityQueries.Keys), "FULL", phaseChanged);
+        }
+
+        public IfsSyncResult SyncSelected(IEnumerable<string> selectedEntities, Action<string> phaseChanged)
+        {
+            if (selectedEntities == null)
+                throw new ArgumentNullException("selectedEntities");
+
+            var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string entity in selectedEntities)
+            {
+                if (string.IsNullOrWhiteSpace(entity)) continue;
+                string normalized = entity.Trim().ToUpperInvariant();
+                if (!EntityQueries.ContainsKey(normalized))
+                    throw new ArgumentException("Entity IFS không được hỗ trợ: " + entity, "selectedEntities");
+                selected.Add(normalized);
+            }
+
+            if (selected.Count == 0)
+                throw new InvalidOperationException("Hãy chọn ít nhất một nhóm dữ liệu IFS.");
+
+            // Preserve BOM foreign-key dependencies. Selecting a child automatically
+            // includes its parents so the same batch remains transactionally applicable.
+            if (selected.Contains("BOM_COMPONENT"))
+            {
+                selected.Add("BOM_ALTERNATIVE");
+                selected.Add("BOM_HEADER");
+            }
+            else if (selected.Contains("BOM_ALTERNATIVE"))
+            {
+                selected.Add("BOM_HEADER");
+            }
+
+            var ordered = new List<string>();
+            foreach (string entity in EntityQueries.Keys)
+                if (selected.Contains(entity)) ordered.Add(entity);
+
+            return SyncEntities(ordered, "SELECTIVE", phaseChanged);
+        }
+
+        private IfsSyncResult SyncEntities(IList<string> entities, string syncMode, Action<string> phaseChanged)
         {
             using (var connection = new SqlConnection(_targetConnectionString))
             {
                 connection.Open();
-                long batchId = BeginBatch(connection);
+                string selectedEntities = string.Join(",", entities);
+                long batchId = BeginBatch(connection, syncMode, selectedEntities);
                 string currentEntity = null;
+                var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
                 try
                 {
-                    if (phaseChanged != null) phaseChanged("Giai đoạn 1/2: Đang đọc Oracle IFS và ghi dữ liệu vào bảng staging...");
-                    currentEntity = "PART_CATALOG";
-                    int partCatalog = StageEntity(connection, batchId, "PART_CATALOG",
-                        "SELECT * FROM IFSAPP.PART_CATALOG ORDER BY PART_NO");
-                    currentEntity = "INVENTORY_PART";
-                    int inventoryPart = StageEntity(connection, batchId, "INVENTORY_PART",
-                        "SELECT * FROM IFSAPP.INVENTORY_PART ORDER BY CONTRACT, PART_NO");
-                    currentEntity = "BOM_HEADER";
-                    int bomHeader = StageEntity(connection, batchId, "BOM_HEADER",
-                        "SELECT * FROM IFSAPP.MANUF_STRUCTURE_HEAD ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB");
-                    currentEntity = "BOM_ALTERNATIVE";
-                    int bomAlternative = StageEntity(connection, batchId, "BOM_ALTERNATIVE",
-                        "SELECT * FROM IFSAPP.MANUF_STRUCT_ALTERNATE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO");
-                    currentEntity = "BOM_COMPONENT";
-                    int bomComponent = StageEntity(connection, batchId, "BOM_COMPONENT",
-                        "SELECT * FROM IFSAPP.MANUF_STRUCTURE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO, LINE_ITEM_NO");
-                    currentEntity = "WAREHOUSE";
-                    int warehouse = StageEntity(connection, batchId, "WAREHOUSE",
-                        "SELECT CONTRACT, WAREHOUSE_ID, DESCRIPTION, OBJKEY, OBJVERSION FROM IFSAPP.WAREHOUSE ORDER BY CONTRACT, WAREHOUSE_ID");
-                    currentEntity = "SUPPLIER";
-                    int supplier = StageEntity(connection, batchId, "SUPPLIER",
-                        "SELECT SUPPLIER_ID, NAME, OBJKEY, OBJVERSION FROM IFSAPP.SUPPLIER_INFO_GENERAL ORDER BY SUPPLIER_ID");
+                    if (phaseChanged != null)
+                        phaseChanged("Giai đoạn 1/2: Đang đọc " + entities.Count +
+                            " nhóm Oracle IFS và ghi dữ liệu vào staging...");
+                    foreach (string entity in entities)
+                    {
+                        currentEntity = entity;
+                        if (phaseChanged != null)
+                            phaseChanged("Đang đồng bộ " + entity + " (" +
+                                (entities.IndexOf(entity) + 1) + "/" + entities.Count + ")...");
+                        counts[entity] = StageEntity(connection, batchId, entity, EntityQueries[entity]);
+                    }
 
                     using (var command = new SqlCommand(@"
 UPDATE IFS.SyncBatch
@@ -111,20 +161,22 @@ SET Status='STAGED',
     SupplierRows=@SupplierRows
 WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                     {
-                        command.Parameters.AddWithValue("@PartCatalogRows", partCatalog);
-                        command.Parameters.AddWithValue("@InventoryPartRows", inventoryPart);
-                        command.Parameters.AddWithValue("@BomHeaderRows", bomHeader);
-                        command.Parameters.AddWithValue("@BomAlternativeRows", bomAlternative);
-                        command.Parameters.AddWithValue("@BomComponentRows", bomComponent);
-                        command.Parameters.AddWithValue("@WarehouseRows", warehouse);
-                        command.Parameters.AddWithValue("@SupplierRows", supplier);
+                        command.Parameters.AddWithValue("@PartCatalogRows", GetCount(counts, "PART_CATALOG"));
+                        command.Parameters.AddWithValue("@InventoryPartRows", GetCount(counts, "INVENTORY_PART"));
+                        command.Parameters.AddWithValue("@BomHeaderRows", GetCount(counts, "BOM_HEADER"));
+                        command.Parameters.AddWithValue("@BomAlternativeRows", GetCount(counts, "BOM_ALTERNATIVE"));
+                        command.Parameters.AddWithValue("@BomComponentRows", GetCount(counts, "BOM_COMPONENT"));
+                        command.Parameters.AddWithValue("@WarehouseRows", GetCount(counts, "WAREHOUSE"));
+                        command.Parameters.AddWithValue("@SupplierRows", GetCount(counts, "SUPPLIER"));
                         command.Parameters.AddWithValue("@SyncBatchId", batchId);
                         if (command.ExecuteNonQuery() != 1)
                             throw new InvalidOperationException("Không thể chuyển SyncBatch sang STAGED.");
                     }
 
-                    currentEntity = null; // Apply errors are batch-level unless SQL reports a specific entity.
-                    if (phaseChanged != null) phaseChanged("Giai đoạn 2/2: Đang Apply dữ liệu vào các bảng IFS / MES trong FVN_PCTP. Vui lòng chờ...");
+                    currentEntity = null;
+                    if (phaseChanged != null)
+                        phaseChanged("Giai đoạn 2/2: Đang Apply " + entities.Count +
+                            " nhóm dữ liệu đã chọn vào FVN_PCTP...");
 
                     using (var command = new SqlCommand("IFS.usp_ApplySyncBatch", connection))
                     {
@@ -137,13 +189,13 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                     return new IfsSyncResult
                     {
                         SyncBatchId = batchId,
-                        PartCatalogRows = partCatalog,
-                        InventoryPartRows = inventoryPart,
-                        BomHeaderRows = bomHeader,
-                        BomAlternativeRows = bomAlternative,
-                        BomComponentRows = bomComponent,
-                        WarehouseRows = warehouse,
-                        SupplierRows = supplier,
+                        PartCatalogRows = GetCount(counts, "PART_CATALOG"),
+                        InventoryPartRows = GetCount(counts, "INVENTORY_PART"),
+                        BomHeaderRows = GetCount(counts, "BOM_HEADER"),
+                        BomAlternativeRows = GetCount(counts, "BOM_ALTERNATIVE"),
+                        BomComponentRows = GetCount(counts, "BOM_COMPONENT"),
+                        WarehouseRows = GetCount(counts, "WAREHOUSE"),
+                        SupplierRows = GetCount(counts, "SUPPLIER"),
                         Status = "APPLIED"
                     };
                 }
@@ -175,23 +227,28 @@ VALUES(@SyncBatchId, @EntityName, 'SYNC_FAILED', @ErrorMessage, @ErrorDetails, S
                             error.ExecuteNonQuery();
                         }
                     }
-                    catch
-                    {
-                        // Preserve the original synchronization exception.
-                    }
+                    catch { }
                     throw;
                 }
             }
         }
 
-        private static long BeginBatch(SqlConnection connection)
+        private static int GetCount(IDictionary<string, int> counts, string entity)
+        {
+            int value;
+            return counts.TryGetValue(entity, out value) ? value : 0;
+        }
+
+        private static long BeginBatch(SqlConnection connection, string syncMode, string selectedEntities)
         {
             using (var command = new SqlCommand(@"
 INSERT IFS.SyncBatch
-    (SyncMode, Status, StartedAtUtc, InitiatedBy)
+    (SyncMode, SelectedEntities, Status, StartedAtUtc, InitiatedBy)
 OUTPUT INSERTED.SyncBatchId
-VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
+VALUES (@SyncMode, @SelectedEntities, 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
             {
+                command.Parameters.Add("@SyncMode", SqlDbType.VarChar, 12).Value = syncMode;
+                command.Parameters.Add("@SelectedEntities", SqlDbType.NVarChar, 500).Value = selectedEntities;
                 command.Parameters.Add("@InitiatedBy", SqlDbType.NVarChar, 128).Value =
                     Environment.UserDomainName + "\\" + Environment.UserName;
                 return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
