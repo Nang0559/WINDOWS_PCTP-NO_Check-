@@ -177,7 +177,6 @@ namespace PCTP
                 ["menuBcTruyXuatLinhKien"] = "REPORT.TRACEABILITY",
                 ["menuBcLichSuKho"] = "REPORT.STOCK_HISTORY",
                 ["menuBcLichSuQC"] = "REPORT.QUALITY_HISTORY",
-                ["menuSecurityAdmin"] = "ADMIN.USER_MANAGEMENT",
                 ["E_NhapTP"] = "WAREHOUSE.RECEIPT",
                 ["accordionControlElement_QCDinhHuong"] = "QUALITY.RETURN",
                 ["accordionControlElement_QCXacNhanCuoi"] = "QUALITY.RETURN",
@@ -203,7 +202,21 @@ namespace PCTP
         {
             var item = new AccordionControlElement(ElementStyle.Item) { Name = name, Text = text };
             string functionCode;
-            if (MenuFunctionMap.TryGetValue(name, out functionCode))
+            if (string.Equals(name, "menuSecurityAdmin", StringComparison.OrdinalIgnoreCase))
+            {
+                item.Visible = CanOpenSecurityAdministration();
+                item.Click += (s, e) =>
+                {
+                    if (!CanOpenSecurityAdministration())
+                    {
+                        XtraMessageBox.Show(this, "Bạn không có quyền quản trị tài khoản, vai trò hoặc nhật ký.",
+                            "PCTP - Phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    onClick?.Invoke(s, e);
+                };
+            }
+            else if (MenuFunctionMap.TryGetValue(name, out functionCode))
             {
                 item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
                 item.Click += (s, e) =>
@@ -232,14 +245,31 @@ namespace PCTP
             foreach (AccordionControlElement item in parent.Elements)
             {
                 string functionCode;
-                if (MenuFunctionMap.TryGetValue(item.Name ?? string.Empty, out functionCode))
+                if (string.Equals(item.Name, "menuSecurityAdmin", StringComparison.OrdinalIgnoreCase))
+                    item.Visible = CanOpenSecurityAdministration();
+                else if (MenuFunctionMap.TryGetValue(item.Name ?? string.Empty, out functionCode))
                     item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
                 if (item.Elements.Count > 0) ApplyAuthorizationRecursive(item);
             }
         }
 
+        private bool CanOpenSecurityAdministration()
+        {
+            var session = UserSession.Current;
+            return session != null &&
+                (session.HasPermission("ADMIN.USER_MANAGEMENT", "VIEW") ||
+                 session.HasPermission("ADMIN.ROLE_MANAGEMENT", "VIEW") ||
+                 session.HasPermission("ADMIN.AUDIT", "VIEW"));
+        }
+
         private void OpenSecurityAdministration(object sender, EventArgs e)
         {
+            if (!CanOpenSecurityAdministration())
+            {
+                XtraMessageBox.Show(this, "Bạn không có quyền mở màn hình quản trị.",
+                    "PCTP - Phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             OpenFromMenu(() => FormWindowManager.ShowSingle(this,
                 () => new FormSecurityAdministration()), "Quản trị tài khoản & phân quyền");
         }
@@ -314,7 +344,6 @@ namespace PCTP
             if (title.IndexOf("IFS", StringComparison.OrdinalIgnoreCase) >= 0) return "MASTERDATA.IFS_SYNC";
             if (title.IndexOf("Hàng chờ giao", StringComparison.OrdinalIgnoreCase) >= 0) return "SHIPPING.DISPATCH";
             if (title.IndexOf("Nhập kho", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.RECEIPT";
-            if (title.IndexOf("Quản trị tài khoản", StringComparison.OrdinalIgnoreCase) >= 0) return "ADMIN.USER_MANAGEMENT";
             return null;
         }
 
