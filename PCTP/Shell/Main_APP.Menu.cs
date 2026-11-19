@@ -102,6 +102,14 @@ namespace PCTP
                 "menuSecurityAdmin",
                 "Quản trị tài khoản & phân quyền",
                 OpenSecurityAdministration));
+            accordionControlElement20.Elements.Add(CreateMenuItem(
+                "menuChangePassword",
+                "Đổi mật khẩu đăng nhập",
+                OpenChangePassword));
+            accordionControlElement20.Elements.Add(CreateMenuItem(
+                "menuSignOut",
+                "Đăng xuất",
+                OpenSignOut));
 
             // ── 3. Xử lý LOT ───────────────────────────────────────────
             // Tách LOT là luồng nghiệp vụ; form tự chọn mẫu in Ghép LOT theo CustomerCode.
@@ -234,6 +242,37 @@ namespace PCTP
         {
             OpenFromMenu(() => FormWindowManager.ShowSingle(this,
                 () => new FormSecurityAdministration()), "Quản trị tài khoản & phân quyền");
+        }
+
+        private void OpenChangePassword(object sender, EventArgs e)
+        {
+            using (var dialog = new ChangePasswordDialog(false))
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                try
+                {
+                    var auth = new AuthenticationService(new AuthenticationRepository());
+                    var current = UserSession.Current;
+                    auth.ChangePassword(current, dialog.CurrentPassword, dialog.NewPassword);
+                    UserSession.SignIn(auth.Authenticate(current.UserName, dialog.NewPassword));
+                    XtraMessageBox.Show(this, "Đã cập nhật mật khẩu.", "PCTP",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show(this, ex.Message, "Đổi mật khẩu",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+        }
+
+        private void OpenSignOut(object sender, EventArgs e)
+        {
+            if (XtraMessageBox.Show(this, "Bạn muốn đăng xuất khỏi PCTP?", "Đăng xuất",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            UserSession.SignOut();
+            Application.Restart();
+            Close();
         }
 
         /// <summary>Mở 1 màn hình từ menu; lỗi hiển thị thông báo thay vì làm sập Shell.</summary>
