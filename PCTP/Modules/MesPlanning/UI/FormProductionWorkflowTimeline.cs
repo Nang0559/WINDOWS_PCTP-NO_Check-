@@ -7,7 +7,7 @@ using PCTP.Infrastructure.Security;
 namespace PCTP.Modules.MesPlanning.UI
 {
     /// <summary>Read-only timeline viewer for plan, order or production LOT workflow history.</summary>
-    public sealed class FormProductionWorkflowTimeline : Form
+    public sealed class FormProductionWorkflowTimeline : DevExpress.XtraEditors.XtraForm
     {
         private readonly IProductionWorkflowService _service;
         private readonly ComboBox _entityType = new ComboBox();
@@ -60,6 +60,13 @@ namespace PCTP.Modules.MesPlanning.UI
             Controls.Add(_events);
             Controls.Add(_message);
             Controls.Add(header);
+        }
+
+        public void SetEntity(string entityType, long entityId)
+        {
+            _entityType.SelectedItem = entityType;
+            _entityId.Text = entityId.ToString();
+            LoadClick(this, EventArgs.Empty);
         }
 
         private void LoadClick(object sender, EventArgs e)
