@@ -17,6 +17,9 @@ namespace PCTP.Modules.MesPlanning
         DataTable CompleteOperation(long productionLotId, string operationNo, decimal inputQty,
             decimal goodQty, decimal ngQty, int? inputSlotId, int? outputSlotId,
             string actor, string idempotencyKey);
+        long ResolveMaterialLotIdByQr(long productionLotId, string lotNo);
+        DataTable ConsumeMaterialByQr(long orderMaterialId, long productionLotId, string qrRawValue,
+            int fromSlotId, decimal quantity, string actor, string idempotencyKey);
         DataTable ConsumeMaterial(long orderMaterialId, long productionLotId, long materialLotId,
             int fromSlotId, decimal quantity, string actor, string idempotencyKey);
         DataTable PrepareLabels(long productionLotId, string operationNo, int targetQty, string actor);
