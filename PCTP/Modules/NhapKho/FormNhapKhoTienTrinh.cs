@@ -21,7 +21,7 @@ namespace PCTP.Modules.NhapKho
     // PCTP/VIEWSTOCK/ViewForm/FormNhapKhoTienTrinh.cs
     public partial class FormNhapKhoTienTrinh : XtraForm
     {
-            AuthorizationGuard.Demand("WAREHOUSE.RECEIPT", "VIEW");
+    
         private readonly SQLPROVIDER _sql = new SQLPROVIDER();
         private readonly IWarehouseDashboardService _dashboardService;
         private readonly MainStockSV _mainStockForm;
@@ -43,6 +43,7 @@ namespace PCTP.Modules.NhapKho
 
         public FormNhapKhoTienTrinh(MainStockSV mainStockForm, IWarehouseDashboardService dashboardService)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.RECEIPT", "VIEW");
             // Tuỳ chọn: null khi mở từ Main_APP (không có bản đồ kho). FormEnterItemSV đã null-safe (?.OnSlotUpdated()).
             _mainStockForm = mainStockForm;
 
