@@ -243,6 +243,7 @@ namespace PCTP
             if (string.IsNullOrWhiteSpace(title)) return null;
             if (title.IndexOf("Điều hành sản xuất", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PRODUCTION_EXECUTION";
             if (title.IndexOf("Upload kế hoạch", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PLAN_UPLOAD";
+            if (title.IndexOf("Nhận linh kiện", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.RECEIPT";
             if (title.IndexOf("linh kiện", StringComparison.OrdinalIgnoreCase) >= 0 && title.IndexOf("Truy xuất", StringComparison.OrdinalIgnoreCase) < 0) return "MES.COMPONENT_ISSUE";
             if (title.IndexOf("Tách LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "LOT.SPLIT";
             if (title.IndexOf("Ghép LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "LOT.MERGE";
