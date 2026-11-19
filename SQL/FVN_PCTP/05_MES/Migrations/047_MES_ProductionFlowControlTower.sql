@@ -104,7 +104,19 @@ BEGIN TRY
        JOIN @Scope s ON s.DepartmentCode=r.OwnerDepartmentCode
        WHERE r.SiteCode=p.SiteCode AND r.RelatedDepartmentCode=map.DepartmentCode
         AND r.IsActive=1
-        AND (r.OwnerProductPartNo IS NULL OR r.OwnerProductPartNo=pf.ProductPartNo)
+        AND (r.OwnerProductPartNo IS NULL OR EXISTS
+         (SELECT 1
+          FROM MES.FVN_ProductionPlanLine relationOwnerLine
+          JOIN MES.FVN_ProductionPlan relationOwnerPlan
+           ON relationOwnerPlan.ProductionPlanId=relationOwnerLine.ProductionPlanId
+          JOIN MES.FVN_ProductionLotCodeMap relationOwnerMap
+           ON relationOwnerMap.SiteCode=relationOwnerLine.SiteCode
+           AND relationOwnerMap.PlanProductionLineCode=relationOwnerLine.ProductionLineCode
+           AND relationOwnerMap.IsActive=1
+          WHERE relationOwnerPlan.SiteCode=p.SiteCode
+           AND relationOwnerMap.DepartmentCode=r.OwnerDepartmentCode
+           AND relationOwnerLine.ProductPartNo=r.OwnerProductPartNo
+           AND relationOwnerPlan.Status NOT IN(''CANCELLED'',''CLOSED'')))
         AND (r.RelatedProductPartNo IS NULL OR r.RelatedProductPartNo=l.ProductPartNo))
      OR EXISTS
       (
@@ -117,16 +129,13 @@ BEGIN TRY
         AND ownerMap.PlanProductionLineCode=ownerLine.ProductionLineCode
         AND ownerMap.IsActive=1
        JOIN @Scope ownerScope ON ownerScope.DepartmentCode=ownerMap.DepartmentCode
-       JOIN MES.FVN_ComponentDemandHeader demand
-        ON demand.ProductionPlanLineId=ownerLine.ProductionPlanLineId
-        AND demand.Status<>N''CANCELLED''
        JOIN IFS.FVN_BomComponent component
         ON component.SiteCode=ownerLine.SiteCode
         AND component.PartNo=ownerLine.ProductPartNo
         AND component.ComponentPartNo=l.ProductPartNo
         AND component.EngChgLevel=demand.BomEngChgLevel
         AND component.BomTypeDb=demand.BomTypeDb
-        AND component.AlternativeNo=demand.AlternativeNo
+        AND component.AlternativeNo IS NOT NULL
        WHERE ownerPlan.SiteCode=p.SiteCode
         AND ownerPlan.Status NOT IN(''CANCELLED'',''CLOSED'')
         AND (@FromDate IS NULL OR ISNULL(ownerLine.ProductionDate,ownerPlan.PlanDate)>=@FromDate)
