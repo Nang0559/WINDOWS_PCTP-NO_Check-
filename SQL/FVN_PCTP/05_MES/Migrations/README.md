@@ -356,8 +356,8 @@ The application boundary is:
 `IProductionWorkflowService` → `IWorkflowTransitionService` →
 `IProductionWorkflowRepository` → `MES.usp_FVN_ProductionWorkflow_Transition`.
 The SQL procedure rechecks configured transitions and business guards inside
-the state/audit transaction. Plan FIRM is blocked until every plan line has
-component demand. Order completion is blocked while any LOT has unfinished
+the state/audit transaction. Plan FIRM is guarded by the follow-up migration 038, which generates
+component demand for every plan line in the same transaction as the FIRM transition. Order completion is blocked while any LOT has unfinished
 routing operations; close is blocked while reserved/printed labels remain.
 Operation READY requires prior operations complete and labels prepared.
 Actual operation execution remains the source of production quantities and
@@ -368,3 +368,27 @@ labels or receive finished goods. Those facts remain owned by the existing MES
 production, label and canonical inventory procedures. Apply in a test database
 first, then configure/verify the shared transition rows and exercise all three
 workflow levels before production use.
+
+
+## Migration 038 — automatic component demand on FIRM
+
+Run `038_MES_FirmPlanAutoComponentDemand.sql` after migrations 033 and 036.
+A production plan entering `FIRM` now generates one component-demand document
+for each plan line from the effective IFS BOM and planned quantity. The
+generation runs inside the plan status transaction: if BOM resolution fails
+(missing or ambiguous effective alternative, or no usable component rows), the
+FIRM transition is rolled back instead of leaving a firm plan without material
+requirements.
+
+The migration adds `MES.usp_FVN_GenerateComponentDemandV2`, an idempotent
+entry point used by the plan trigger and the application. Repeated calls return
+the existing demand ID rather than creating duplicates. The earlier manual
+demand action can therefore be retained as a safe retry/reconciliation action;
+it is no longer the normal production workflow. IFS remains a read-only BOM
+source and all demand documents remain MES-owned.
+
+Apply migrations 033, 036 and 038 in order on a test database. Then validate
+both the successful FIRM transition and rollback behavior with a plan whose
+IFS BOM is missing or ambiguous. Migration 038 has not been executed by the
+application developer; database deployment and validation remain an operator
+step.
