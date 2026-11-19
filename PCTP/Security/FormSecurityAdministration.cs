@@ -48,8 +48,24 @@ namespace PCTP.Security
             view.OptionsBehavior.Editable = false;
             view.OptionsView.ShowGroupPanel = false;
             view.OptionsView.ColumnAutoWidth = false;
+            view.OptionsView.EnableAppearanceEvenRow = true;
+            view.OptionsView.ShowIndicator = false;
+            view.OptionsView.RowAutoHeight = true;
             view.OptionsFind.AlwaysVisible = true;
+            view.OptionsFind.FindNullPrompt = "Nhập từ khóa để tìm...";
             view.OptionsSelection.EnableAppearanceFocusedCell = false;
+            view.Appearance.Row.Font = new Font("Segoe UI", 9F);
+            view.Appearance.Row.Options.UseFont = true;
+            view.Appearance.EvenRow.BackColor = Color.FromArgb(245, 248, 252);
+            view.Appearance.EvenRow.Options.UseBackColor = true;
+            view.Appearance.HeaderPanel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            view.Appearance.HeaderPanel.BackColor = Color.FromArgb(230, 237, 246);
+            view.Appearance.HeaderPanel.ForeColor = Color.FromArgb(45, 65, 85);
+            view.Appearance.HeaderPanel.Options.UseFont = true;
+            view.Appearance.HeaderPanel.Options.UseBackColor = true;
+            view.Appearance.HeaderPanel.Options.UseForeColor = true;
+            view.ColumnPanelRowHeight = 34;
+            view.RowHeight = 28;
             grid.DataSourceChanged += (s, e) =>
             {
                 // Chờ view nạp cột xong rồi mới BestFit.
