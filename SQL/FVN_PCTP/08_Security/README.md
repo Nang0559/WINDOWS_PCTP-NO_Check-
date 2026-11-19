@@ -33,7 +33,10 @@ must be added to the catalog and granted explicitly.
 - Permissions are explicit pairs of `FunctionCode + ActionCode`: VIEW,
   CREATE, EDIT, DELETE, CONFIRM, APPROVE, CANCEL, EXPORT, PRINT, ADMIN.
 - When multiple assigned roles disagree, an explicit role DENY wins over role
-  ALLOW. A per-user ALLOW/DENY override is the final account-specific decision.
+  ALLOW. The schema supports per-user ALLOW/DENY overrides as the final
+  account-specific decision; the current administration screen exposes role
+  permissions and role scopes only. User-specific overrides/scopes are reserved
+  for a later admin UI increment and should not be edited manually in normal use.
 - Data scopes are explicit: ALL, SITE, DEPARTMENT, WAREHOUSE, LINE, PROCESS,
   OWN. A missing scope is denied; it is not treated as ALL.
 - Menu visibility is only a usability layer. Application services must call
