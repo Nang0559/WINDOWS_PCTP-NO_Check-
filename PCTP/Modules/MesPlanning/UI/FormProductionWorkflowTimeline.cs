@@ -75,7 +75,8 @@ namespace PCTP.Modules.MesPlanning.UI
 
         public void SetEntity(string entityType, long entityId)
         {
-            _entityType.SelectedItem = entityType;
+            _entityType.SelectedIndex = string.Equals(entityType, "PLAN", StringComparison.OrdinalIgnoreCase) ? 0 :
+                string.Equals(entityType, "ORDER", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
             _entityId.Text = entityId.ToString();
             LoadClick(this, EventArgs.Empty);
         }
