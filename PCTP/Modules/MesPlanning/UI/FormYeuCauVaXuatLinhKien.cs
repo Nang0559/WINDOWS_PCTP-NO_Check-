@@ -18,6 +18,7 @@ namespace PCTP.Modules.MesPlanning.UI
     
         public FormYeuCauVaXuatLinhKien(IComponentDemandService service)
         {
+            AuthorizationGuard.Demand("MES.COMPONENT_DEMAND", "VIEW");
             AuthorizationGuard.Demand("MES.COMPONENT_ISSUE", "VIEW");
             _service=service??throw new ArgumentNullException(nameof(service));
             Text="Yêu cầu và xuất linh kiện sang WIP"; StartPosition=FormStartPosition.CenterParent;
@@ -33,7 +34,7 @@ namespace PCTP.Modules.MesPlanning.UI
             top.Controls.Add(new Label{Text="Site",AutoSize=true,Padding=new Padding(0,8,0,0)});
             _site.Width=100;top.Controls.Add(_site);
             var reload=new Button{Text="Tải kế hoạch"};reload.Click+=(s,e)=>LoadPlans();top.Controls.Add(reload);
-            var gen=new Button{Text="Tạo yêu cầu linh kiện theo BOM"};gen.Click+=GenerateClick;top.Controls.Add(gen);
+            var gen=new Button{Text="Tạo yêu cầu linh kiện theo BOM",Enabled=UserSession.Current != null && UserSession.Current.HasPermission("MES.COMPONENT_DEMAND","CREATE")};gen.Click+=GenerateClick;top.Controls.Add(gen);
             _plans.Dock=DockStyle.Fill;_plans.ReadOnly=true;_plans.AllowUserToAddRows=false;_plans.SelectionMode=DataGridViewSelectionMode.FullRowSelect;_plans.MultiSelect=false;_plans.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.DisplayedCells;
             _plans.SelectionChanged+=(s,e)=>LoadDemand();
             _demands.Dock=DockStyle.Fill;_demands.ReadOnly=true;_demands.AllowUserToAddRows=false;_demands.SelectionMode=DataGridViewSelectionMode.FullRowSelect;_demands.MultiSelect=false;_demands.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.DisplayedCells;
@@ -47,7 +48,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _qty.Width=110;_qty.DecimalPlaces=3;_qty.Maximum=1000000000;_qty.Minimum=0.001M;_qty.Value=1;issue.Controls.Add(_qty);
             issue.Controls.Add(new Label{Text="Số phiếu",AutoSize=true,Padding=new Padding(0,8,0,0)});
             _issueNo.Width=150;_issueNo.Text="WIP-"+DateTime.Now.ToString("yyyyMMddHHmmss");issue.Controls.Add(_issueNo);
-            _postButton.Text="XUẤT PART → WIP";_postButton.Width=170;_postButton.Height=32;_postButton.Click+=PostClick;issue.Controls.Add(_postButton);
+            _postButton.Text="XUẤT PART → WIP";_postButton.Enabled=UserSession.Current != null && UserSession.Current.HasPermission("MES.COMPONENT_ISSUE","CONFIRM");_postButton.Width=170;_postButton.Height=32;_postButton.Click+=PostClick;issue.Controls.Add(_postButton);
             _status.Dock=DockStyle.Fill;_status.TextAlign=ContentAlignment.MiddleLeft;
             root.Controls.Add(top,0,0);root.Controls.Add(_plans,0,1);root.Controls.Add(_demands,0,2);root.Controls.Add(issue,0,3);
             root.Controls.Add(_status,0,4); Controls.Add(root);
@@ -82,7 +83,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 var areaCode=CellText(demand,"SourceAreaCode");
                 if(string.IsNullOrWhiteSpace(areaCode)) areaCode=supplyMode=="MAKE"?"WIP":"PART";
                 _lots.DataSource=(!string.IsNullOrWhiteSpace(site)&&!string.IsNullOrWhiteSpace(part))?_service.GetPartLots(site,part,areaCode):new DataTable();
-                _postButton.Enabled=supplyMode!="MAKE";
+                _postButton.Enabled=supplyMode!="MAKE" && UserSession.Current != null && UserSession.Current.HasPermission("MES.COMPONENT_ISSUE","CONFIRM");
                 _postButton.Text=supplyMode=="MAKE"?"MAKE: TIÊU HAO TẠI ĐIỀU HÀNH MES":"XUẤT PART → WIP";
                 _wipSlots.Enabled=supplyMode!="MAKE";
                 if(supplyMode=="MAKE")
