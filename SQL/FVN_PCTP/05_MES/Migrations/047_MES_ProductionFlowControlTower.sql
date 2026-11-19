@@ -128,6 +128,8 @@ BEGIN TRY
         AND component.AlternativeNo=demand.AlternativeNo
        WHERE ownerPlan.SiteCode=p.SiteCode
         AND ownerPlan.Status NOT IN(''CANCELLED'',''CLOSED'')
+        AND (@FromDate IS NULL OR ISNULL(ownerLine.ProductionDate,ownerPlan.PlanDate)>=@FromDate)
+        AND (@ToDate IS NULL OR ISNULL(ownerLine.ProductionDate,ownerPlan.PlanDate)<=@ToDate)
         AND component.EffectiveInDate<=CAST(ISNULL(ownerLine.ProductionDate,ownerPlan.PlanDate) AS datetime2(0))
         AND (component.EffectiveOutDate IS NULL OR component.EffectiveOutDate>=CAST(ISNULL(ownerLine.ProductionDate,ownerPlan.PlanDate) AS datetime2(0)))
       )
