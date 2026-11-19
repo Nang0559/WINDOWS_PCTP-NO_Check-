@@ -42,18 +42,21 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
         public StockMovementResult Receive(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
             AuthorizationGuard.DemandActionAndScope("WAREHOUSE.RECEIPT", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             return AddToSlot(request, true);
         }
 
         public StockMovementResult Reserve(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
             AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_VIEW", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             return StockMovementResult.Fail("Reserve chưa được triển khai cho storage hiện tại.");
         }
 
         public StockMovementResult Pick(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
             AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             if (request != null &&
                 request.SlotId.HasValue &&
@@ -88,12 +91,14 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
         public StockMovementResult Export(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
             AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             return RemoveFromSlot(request, true);
         }
 
         public StockMovementResult Move(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
             AuthorizationGuard.DemandActionAndScope("WAREHOUSE.MOVE", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             if (request == null)
                 return StockMovementResult.Fail("Stock movement request không được null.");
@@ -195,12 +200,14 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
         public StockMovementResult ReturnFromRework(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
             AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             return AddToSlot(request, true);
         }
 
         public StockMovementResult Correct(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
             AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_ADJUST", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             if (request == null)
                 return StockMovementResult.Fail("Stock movement request không được null.");
