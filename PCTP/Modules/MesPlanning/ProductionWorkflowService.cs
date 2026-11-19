@@ -48,6 +48,17 @@ namespace PCTP.Modules.MesPlanning
                 routingStepId, fromStatus, toStatus, actor, reason);
         }
 
+        public int GetCurrentStatus(string entityType, long entityId, long? relatedId = null)
+        {
+            ValidateEntityType(entityType);
+            if (entityId <= 0) throw new ArgumentException("EntityId không hợp lệ.");
+            if (string.Equals(entityType, "OPERATION", StringComparison.OrdinalIgnoreCase) &&
+                (!relatedId.HasValue || relatedId.Value <= 0))
+                throw new ArgumentException("RoutingStepId không hợp lệ.");
+            DemandEntityScope(entityType, entityId, "VIEW");
+            return _repository.GetCurrentStatus(entityType, entityId, relatedId);
+        }
+
         public DataTable GetTimeline(string entityType, long entityId)
         {
             if (entityId <= 0) throw new ArgumentException("EntityId không hợp lệ.");
