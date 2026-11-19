@@ -1,4 +1,5 @@
 using PCTP.Common;
+using PCTP.Infrastructure.Security;
 using PCTP.Models;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
@@ -89,6 +90,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public List<LotInfo> GetLotsCanRework(string maHang, string lotNo)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
             if (string.IsNullOrWhiteSpace(maHang))
                 throw new ArgumentException("MaHang không được rỗng.", nameof(maHang));
 
@@ -144,6 +146,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public List<LotInfo> GetLotsCanReworkByPhieuXuLy(int phieuXuLyId)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
             if (phieuXuLyId <= 0)
                 throw new ArgumentException("phieuXuLyId không hợp lệ.", nameof(phieuXuLyId));
 
@@ -177,6 +180,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string nguoiXuat,
             Guid operationId)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            nguoiXuat = AuthorizationGuard.ActorCode;
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
             if (slotLotId <= 0)
@@ -346,6 +351,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public ReworkPhase4Plan GetReworkPlan(int phieuXuLyId)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
             var phase4 = _phase4Provider == null ? null : _phase4Provider();
             if (phase4 == null)
                 throw new InvalidOperationException(
@@ -361,6 +367,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int? slotIdNG,
             string nguoiNhap)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            nguoiNhap = AuthorizationGuard.ActorCode;
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
             if (string.IsNullOrWhiteSpace(lotNo))
@@ -469,6 +477,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string nguoiThucHien,
             Guid operationId)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            nguoiThucHien = AuthorizationGuard.ActorCode;
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
             if (slotLotId <= 0)
@@ -622,6 +632,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             IList<KhachTraNhapNGLine> lines,
             string nguoiNhap)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            nguoiNhap = AuthorizationGuard.ActorCode;
             if (phieuTraHangId <= 0)
                 return ScanResult.Fail("phieuTraHangId không hợp lệ.");
             if (slotIdNG <= 0)
@@ -738,6 +750,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int slotIdOK,
             string nguoiNhap)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            nguoiNhap = AuthorizationGuard.ActorCode;
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
             if (soLuongOK <= 0)
@@ -819,6 +833,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int phieuXuLyId,
             string nguoiThucHien)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CANCEL");
+            nguoiThucHien = AuthorizationGuard.ActorCode;
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
             if (string.IsNullOrWhiteSpace(nguoiThucHien))
