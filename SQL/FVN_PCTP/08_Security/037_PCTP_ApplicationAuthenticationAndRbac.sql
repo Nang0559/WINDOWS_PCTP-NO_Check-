@@ -193,6 +193,7 @@ BEGIN TRY
   SET NOCOUNT ON; SET XACT_ABORT ON;
   IF DATALENGTH(@NewPasswordSalt)<16 OR DATALENGTH(@NewPasswordHash)<>32 OR @PasswordIterations NOT BETWEEN 100000 AND 1000000
    THROW 53714,''Password credential parameters are invalid.'',1;
+  BEGIN TRANSACTION;
   IF @IsFirstPassword=1 AND NOT EXISTS(SELECT 1 FROM SEC.UserAccount
    WHERE UserId=@UserId AND MustChangePassword=1)
    THROW 53715,''First-password flow is not enabled for this account.'',1;
@@ -205,6 +206,7 @@ BEGIN TRY
   IF @@ROWCOUNT=0 THROW 53717,''Active account not found.'',1;
   INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId)
    VALUES(@UserId,''USER_PASSWORD_CHANGED'',''USER'',CONVERT(nvarchar(100),@UserId));
+  COMMIT TRANSACTION;
  END');
 
  EXEC(N'
