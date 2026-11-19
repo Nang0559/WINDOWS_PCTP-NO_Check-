@@ -48,6 +48,7 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult PickToChoGiao(StockExportRequest request)
         {
+            if (request != null) request.NguoiThucHien = AuthorizationGuard.ActorCode;
             AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
             // ItemCode thiếu: lấy từ chính SlotLot của LOT cần pick (nguồn sự thật), không bắt người dùng/caller đoán.
             if (request != null && string.IsNullOrWhiteSpace(request.ItemCode) &&
@@ -172,6 +173,7 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult CancelChoGiao(int hangChoGiaoId, string nguoiThucHien)
         {
+            nguoiThucHien = AuthorizationGuard.ActorCode;
             AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CANCEL");
             if (_stockMovement == null)
                 return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
@@ -242,6 +244,7 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult ConfirmGiaoHangTuChoGiao(int hangChoGiaoId, string nguoiGiao)
         {
+            nguoiGiao = AuthorizationGuard.ActorCode;
             AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
             if (_stockMovement == null)
                 return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
@@ -324,6 +327,7 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult XuatTrucTiep(StockExportRequest request)
         {
+            if (request != null) request.NguoiThucHien = AuthorizationGuard.ActorCode;
             AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
             var validation = _validationService.ValidateXuatTrucTiep(request);
             if (!validation.IsValid)
