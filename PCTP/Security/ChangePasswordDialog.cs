@@ -43,8 +43,10 @@ namespace PCTP.Security
                 catch (Exception ex) { MessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
             };
             Controls.Add(save);
+            var cancel = new Button { Text = "HỦY", Width = 80, Height = 32, Left = 195, Top = y + 8, DialogResult = DialogResult.Cancel };
+            Controls.Add(cancel);
             AcceptButton = save;
-            CancelButton = new Button { DialogResult = DialogResult.Cancel };
+            CancelButton = cancel;
         }
 
         private void AddField(string caption, TextBox box, ref int y)
