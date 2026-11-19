@@ -1071,6 +1071,14 @@
     <Compile Include="Modules\NhapKho\ComponentReceiving\ComponentSlotLookupRepository.cs" />
     <Compile Include="Modules\NhapKho\ComponentReceiving\IComponentSlotLookupService.cs" />
     <Compile Include="Modules\NhapKho\ComponentReceiving\ComponentSlotLookupService.cs" />
+    <Compile Include="Modules\MesPlanning\IProductionFlowRepository.cs" />
+    <Compile Include="Modules\MesPlanning\IProductionFlowService.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionFlowRepository.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionFlowService.cs" />
+    <Compile Include="Modules\MesPlanning\MesProductionFlowComposition.cs" />
+    <Compile Include="Modules\MesPlanning\UI\FormMesProductionControlTower.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\MesPlanning\IProductionExecutionRepository.cs" />
     <Compile Include="Modules\MesPlanning\ProductionExecutionRepository.cs" />
     <Compile Include="Modules\MesPlanning\IProductionExecutionService.cs" />
