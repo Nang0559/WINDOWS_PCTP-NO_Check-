@@ -35,6 +35,8 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly SimpleButton _openPlan = new SimpleButton();
         private readonly SimpleButton _openPart = new SimpleButton();
         private readonly SimpleButton _openProduction = new SimpleButton();
+        private readonly SimpleButton _openTask = new SimpleButton();
+        private readonly SimpleButton _openTimeline = new SimpleButton();
         private readonly SimpleButton _selectFirmPlan = new SimpleButton();
         private readonly bool _selectionMode;
         private readonly BackgroundWorker _worker = new BackgroundWorker();
@@ -118,6 +120,12 @@ namespace PCTP.Modules.MesPlanning.UI
                 _openPart.Click += (s, e) => OpenPart();
                 ConfigureAction(_openPlan, "KẾ HOẠCH", UserSession.Current.HasPermission("MES.PLAN_UPLOAD", "VIEW"));
                 _openPlan.Click += (s, e) => OpenPlan();
+                ConfigureAction(_openTask, "MỞ TÁC VỤ", false);
+                _openTask.Click += (s, e) => OpenSelectedTask();
+                ConfigureAction(_openTimeline, "LỊCH SỬ", false);
+                _openTimeline.Click += (s, e) => OpenSelectedTimeline();
+                actionPanel.Controls.Add(_openTimeline);
+                actionPanel.Controls.Add(_openTask);
                 actionPanel.Controls.Add(_openProduction);
                 actionPanel.Controls.Add(_openPart);
                 actionPanel.Controls.Add(_openPlan);
@@ -154,11 +162,12 @@ namespace PCTP.Modules.MesPlanning.UI
             {
                 ShowSelectedDetails();
                 UpdateSelectionButton();
+                UpdateNavigationButtons();
             };
             _taskGrid.View.DoubleClick += (s, e) =>
             {
                 if (_selectionMode) SelectCurrentFirmPlan();
-                else OpenSelectedTask();
+                else OpenSelectedTimeline();
             };
             _details.Dock = DockStyle.Fill;
             _details.Properties.ReadOnly = true;
@@ -231,6 +240,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 _status.Appearance.ForeColor = Color.FromArgb(70, 85, 100);
                 ShowSelectedDetails();
                 UpdateSelectionButton();
+                UpdateNavigationButtons();
             };
             _refreshTimer.Interval = 5000;
             _refreshTimer.Tick += (s, e) => LoadFlow();
@@ -427,6 +437,45 @@ namespace PCTP.Modules.MesPlanning.UI
             SelectedPlanLineId = Convert.ToInt64(row["ProductionPlanLineId"]);
             DialogResult = DialogResult.OK;
             Close();
+        }
+
+        private void UpdateNavigationButtons()
+        {
+            var row = _taskGrid.View.GetFocusedDataRow();
+            bool hasRow = row != null;
+            if (!_selectionMode)
+            {
+                _openTimeline.Enabled = hasRow && UserSession.Current.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW");
+                _openTask.Enabled = hasRow && row["TaskCode"] != DBNull.Value &&
+                    (ProductionFlowTaskCode)row["TaskCode"] != ProductionFlowTaskCode.None;
+            }
+        }
+
+        private void OpenSelectedTimeline()
+        {
+            var row = _taskGrid.View.GetFocusedDataRow();
+            if (row == null) return;
+            try
+            {
+                using (var timeline = new FormProductionWorkflowTimeline(MesWorkflowComposition.Create()))
+                {
+                    long planId = SafeLong(row["ProductionPlanId"]);
+                    long orderId = SafeLong(row["ProductionOrderId"]);
+                    if (orderId > 0) timeline.SetEntity("ORDER", orderId);
+                    else timeline.SetEntity("PLAN", planId);
+                    timeline.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(this, ex.Message, "Lịch sử workflow", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private static long SafeLong(object value)
+        {
+            long result;
+            return value != null && value != DBNull.Value && long.TryParse(Convert.ToString(value), out result) ? result : 0L;
         }
 
         private void OpenSelectedTask()
