@@ -204,14 +204,14 @@ namespace PCTP.Modules.MesPlanning.UI
             };
             var progressPanel = new FlowLayoutPanel
             {
-                Dock = DockStyle.Bottom, Height = 42, WrapContents = false,
-                Padding = new Padding(2, 5, 2, 2)
+                Dock = DockStyle.Bottom, Height = 84, WrapContents = false,
+                FlowDirection = FlowDirection.TopDown, Padding = new Padding(2, 3, 2, 2)
             };
             ConfigureProgress(_componentProgress);
             ConfigureProgress(_operationProgress);
-            progressPanel.Controls.Add(new LabelControl { Text = "CẤP LINH KIỆN", Width = 105, Padding = new Padding(0, 5, 0, 0) });
+            progressPanel.Controls.Add(new LabelControl { Text = "CẤP LINH KIỆN", Width = 260, Height = 18 });
             progressPanel.Controls.Add(_componentProgress);
-            progressPanel.Controls.Add(new LabelControl { Text = "CÔNG ĐOẠN", Width = 90, Padding = new Padding(12, 5, 0, 0) });
+            progressPanel.Controls.Add(new LabelControl { Text = "CÔNG ĐOẠN", Width = 260, Height = 18 });
             progressPanel.Controls.Add(_operationProgress);
             detailPanel.Controls.Add(_details);
             detailPanel.Controls.Add(progressPanel);
@@ -429,8 +429,8 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private static void ConfigureProgress(ProgressBarControl progress)
         {
-            progress.Width = 220;
-            progress.Height = 24;
+            progress.Width = 260;
+            progress.Height = 20;
             progress.Properties.Minimum = 0;
             progress.Properties.Maximum = 100;
             progress.Properties.ShowTitle = true;
