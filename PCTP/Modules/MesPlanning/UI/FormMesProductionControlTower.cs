@@ -20,9 +20,8 @@ namespace PCTP.Modules.MesPlanning.UI
     public sealed class FormMesProductionControlTower : XtraForm
     {
         private readonly IProductionFlowService _service;
-        private readonly TextEdit _site = new TextEdit();
-        private readonly DateEdit _from = new DateEdit();
-        private readonly DateEdit _to = new DateEdit();
+        private readonly PCTP.Shared.MesControls.FvnSiteDateRangeFilterControl _filters =
+            new PCTP.Shared.MesControls.FvnSiteDateRangeFilterControl();
         private readonly PCTP.Shared.MesControls.FvnDepartmentTaskGridControl _taskGrid =
             new PCTP.Shared.MesControls.FvnDepartmentTaskGridControl();
         private readonly MemoEdit _details = new MemoEdit();
@@ -32,7 +31,6 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly PCTP.Shared.MesControls.FvnHoldAlertControl _holdAlert = new PCTP.Shared.MesControls.FvnHoldAlertControl();
         private readonly LabelControl _status = new LabelControl();
         private readonly LabelControl _refreshStamp = new LabelControl();
-        private readonly SimpleButton _refresh = new SimpleButton();
         private readonly SimpleButton _openPlan = new SimpleButton();
         private readonly SimpleButton _openPart = new SimpleButton();
         private readonly SimpleButton _openProduction = new SimpleButton();
@@ -68,14 +66,15 @@ namespace PCTP.Modules.MesPlanning.UI
             StartPosition = FormStartPosition.CenterParent;
             WindowState = FormWindowState.Maximized;
             MinimumSize = new Size(1180, 720);
+            _filters.RefreshRequested += (s, e) => LoadFlow();
             BuildUi();
             ConfigureWorker();
             Load += (s, e) =>
             {
-                if (string.IsNullOrWhiteSpace(_site.Text))
+                if (string.IsNullOrWhiteSpace(_filters.SiteCode))
                 {
                     var scope = UserSession.Current.DataScopes.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.SiteCode));
-                    if (scope != null) _site.Text = scope.SiteCode;
+                    if (scope != null) _filters.SiteCode = scope.SiteCode;
                 }
                 LoadFlow();
             };
@@ -95,25 +94,9 @@ namespace PCTP.Modules.MesPlanning.UI
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
 
             var header = new PanelControl { Dock = DockStyle.Fill, BorderStyle = BorderStyles.NoBorder };
-            var filters = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Left, Width = 700, WrapContents = false,
-                FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(2, 10, 0, 0)
-            };
-            filters.Controls.Add(MakeCaption("SITE"));
-            _site.Width = 110; _site.Properties.NullValuePrompt = "SiteCode";
-            filters.Controls.Add(_site);
-            filters.Controls.Add(MakeCaption("TỪ NGÀY"));
-            ConfigureDate(_from, DateTime.Today.AddDays(-7));
-            filters.Controls.Add(_from);
-            filters.Controls.Add(MakeCaption("ĐẾN NGÀY"));
-            ConfigureDate(_to, DateTime.Today.AddDays(30));
-            filters.Controls.Add(_to);
-            _refresh.Text = "LÀM MỚI"; _refresh.Width = 112; _refresh.Height = 32;
-            _refresh.ImageOptions.SvgImageSize = new Size(16, 16);
-            _refresh.Click += (s, e) => LoadFlow();
-            filters.Controls.Add(_refresh);
-            header.Controls.Add(filters);
+            _filters.Dock = DockStyle.Left;
+            _filters.Width = 700;
+            header.Controls.Add(_filters);
 
             var actionPanel = new FlowLayoutPanel
             {
@@ -224,7 +207,7 @@ namespace PCTP.Modules.MesPlanning.UI
             };
             _worker.RunWorkerCompleted += (s, e) =>
             {
-                _refresh.Enabled = true;
+                _filters.SetBusy(false);
                 if (e.Error != null)
                 {
                     _status.Text = "Không tải được dòng chảy: " + e.Error.GetBaseException().Message;
@@ -251,19 +234,19 @@ namespace PCTP.Modules.MesPlanning.UI
         private void LoadFlow()
         {
             if (_worker.IsBusy) return;
-            if (string.IsNullOrWhiteSpace(_site.Text))
+            if (string.IsNullOrWhiteSpace(_filters.SiteCode))
             {
                 _status.Text = "Nhập SiteCode để xem dòng chảy thuộc phạm vi của bạn.";
                 return;
             }
-            _refresh.Enabled = false;
+            _filters.SetBusy(true);
             _status.Text = "Đang đồng bộ trạng thái kế hoạch, linh kiện, lệnh và sản xuất...";
             _status.Appearance.ForeColor = Color.SteelBlue;
             _worker.RunWorkerAsync(new LoadArgs
             {
-                Site = _site.Text.Trim(),
-                From = _from.EditValue == null || _from.EditValue == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(_from.EditValue).Date,
-                To = _to.EditValue == null || _to.EditValue == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(_to.EditValue).Date
+                Site = _filters.SiteCode,
+                From = _filters.FromDate,
+                To = _filters.ToDate
             });
         }
 
@@ -534,24 +517,6 @@ namespace PCTP.Modules.MesPlanning.UI
             if (value == null || value == DBNull.Value) return 0;
             int result;
             return int.TryParse(Convert.ToString(value), out result) ? result : 0;
-        }
-
-        private static LabelControl MakeCaption(string text)
-        {
-            return new LabelControl
-            {
-                Text = text, AutoSizeMode = LabelAutoSizeMode.None, Width = 68, Height = 30,
-                Padding = new Padding(2, 7, 2, 0),
-                Appearance = { Font = new Font("Segoe UI", 8f, FontStyle.Bold), ForeColor = Color.FromArgb(82, 96, 112) }
-            };
-        }
-
-        private static void ConfigureDate(DateEdit edit, DateTime value)
-        {
-            edit.Width = 116;
-            edit.Properties.Mask.EditMask = "dd/MM/yyyy";
-            edit.Properties.Mask.UseMaskAsDisplayFormat = true;
-            edit.EditValue = value;
         }
 
         private static void ConfigureAction(SimpleButton button, string text, bool allowed)
