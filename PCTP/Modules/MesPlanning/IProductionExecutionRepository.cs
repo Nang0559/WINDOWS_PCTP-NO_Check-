@@ -7,9 +7,13 @@ namespace PCTP.Modules.MesPlanning
     {
         string GetPlanLineSiteCode(long planLineId);
         string GetPlanLineStatus(long planLineId);
+        string GetPlanLineDepartmentCode(long planLineId);
         string GetOrderSiteCode(long orderId);
+        string GetOrderDepartmentCode(long orderId);
         string GetLotSiteCode(long productionLotId);
+        string GetLotDepartmentCode(long productionLotId);
         string GetLabelSiteCode(string labelCode);
+        string GetLabelDepartmentCode(string labelCode);
         DataTable GetOrderMaterials(long orderId);
         DataTable GetRoutingSteps(long productionLotId);
         DataTable CreateOrder(long planLineId, string orderNo, string actor);
