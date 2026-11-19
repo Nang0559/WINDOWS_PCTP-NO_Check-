@@ -3,6 +3,8 @@ using PCTP.Common;
 using PCTP.Modules.NhapKho;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Repository;
+using PCTP.Modules.XuatKho.Interfaces;
+using PCTP.Security;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -17,7 +19,9 @@ namespace PCTP.Shell.Widgets
     {
         private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
         private readonly INhapKhoDashboardRepository _nhapKhoRepo;
+        private readonly IHangChoGiaoRepository _hangChoGiaoRepo;
         private readonly Action _openNhapKho;
+        private readonly Action _openHangChoGiao;
 
         private LabelControl _lblChoDinhHuong;
         private LabelControl _lblChoQCCuoi;
@@ -26,16 +30,21 @@ namespace PCTP.Shell.Widgets
         private LabelControl _lblChoGiaoBu;
         private LabelControl _lblChoNhapLai;
         private LabelControl _lblChoNhap;
+        private LabelControl _lblChoGiao;
         private LabelControl _lblLechA0;
 
         public WmsWorklistBar(
             IPhieuXuLyBatThuongRepository phieuXuLyRepo,
             INhapKhoDashboardRepository nhapKhoRepo,
-            Action openNhapKho)
+            IHangChoGiaoRepository hangChoGiaoRepo,
+            Action openNhapKho,
+            Action openHangChoGiao)
         {
             _phieuXuLyRepo = phieuXuLyRepo ?? throw new ArgumentNullException("phieuXuLyRepo");
             _nhapKhoRepo = nhapKhoRepo ?? throw new ArgumentNullException("nhapKhoRepo");
+            _hangChoGiaoRepo = hangChoGiaoRepo ?? throw new ArgumentNullException("hangChoGiaoRepo");
             _openNhapKho = openNhapKho ?? throw new ArgumentNullException("openNhapKho");
+            _openHangChoGiao = openHangChoGiao ?? throw new ArgumentNullException("openHangChoGiao");
 
             Dock = DockStyle.Top;
             Height = 64;
@@ -90,8 +99,26 @@ namespace PCTP.Shell.Widgets
             _lblChoNhap = MakeItem("📥 Phiếu chờ nhập: --");
             _lblChoNhap.Click += delegate { _openNhapKho(); };
 
+            _lblChoGiao = MakeItem("🚚 Hàng đã pick chờ giao: --");
+            _lblChoGiao.Click += delegate { _openHangChoGiao(); };
+
             _lblLechA0 = MakeItem("⚠ Lệch đối chiếu A0: --");
             _lblLechA0.Click += delegate { _openNhapKho(); };
+
+            var session = UserSession.Current;
+            bool quality = session != null && session.HasPermission("QUALITY.RETURN", "VIEW");
+            bool receipt = session != null && session.HasPermission("WAREHOUSE.RECEIPT", "VIEW");
+            bool dispatch = session != null && session.HasPermission("SHIPPING.DISPATCH", "VIEW");
+            bool stockView = session != null && session.HasPermission("WAREHOUSE.STOCK_VIEW", "VIEW");
+            _lblChoDinhHuong.Visible = quality;
+            _lblChoQCCuoi.Visible = quality;
+            _lblChoRework.Visible = quality;
+            _lblChoQCRework.Visible = quality;
+            _lblChoNhapLai.Visible = quality;
+            _lblChoGiaoBu.Visible = dispatch;
+            _lblChoGiao.Visible = dispatch;
+            _lblChoNhap.Visible = receipt;
+            _lblLechA0.Visible = stockView;
 
             flow.Controls.Add(title);
             flow.Controls.Add(_lblChoDinhHuong);
@@ -101,6 +128,7 @@ namespace PCTP.Shell.Widgets
             flow.Controls.Add(_lblChoGiaoBu);
             flow.Controls.Add(_lblChoNhapLai);
             flow.Controls.Add(_lblChoNhap);
+            flow.Controls.Add(_lblChoGiao);
             flow.Controls.Add(_lblLechA0);
 
             panel.Controls.Add(flow);
@@ -127,23 +155,47 @@ namespace PCTP.Shell.Widgets
 
             try
             {
-                int choDinhHuong = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaTaoPhieuBatThuong);
-                int choQCCuoi = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
-                int choRework = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaDinhHuong);
-                int choQCRework = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
-                int choGiaoBu = _phieuXuLyRepo.CountByStatus(QTChungStatus.ChoGiaoBu);
-                int choNhapLai = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaQCXacNhanCuoi);
-                int choNhap = _nhapKhoRepo.DemPhieuChoNhap();
-                int lechA0 = _nhapKhoRepo.DemLechDoiChieu();
+                var session = UserSession.Current;
+                if (session == null) return;
 
-                SetItem(_lblChoDinhHuong, "🟡 QC chờ định hướng: " + choDinhHuong, choDinhHuong);
-                SetItem(_lblChoQCCuoi, "🔴 QC chờ duyệt cuối: " + choQCCuoi, choQCCuoi);
-                SetItem(_lblChoRework, "🛠 Chờ xuất Rework: " + choRework, choRework);
-                SetItem(_lblChoQCRework, "🔎 Chờ QC Rework: " + choQCRework, choQCRework);
-                SetItem(_lblChoGiaoBu, "🚚 Chờ giao bù: " + choGiaoBu, choGiaoBu);
-                SetItem(_lblChoNhapLai, "📦 Chờ nhập lại kho: " + choNhapLai, choNhapLai);
-                SetItem(_lblChoNhap, "📥 Phiếu chờ nhập: " + choNhap, choNhap);
-                SetItem(_lblLechA0, lechA0 > 0 ? "⚠ Lệch đối chiếu A0: " + lechA0 : "✅ Không lệch đối chiếu A0", lechA0);
+                bool quality = session.HasPermission("QUALITY.RETURN", "VIEW");
+                bool receipt = session.HasPermission("WAREHOUSE.RECEIPT", "VIEW");
+                bool dispatch = session.HasPermission("SHIPPING.DISPATCH", "VIEW");
+                bool stockView = session.HasPermission("WAREHOUSE.STOCK_VIEW", "VIEW");
+
+                if (quality)
+                {
+                    int choDinhHuong = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaTaoPhieuBatThuong);
+                    int choQCCuoi = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
+                    int choRework = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaDinhHuong);
+                    int choQCRework = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
+                    int choNhapLai = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaQCXacNhanCuoi);
+                    SetItem(_lblChoDinhHuong, "🟡 QC chờ định hướng: " + choDinhHuong, choDinhHuong);
+                    SetItem(_lblChoQCCuoi, "🔴 QC chờ duyệt cuối: " + choQCCuoi, choQCCuoi);
+                    SetItem(_lblChoRework, "🛠 Chờ xuất Rework: " + choRework, choRework);
+                    SetItem(_lblChoQCRework, "🔎 Chờ QC Rework: " + choQCRework, choQCRework);
+                    SetItem(_lblChoNhapLai, "📦 Chờ nhập lại kho: " + choNhapLai, choNhapLai);
+                }
+
+                if (dispatch)
+                {
+                    int choGiaoBu = _phieuXuLyRepo.CountByStatus(QTChungStatus.ChoGiaoBu);
+                    int choGiao = _hangChoGiaoRepo.CountPending();
+                    SetItem(_lblChoGiaoBu, "🚚 Chờ giao bù: " + choGiaoBu, choGiaoBu);
+                    SetItem(_lblChoGiao, "🚚 Hàng đã pick chờ giao: " + choGiao, choGiao);
+                }
+
+                if (receipt)
+                {
+                    int choNhap = _nhapKhoRepo.DemPhieuChoNhap();
+                    SetItem(_lblChoNhap, "📥 Phiếu chờ nhập: " + choNhap, choNhap);
+                }
+
+                if (stockView)
+                {
+                    int lechA0 = _nhapKhoRepo.DemLechDoiChieu();
+                    SetItem(_lblLechA0, lechA0 > 0 ? "⚠ Lệch đối chiếu A0: " + lechA0 : "✅ Không lệch đối chiếu A0", lechA0);
+                }
             }
             catch (Exception ex)
             {
