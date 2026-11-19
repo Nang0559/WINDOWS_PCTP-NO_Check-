@@ -249,7 +249,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 _status.Appearance.ForeColor = Color.FromArgb(70, 85, 100);
                 ShowSelectedDetails();
             };
-            _refreshTimer.Interval = 60000;
+            _refreshTimer.Interval = 30000;
             _refreshTimer.Tick += (s, e) => LoadFlow();
             _refreshTimer.Start();
         }
