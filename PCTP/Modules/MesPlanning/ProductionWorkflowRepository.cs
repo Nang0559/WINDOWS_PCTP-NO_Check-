@@ -61,6 +61,33 @@ namespace PCTP.Modules.MesPlanning
             }
         }
 
+        public DataTable GetEntityDepartments(string entityType, long entityId)
+        {
+            string sql;
+            if (string.Equals(entityType, "PLAN", StringComparison.OrdinalIgnoreCase))
+                sql = @"SELECT DISTINCT m.DepartmentCode
+FROM MES.FVN_ProductionPlanLine l
+JOIN MES.FVN_ProductionPlanCodeMap m
+ ON m.SiteCode=l.SiteCode AND m.PlanProductionLineCode=l.ProductionLineCode
+WHERE l.ProductionPlanId=@EntityId";
+            else if (string.Equals(entityType, "ORDER", StringComparison.OrdinalIgnoreCase))
+                sql = "SELECT DepartmentCode FROM MES.FVN_ProductionOrder WHERE ProductionOrderId=@EntityId";
+            else if (string.Equals(entityType, "OPERATION", StringComparison.OrdinalIgnoreCase))
+                sql = @"SELECT o.DepartmentCode FROM MES.FVN_ProductionLot l
+JOIN MES.FVN_ProductionOrder o ON o.ProductionOrderId=l.ProductionOrderId
+WHERE l.ProductionLotId=@EntityId";
+            else throw new ArgumentException("EntityType chỉ nhận PLAN, ORDER hoặc OPERATION.");
+
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.Add("@EntityId", SqlDbType.BigInt).Value = entityId;
+                var result = new DataTable();
+                using (var adapter = new SqlDataAdapter(cmd)) adapter.Fill(result);
+                return result;
+            }
+        }
+
         public DataTable Transition(string entityType, long entityId, long? relatedId, int fromStatus,
             int toStatus, string actor, string reason, string correlationId)
         {
