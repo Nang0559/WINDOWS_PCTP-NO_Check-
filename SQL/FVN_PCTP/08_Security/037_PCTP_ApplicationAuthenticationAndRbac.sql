@@ -448,6 +448,7 @@ BEGIN TRY
   INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId,AfterJson)
    VALUES(@ActorUserId,''USER_ACTIVE_CHANGED'',''USER'',CONVERT(nvarchar(100),@UserId),
     N''{"isActive":''+CASE WHEN @IsActive=1 THEN N''true'' ELSE N''false'' END+N''}'');
+  COMMIT TRANSACTION;
  END');
 
  EXEC(N'
@@ -506,6 +507,7 @@ BEGIN TRY
    THROW 53729,''Site scope must reference an active PCTP site.'',1;
   IF NULLIF(LTRIM(RTRIM(@ScopeValue)),N'''') IS NULL
    THROW 53730,''Scope value is required.'',1;
+  BEGIN TRANSACTION;
   IF EXISTS(SELECT 1 FROM SEC.RoleDataScope WHERE RoleId=@RoleId
    AND ISNULL(FunctionCode,'''')=ISNULL(@FunctionCode,'''') AND ScopeType=@ScopeType
    AND ScopeValue=@ScopeValue AND ISNULL(SiteCode,'''')=ISNULL(@SiteCode,''''))
@@ -517,6 +519,7 @@ BEGIN TRY
   INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId,AfterJson)
    VALUES(@ActorUserId,''ROLE_DATA_SCOPE_CHANGED'',''ROLE'',CONVERT(nvarchar(100),@RoleId),
     N''{"scopeType":"''+@ScopeType+N''","scopeValue":"''+@ScopeValue+N''"}'');
+  COMMIT TRANSACTION;
  END');
 
  EXEC(N'
