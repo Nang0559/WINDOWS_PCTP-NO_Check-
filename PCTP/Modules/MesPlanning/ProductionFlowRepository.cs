@@ -14,6 +14,21 @@ namespace PCTP.Modules.MesPlanning
                 throw new InvalidOperationException("Thiếu connection string FVN_PCTP.");
         }
 
+        public long GetChangeVersion()
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(
+                "SELECT ChangeVersion FROM MES.FVN_ProductionFlowChangeVersion WHERE ChangeVersionId=1;", cn))
+            {
+                cmd.CommandTimeout = 5;
+                cn.Open();
+                object value = cmd.ExecuteScalar();
+                if (value == null || value == DBNull.Value)
+                    throw new InvalidOperationException("Chưa cài migration 049 cho change-version MES.");
+                return Convert.ToInt64(value);
+            }
+        }
+
         public DataTable GetDashboard(string siteCode, DateTime? fromDate, DateTime? toDate, string departmentScopeXml)
         {
             using (var cn = new SqlConnection(_connectionString))
