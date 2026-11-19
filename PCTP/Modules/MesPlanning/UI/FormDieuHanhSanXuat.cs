@@ -7,7 +7,6 @@ using System.Windows.Forms;
 using System.Drawing.Printing;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
-using DevExpress.Utils;
 using DevExpress.XtraTab;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
@@ -81,7 +80,6 @@ namespace PCTP.Modules.MesPlanning.UI
             _productionDate.Properties.DisplayFormat.FormatString = "dd/MM/yyyy HH:mm";
             _productionDate.Properties.EditFormat.FormatString = "dd/MM/yyyy HH:mm";
             _productionDate.Properties.Mask.EditMask = "dd/MM/yyyy HH:mm";
-            _productionDate.Properties.CalendarTimeEditing = DefaultBoolean.True;
             _productionDate.DateTime = DateTime.Now;
             _productionDate.Width = 190;
             orderPanel.Controls.Add(new Label { Text = "Ngày/giờ sản xuất", AutoSize = true, Padding = new Padding(4, 8, 0, 0) });
@@ -104,6 +102,8 @@ namespace PCTP.Modules.MesPlanning.UI
             AddField(operationPanel, "ProductionLotId", _operationLotId);
             AddField(operationPanel, "OperationNo", _operationNo);
             AddField(operationPanel, "RoutingStepId (workflow)", _routingStepId);
+            _routingStepId.Properties.ReadOnly = true;
+            _operationNo.Properties.ReadOnly = true;
             AddButton(operationPanel, "PREPARE", (s, e) => TransitionOperation(10));
             AddButton(operationPanel, "READY", (s, e) => TransitionOperation(20));
             AddButton(operationPanel, "START", (s, e) => TransitionOperation(30));
