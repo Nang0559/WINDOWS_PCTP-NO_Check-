@@ -15,6 +15,7 @@ using PCTP.Shell.Composition;
 using PCTP.Shell.Help;
 using PCTP.Shell.Services;
 using PCTP.Shell.Widgets;
+using PCTP.Security;
 using PCTP.VIEWSTOCK;
 using System;
 using System.Drawing.Design;
@@ -42,6 +43,8 @@ namespace PCTP
 
         public Main_APP()
         {
+            if (UserSession.Current == null)
+                throw new UnauthorizedAccessException("PCTP yêu cầu đăng nhập trước khi mở màn hình chính.");
             InitializeComponent();
             _waitForm = new WaitFormService(this);
             _wmsHelp = new WmsHelpService();
@@ -65,6 +68,7 @@ namespace PCTP
             // Menu chuẩn: Nhập Kho → Kho → Giao Hàng → Xử lý hàng lỗi → Tra cứu & Báo cáo → Công cụ.
             BuildStandardMenus();
             AddMesBomNavigation();
+            ApplyAuthorizationToNavigation();
             accordionControlElement24.Text = "Quản lý máy đọc QR";
             ApplyFluentMenuIcons();
         }
