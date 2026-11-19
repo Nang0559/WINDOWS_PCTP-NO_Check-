@@ -1,4 +1,5 @@
-﻿using DevExpress.XtraEditors;
+﻿using PCTP.Infrastructure.Security;
+using DevExpress.XtraEditors;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -15,6 +16,7 @@ namespace PCTP.Acess_Image
     {
         public FrmImageControl()
         {
+            AuthorizationGuard.Demand("SYSTEM.IMAGE_CONTROL", "ADMIN");
             InitializeComponent();
         }
 
