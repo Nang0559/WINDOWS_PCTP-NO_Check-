@@ -12,6 +12,7 @@ using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.WorkingState;
 using PCTP.Modules.GiaoHangKhach.WorkingState;
 using PCTP.Shared.Common;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Shared.Enums;
 using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
@@ -46,7 +47,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private DataTable _ifsDataCache;
         private string _ifsLoadWarning;
 
-        public PhieuService(IPhieuRepository phieuRepo, IIFSRepository ifsRepo, IEventBus bus, IGioXuatRepository gioXuatRepo, string tenBan, CustomerConfig cfg, bool isMayBanQR, ITableOrderRepository tableOrderRepo, IPhieuGiaoDBRepository giaoDbRepo, IOrderSourceFactory orderSourceFactory, IRowCategoryFilter rowCategoryFilter, IDeliveryWorkingState workingState = null, IPhieuLoadService loadService = null, IPhieuKhoService khoService = null, IPhieuGiaoDbService giaoDbService = null, IPhieuYmvnService ymvnService = null)
+        public PhieuService(IPhieuRepository phieuRepo, IIFSRepository ifsRepo, IEventBus bus, IGioXuatRepository gioXuatRepo, string tenBan, CustomerConfig cfg, bool isMayBanQR, ITableOrderRepository tableOrderRepo, IPhieuGiaoDBRepository giaoDbRepo, IOrderSourceFactory orderSourceFactory, IRowCategoryFilter rowCategoryFilter, IDeliveryWorkingState workingState = null, IPhieuLoadService loadService = null, IPhieuKhoService khoService = null, IPhieuGiaoDbService giaoDbService = null, IPhieuYmvnService ymvnService = null, IStockMovementService stockMovement = null)
         {
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
             _ifsRepo = ifsRepo ?? throw new ArgumentNullException(nameof(ifsRepo));
@@ -60,9 +61,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _rowCategoryFilter = rowCategoryFilter ?? throw new ArgumentNullException(nameof(rowCategoryFilter));
             _workingState = workingState ?? new DeliveryWorkingState(_phieuRepo, _phieuRepo);
             _loadService = loadService ?? new PhieuLoadService(_phieuRepo, _ifsRepo, _orderSourceFactory, _rowCategoryFilter, _workingState, _cfg, _tenBan);
-            _khoService = new PhieuKhoService(_phieuRepo, _bus, _cfg);
+            _khoService = khoService ?? new PhieuKhoService(_phieuRepo, _bus, _cfg, stockMovement);
             _giaoDbService = new PhieuGiaoDbService(_phieuRepo, giaoDbRepo ?? throw new ArgumentNullException(nameof(giaoDbRepo)), _orderSourceFactory, _cfg, () => _isLoaiSP);
-            _ymvnService = new PhieuYmvnService(_phieuRepo, _tableOrderRepo, _bus, _cfg);
+            _ymvnService = ymvnService ?? new PhieuYmvnService(_phieuRepo, _tableOrderRepo, _bus, _cfg, stockMovement);
         }
 
         public void SetTrangThaiBan(bool isBanQR, bool isLoaiSP) { _isBanQR = isBanQR; _isLoaiSP = isLoaiSP; }
