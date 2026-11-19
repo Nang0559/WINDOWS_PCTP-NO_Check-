@@ -13,6 +13,20 @@ namespace PCTP.Modules.MesPlanning
             _connectionString = connectionString ?? ConfigurationManager.ConnectionStrings["FVN_PCTP"]?.ConnectionString;
             if (string.IsNullOrWhiteSpace(_connectionString)) throw new InvalidOperationException("Thiếu connection string FVN_PCTP.");
         }
+        public DataTable GetPlanLines(string siteCode)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("MES.usp_FVN_ProductionPlan_List", cn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value =
+                    string.IsNullOrWhiteSpace(siteCode) ? (object)DBNull.Value : siteCode.Trim();
+                var table = new DataTable();
+                using (var adapter = new SqlDataAdapter(cmd)) adapter.Fill(table);
+                return table;
+            }
+        }
+
         public void ImportRows(IList<ProductionPlanImportRow> rows, string sourceFileName, string createdBy)
         {
             if (rows == null || rows.Count == 0) throw new ArgumentException("Không có dòng kế hoạch để upload.");
