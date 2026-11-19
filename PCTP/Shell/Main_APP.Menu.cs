@@ -418,6 +418,30 @@ namespace PCTP
             OpenFromMenu(() => TONKHOTP.ShowForLot(this, string.Empty), "Tồn kho thành phẩm");
         }
 
+        private void OpenNhanLinhKien(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(
+                this,
+                () => new PCTP.Modules.NhapKho.UI.FormNhanLinhKien()),
+                "Nhận linh kiện về kho");
+        }
+
+        private void OpenUploadKeHoachSanXuat(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(
+                this,
+                () => new PCTP.Modules.MesPlanning.UI.FormUploadKeHoachSanXuat()),
+                "Upload kế hoạch sản xuất");
+        }
+
+        private void OpenYeuCauXuatLinhKien(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(
+                this,
+                () => new PCTP.Modules.MesPlanning.UI.FormYeuCauVaXuatLinhKien()),
+                "Yêu cầu / Xuất linh kiện");
+        }
+
         private void OpenHangChoGiao(object sender, EventArgs e)
         {
             OpenFromMenu(() => FormWindowManager.ShowSingle(
