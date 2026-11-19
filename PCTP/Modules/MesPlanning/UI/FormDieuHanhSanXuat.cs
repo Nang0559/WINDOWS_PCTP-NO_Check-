@@ -90,6 +90,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _finished.Text = "LOT thành phẩm cuối (FG); bỏ chọn = bán thành phẩm (WIP)";
             _finished.AutoSize = true;
             orderPanel.Controls.Add(_finished);
+            AddButton(orderPanel, "RELEASE LỆNH", (s, e) => TransitionOrder(10), Can("APPROVE"));
             AddButton(orderPanel, "TẠO LOT SẢN XUẤT", CreateLotClick, Can("CREATE"));
             AddButton(orderPanel, "START LỆNH", (s, e) => TransitionOrder(20), Can("CONFIRM"));
             AddButton(orderPanel, "PAUSE LỆNH", (s, e) => TransitionOrder(30), Can("CONFIRM"));
