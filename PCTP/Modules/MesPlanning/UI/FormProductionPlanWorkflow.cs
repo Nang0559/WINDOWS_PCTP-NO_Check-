@@ -58,6 +58,7 @@ namespace PCTP.Modules.MesPlanning.UI
             var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
             toolbar.Controls.Add(new LabelControl { Text = "Site", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
             _site.Width = 120;
+            _site.Properties.NullValuePrompt = "Nhập SiteCode";
             toolbar.Controls.Add(_site);
             AddButton(toolbar, "TẢI KẾ HOẠCH", LoadPlans);
             AddButton(toolbar, "1. KIỂM TRA / VALIDATE", () => Transition(10));
@@ -108,6 +109,8 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(_site.Text))
+                    throw new InvalidOperationException("Nhập SiteCode để tải đúng phạm vi kế hoạch được phân quyền.");
                 _grid.DataSource = _plans.GetPlanLines(_site.Text);
                 _view.BestFitColumns();
                 _status.Text = "Đã tải " + _view.RowCount.ToString("N0") +
