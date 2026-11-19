@@ -1,3 +1,4 @@
+using PCTP.Infrastructure.Security;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -22,6 +23,7 @@ namespace PCTP.Modules.XuatKho
     /// <summary>Điều chuyển tồn từ Slot sang vị trí nội bộ không thuộc bản đồ Slot.</summary>
     public sealed class FormChuyenHangNoiBo : XtraForm
     {
+            AuthorizationGuard.Demand("WAREHOUSE.MOVE", "VIEW");
         private readonly XuLyHangLoiModuleFactory.Module _module;
         private readonly SlotRepository _slotRepository;
         private readonly StockExportRepository _stockRepository;
