@@ -297,8 +297,7 @@ namespace PCTP
             bomGroup.Elements.Add(bomItem);
             accordionControl.Elements.Add(bomGroup);
 
-            // MES nghiệp vụ: các form chỉ là presentation; service/repository và SQL
-            // tiếp tục chịu trách nhiệm phân quyền, phạm vi Site và trạng thái chứng từ.
+            // Read-only Control Tower is the cross-department entry point; individual task forms remain action-scoped.\n            AddMesMenuItem(mesGroup, "menuMesProductionFlow", "MES Control Tower - Dòng chảy sản xuất",\n                "MES.PRODUCTION_FLOW", () => new FormMesProductionControlTower());\n\n            // MES nghiệp vụ: các form chỉ là presentation; service/repository và SQL\n            // tiếp tục chịu trách nhiệm phân quyền, phạm vi Site và trạng thái chứng từ.
             var mesGroup = new AccordionControlElement
             {
                 Name = "menuMesExecutionGroup",
