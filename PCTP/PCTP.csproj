@@ -1078,6 +1078,7 @@
     <Compile Include="Modules\MesPlanning\ProductionWorkflowRepository.cs" />
     <Compile Include="Modules\MesPlanning\IProductionWorkflowService.cs" />
     <Compile Include="Modules\MesPlanning\ProductionWorkflowService.cs" />
+    <Compile Include="Modules\MesPlanning\MesWorkflowComposition.cs" />
     <Compile Include="Modules\MesPlanning\UI\FormProductionWorkflowTimeline.cs">
       <SubType>Form</SubType>
     </Compile>
