@@ -40,6 +40,8 @@ namespace PCTP.Modules.MesPlanning
             DemandSite("MES.PRODUCTION_EXECUTION", "CREATE", _repository.GetPlanLineSiteCode(planLineId));
             if (planLineId <= 0 || string.IsNullOrWhiteSpace(orderNo) || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("PlanLine, OrderNo và người tạo là bắt buộc.");
+            if (!string.Equals(_repository.GetPlanLineStatus(planLineId), "FIRM", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Chỉ được tạo lệnh sản xuất từ dòng kế hoạch đã chuyển FIRM.");
             return _repository.CreateOrder(planLineId, orderNo.Trim(), actor.Trim());
         }
 
