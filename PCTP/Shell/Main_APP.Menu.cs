@@ -177,6 +177,7 @@ namespace PCTP
                 ["menuBcTruyXuatLinhKien"] = "REPORT.TRACEABILITY",
                 ["menuBcLichSuKho"] = "REPORT.STOCK_HISTORY",
                 ["menuBcLichSuQC"] = "REPORT.QUALITY_HISTORY",
+                ["menuMesBomGraphic"] = "MES.BOM_VIEW",
                 ["E_NhapTP"] = "WAREHOUSE.RECEIPT",
                 ["accordionControlElement_QCDinhHuong"] = "QUALITY.RETURN",
                 ["accordionControlElement_QCXacNhanCuoi"] = "QUALITY.RETURN",
