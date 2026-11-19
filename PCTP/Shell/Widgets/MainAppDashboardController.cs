@@ -152,8 +152,41 @@ group by CUSTOMER_PART_NO
 order by CUSTOMER_PART_NO";
 
             DataTable table = _ifs.ExecuteQuery(sql);
+            table = EnsureDashboardSchema(table);
             EnrichTable(table);
             return table;
+        }
+
+        private static DataTable EnsureDashboardSchema(DataTable table)
+        {
+            // The Oracle provider can return a schema-less DataTable when the
+            // customer has no orders (or when its result metadata is incomplete).
+            // DevExpress ChartControl still validates ArgumentDataMember even
+            // when there are zero rows, so always publish a stable dashboard schema.
+            if (table == null)
+                table = new DataTable("CustomerOrders");
+
+            EnsureColumn(table, "CUSTOMER_PART_NO", typeof(string));
+            EnsureColumn(table, "TTCS", typeof(decimal));
+            EnsureColumn(table, "SLDAGIAO", typeof(decimal));
+            EnsureColumn(table, "SLTONKHO", typeof(decimal));
+            return table;
+        }
+
+        private static void EnsureColumn(DataTable table, string columnName, Type dataType)
+        {
+            foreach (DataColumn existing in table.Columns)
+            {
+                if (string.Equals(existing.ColumnName, columnName, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Normalize the spelling so DevExpress member binding is deterministic.
+                    if (!string.Equals(existing.ColumnName, columnName, StringComparison.Ordinal))
+                        existing.ColumnName = columnName;
+                    return;
+                }
+            }
+
+            table.Columns.Add(columnName, dataType);
         }
 
         private void EnrichTable(DataTable table)
