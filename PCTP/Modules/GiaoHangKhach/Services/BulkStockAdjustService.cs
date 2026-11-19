@@ -39,10 +39,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// </summary>
         public bool TruKhoAoTheoLot(string lotNo, int slXuat, bool manageTransaction = true)
         {
-            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
-            if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo)) return false;
             if (_stockMovement == null)
                 throw new InvalidOperationException("Chưa cấu hình IStockMovementService cho BulkStockAdjustService.");
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
+            if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo)) return false;
 
             try
             {
