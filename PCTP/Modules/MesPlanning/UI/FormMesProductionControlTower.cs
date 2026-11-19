@@ -145,7 +145,7 @@ namespace PCTP.Modules.MesPlanning.UI
             var split = new SplitContainerControl { Dock = DockStyle.Fill, Horizontal = false, SplitterPosition = 840 };
             _taskGrid.Dock = DockStyle.Fill;
             _taskGrid.View.RowCellStyle += View_RowCellStyle;
-            _view.CustomColumnDisplayText += (s, e) =>
+            _taskGrid.View.CustomColumnDisplayText += (s, e) =>
             {
                 if (e.Column.FieldName == "IsRelatedDepartment")
                     e.DisplayText = Convert.ToBoolean(e.Value) ? "Liên quan · chỉ xem" : "Phạm vi của tôi";
@@ -166,12 +166,12 @@ namespace PCTP.Modules.MesPlanning.UI
                         waiting == "PRODUCTION" ? "Sản xuất" : waiting;
                 }
             };
-            _view.FocusedRowChanged += (s, e) =>
+            _taskGrid.View.FocusedRowChanged += (s, e) =>
             {
                 ShowSelectedDetails();
                 UpdateSelectionButton();
             };
-            _view.DoubleClick += (s, e) =>
+            _taskGrid.View.DoubleClick += (s, e) =>
             {
                 if (_selectionMode) SelectCurrentFirmPlan();
                 else OpenSelectedTask();
@@ -271,7 +271,7 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             string[] hidden = { "ProductionPlanLineId", "ProductionPlanId", "ProductionOrderId", "ComponentDemandId", "PlanWorkflowStatusCode", "OrderWorkflowStatusCode" };
             foreach (var name in hidden)
-                if (_view.Columns[name] != null) _view.Columns[name].Visible = false;
+                if (_taskGrid.View.Columns[name] != null) _taskGrid.View.Columns[name].Visible = false;
             SetCaption("IsRelatedDepartment", "Phạm vi");
             SetCaption("PlanNo", "Kế hoạch");
             SetCaption("ProductionDate", "Ngày SX");
@@ -303,20 +303,20 @@ namespace PCTP.Modules.MesPlanning.UI
             SetCaption("LastEventAtUtc", "Cập nhật workflow");
             SetCaption("LastEventAction", "Thao tác gần nhất");
             SetCaption("LastEventActor", "Người thao tác");
-            if (_view.Columns["IsRelatedDepartment"] != null)
-                _view.Columns["IsRelatedDepartment"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
-            _view.BestFitColumns();
-            if (_view.Columns["MyTask"] != null) _view.Columns["MyTask"].VisibleIndex = 0;
-            if (_view.Columns["IsRelatedDepartment"] != null) _view.Columns["IsRelatedDepartment"].VisibleIndex = 1;
-            if (_view.Columns["FlowStage"] != null) _view.Columns["FlowStage"].VisibleIndex = 2;
-            if (_view.Columns["WaitingAt"] != null) _view.Columns["WaitingAt"].VisibleIndex = 3;
-            if (_view.Columns["WaitingReason"] != null) _view.Columns["WaitingReason"].Width = 260;
-            if (_view.Columns["ProductDescription"] != null) _view.Columns["ProductDescription"].Width = 220;
+            if (_taskGrid.View.Columns["IsRelatedDepartment"] != null)
+                _taskGrid.View.Columns["IsRelatedDepartment"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
+            _taskGrid.View.BestFitColumns();
+            if (_taskGrid.View.Columns["MyTask"] != null) _taskGrid.View.Columns["MyTask"].VisibleIndex = 0;
+            if (_taskGrid.View.Columns["IsRelatedDepartment"] != null) _taskGrid.View.Columns["IsRelatedDepartment"].VisibleIndex = 1;
+            if (_taskGrid.View.Columns["FlowStage"] != null) _taskGrid.View.Columns["FlowStage"].VisibleIndex = 2;
+            if (_taskGrid.View.Columns["WaitingAt"] != null) _taskGrid.View.Columns["WaitingAt"].VisibleIndex = 3;
+            if (_taskGrid.View.Columns["WaitingReason"] != null) _taskGrid.View.Columns["WaitingReason"].Width = 260;
+            if (_taskGrid.View.Columns["ProductDescription"] != null) _taskGrid.View.Columns["ProductDescription"].Width = 220;
         }
 
         private void SetCaption(string field, string caption)
         {
-            if (_view.Columns[field] != null) _view.Columns[field].Caption = caption;
+            if (_taskGrid.View.Columns[field] != null) _taskGrid.View.Columns[field].Caption = caption;
         }
 
         private void EnrichActionableTasks()
@@ -391,7 +391,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void View_RowCellStyle(object sender, RowCellStyleEventArgs e)
         {
-            var row = _view.GetDataRow(e.RowHandle);
+            var row = _taskGrid.View.GetDataRow(e.RowHandle);
             if (row == null || !row.Table.Columns.Contains("FlowStage")) return;
             if (Convert.ToBoolean(row["IsRelatedDepartment"]))
             {
@@ -424,7 +424,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void ShowSelectedDetails()
         {
-            var row = _view.GetFocusedDataRow();
+            var row = _taskGrid.View.GetFocusedDataRow();
             if (row == null)
             {
                 _progressSummary.SetProgress(0, 0);
@@ -466,7 +466,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private void UpdateSelectionButton()
         {
             if (!_selectionMode) return;
-            var row = _view.GetFocusedDataRow();
+            var row = _taskGrid.View.GetFocusedDataRow();
             _selectFirmPlan.Enabled = row != null &&
                 !Convert.ToBoolean(row["IsRelatedDepartment"]) &&
                 string.Equals(Convert.ToString(row["PlanStatus"]), "FIRM", StringComparison.OrdinalIgnoreCase) &&
@@ -475,7 +475,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void SelectCurrentFirmPlan()
         {
-            var row = _view.GetFocusedDataRow();
+            var row = _taskGrid.View.GetFocusedDataRow();
             if (row == null || Convert.ToBoolean(row["IsRelatedDepartment"]) ||
                 !string.Equals(Convert.ToString(row["PlanStatus"]), "FIRM", StringComparison.OrdinalIgnoreCase) ||
                 row["ProductionOrderId"] != DBNull.Value)
@@ -492,7 +492,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void OpenSelectedTask()
         {
-            var row = _view.GetFocusedDataRow();
+            var row = _taskGrid.View.GetFocusedDataRow();
             if (row == null || Convert.ToBoolean(row["IsRelatedDepartment"])) return;
             string task = Convert.ToString(row["MyTask"]);
             if (task == "Kiểm tra kế hoạch" || task == "FIRM kế hoạch")
