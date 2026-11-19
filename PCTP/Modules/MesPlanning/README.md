@@ -82,13 +82,13 @@ The same workspace reads the stock projection and uses the existing stock transf
 
 All transitions pass through `ProductionWorkflowService`, which checks Site/action scope and calls the shared `IWorkflowTransitionService.EnsureCanTransition`. SQL then rechecks the configured transition and current row state. FIRM uses `MES.usp_FVN_ProductionPlan_Firm`; migration 038 generates component demand from the effective IFS BOM inside the same transaction. The UI does not generate BOM rows itself.
 
-The plan picker returns only a selected line whose header status is FIRM.
+The plan picker is the read-only Control Tower in selection mode: it returns only a FIRM plan line in the user's own department scope, with no outstanding component quantity and no existing order. Related-department rows are never selectable.
 
 ## 5. Production order, LOT and routing
 
 ### 5.1 Order and LOT
 
-The execution form opens the FIRM plan worklist instead of requiring the operator to type an internal plan-line ID. `ProductionExecutionService.CreateOrder` also checks that the source plan is FIRM before calling the order creation procedure. The SQL procedure snapshots the effective BOM/routing, generates the order material requirements and assigns the order status. The application service rejects a non-FIRM source line, and migration 046 adds a database trigger to reject direct-SQL inserts that are not linked to a FIRM plan line.
+The execution form opens the FIRM plan worklist instead of requiring the operator to type an internal plan-line ID. `ProductionExecutionService.CreateOrder` also checks that the source plan is FIRM before calling the order creation procedure. The SQL procedure snapshots the effective BOM/routing, generates the order material requirements and assigns the order status. The application service rejects a non-FIRM source line and any outstanding component demand. Migrations 046 and 048 add database triggers that independently reject orders not linked to a FIRM plan line or whose BOM demand is not fully issued.
 
 LOT creation calls `MES.usp_FVN_ProductionLot_Create`. The configured part policy decides whether the output is WIP or FG. LOT identity and numbering remain in the SQL MES domain; the form does not construct a LOT number.
 
