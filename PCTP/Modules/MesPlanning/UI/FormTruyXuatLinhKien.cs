@@ -49,8 +49,9 @@ namespace PCTP.Modules.MesPlanning.UI
             _lotNo.Width = 270;
             _lotNo.Properties.NullValuePrompt = "Quét / nhập mã LOT";
             filters.Controls.Add(_lotNo);
-            filters.Controls.Add(new LabelControl { Text = "Site", AutoSize = true, Padding = new Padding(10, 9, 0, 0) });
+            filters.Controls.Add(new LabelControl { Text = "Site (bắt buộc)", AutoSize = true, Padding = new Padding(10, 9, 0, 0) });
             _siteCode.Width = 110;
+            _siteCode.Properties.NullValuePrompt = "SiteCode";
             filters.Controls.Add(_siteCode);
             filters.Controls.Add(new LabelControl { Text = "Chiều truy xuất", AutoSize = true, Padding = new Padding(10, 9, 0, 0) });
             _direction.Width = 260;
@@ -88,6 +89,8 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(_siteCode.Text))
+                    throw new InvalidOperationException("Nhập SiteCode để kiểm tra đúng phạm vi dữ liệu được phân quyền.");
                 if (_direction.SelectedIndex < 0)
                     throw new InvalidOperationException("Chọn chiều truy xuất.");
                 string direction = _direction.SelectedIndex == 0 ? "UPSTREAM" : "DOWNSTREAM";
