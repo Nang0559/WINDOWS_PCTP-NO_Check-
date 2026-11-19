@@ -156,7 +156,7 @@ namespace PCTP.Modules.MesPlanning.UI
             consumePanel.Controls.Add(_materials);
             AddField(consumePanel, "ProductionOrderMaterialId", _materialLineId);
             AddField(consumePanel, "ProductionLotId", _consumeProductionLotId);
-            AddField(consumePanel, "MaterialLotId (LOT linh kiện)", _componentLotId);
+            AddField(consumePanel, "Quét QR LOT linh kiện (FVN1|LOT)", _componentLotId);
             AddField(consumePanel, "FromSlotId (PART hoặc WIP)", _consumeSlot);
             AddField(consumePanel, "Số lượng tiêu hao thực tế", _consumeQty);
             AddButton(consumePanel, "GHI NHẬN TIÊU HAO + GENEALOGY", ConsumeClick);
@@ -408,10 +408,11 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             Run(() =>
             {
-                _service.ConsumeMaterial(LongValue(_materialLineId, "ProductionOrderMaterialId"),
-                    LongValue(_consumeProductionLotId, "ProductionLotId"), LongValue(_componentLotId, "MaterialLotId"),
+                _service.ConsumeMaterialByQr(LongValue(_materialLineId, "ProductionOrderMaterialId"),
+                    LongValue(_consumeProductionLotId, "ProductionLotId"), _componentLotId.Text,
                     Convert.ToInt32(LongValue(_consumeSlot, "FromSlotId")),
                     DecimalValue(_consumeQty, "Quantity", false), Environment.UserName);
+                _componentLotId.Clear();
                 return "Đã ghi nhận tiêu hao LOT và liên kết genealogy thực tế.";
             });
         }
