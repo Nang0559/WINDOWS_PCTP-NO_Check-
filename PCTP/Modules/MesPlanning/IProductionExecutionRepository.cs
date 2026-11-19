@@ -8,6 +8,7 @@ namespace PCTP.Modules.MesPlanning
         string GetPlanLineSiteCode(long planLineId);
         string GetPlanLineStatus(long planLineId);
         string GetPlanLineDepartmentCode(long planLineId);
+        decimal? GetPlanLineOutstandingComponentQty(long planLineId);
         string GetOrderSiteCode(long orderId);
         string GetOrderDepartmentCode(long orderId);
         string GetLotSiteCode(long productionLotId);
