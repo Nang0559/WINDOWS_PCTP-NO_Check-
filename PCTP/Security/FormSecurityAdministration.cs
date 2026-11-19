@@ -398,21 +398,33 @@ namespace PCTP.Security
 
         private static string Prompt(string message, string title)
         {
-            using (var form = new Form { Text = title, Width = 440, Height = 150, StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog })
+            using (var form = new XtraForm
             {
-                var label = new Label { Text = message, Left = 12, Top = 12, Width = 400 };
-                var input = new TextBox { Left = 12, Top = 40, Width = 400 };
-                var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Left = 250, Top = 75, Width = 75 };
-                var cancel = new Button { Text = "Hủy", DialogResult = DialogResult.Cancel, Left = 335, Top = 75, Width = 75 };
-                form.Controls.AddRange(new Control[] { label, input, ok, cancel });
+                Text = title, Width = 470, Height = 190,
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false, ShowIcon = false
+            })
+            {
+                var panel = new PanelControl { Dock = DockStyle.Fill, BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder, Padding = new Padding(18) };
+                var label = new LabelControl { Text = message };
+                label.SetBounds(18, 16, 410, 24);
+                var input = new TextEdit();
+                input.SetBounds(18, 48, 410, 30);
+                var ok = new SimpleButton { Text = "OK", DialogResult = DialogResult.OK };
+                ok.SetBounds(250, 98, 82, 32);
+                var cancel = new SimpleButton { Text = "Hủy", DialogResult = DialogResult.Cancel };
+                cancel.SetBounds(342, 98, 86, 32);
+                panel.Controls.AddRange(new Control[] { label, input, ok, cancel });
+                form.Controls.Add(panel);
                 form.AcceptButton = ok; form.CancelButton = cancel;
                 return form.ShowDialog() == DialogResult.OK ? input.Text : null;
             }
         }
 
-        private sealed class UserCreateDialog : Form
+        private sealed class UserCreateDialog : XtraForm
         {
-            private readonly TextBox[] _fields = { new TextBox(), new TextBox(), new TextBox(), new TextBox(), new TextBox() };
+            private readonly TextEdit[] _fields = { new TextEdit(), new TextEdit(), new TextEdit(), new TextEdit(), new TextEdit() };
             private readonly string[] _labels = { "Tên đăng nhập", "Họ tên", "Mã nhân viên (nếu có)", "Email", "Mật khẩu ban đầu" };
             public string UserName => _fields[0].Text.Trim();
             public string DisplayName => _fields[1].Text.Trim();
@@ -421,16 +433,31 @@ namespace PCTP.Security
             public string Password => _fields[4].Text;
             public UserCreateDialog()
             {
-                Text = "Tạo tài khoản"; Width = 520; Height = 350; StartPosition = FormStartPosition.CenterParent;
+                Text = "Tạo tài khoản"; Width = 560; Height = 410;
+                StartPosition = FormStartPosition.CenterParent;
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MaximizeBox = false; MinimizeBox = false; ShowIcon = false;
+                var panel = new PanelControl { Dock = DockStyle.Fill, BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder, Padding = new Padding(22) };
+                Controls.Add(panel);
+                var title = new LabelControl { Text = "THÔNG TIN TÀI KHOẢN" };
+                title.Appearance.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+                title.Appearance.ForeColor = Color.FromArgb(35, 75, 120);
+                title.SetBounds(22, 16, 480, 28); panel.Controls.Add(title);
                 for (int i=0;i<_fields.Length;i++)
                 {
-                    Controls.Add(new Label { Text=_labels[i], Left=15, Top=18+i*48, Width=180 });
-                    _fields[i].SetBounds(200,15+i*48,285,26); Controls.Add(_fields[i]);
+                    var label = new LabelControl { Text = _labels[i] };
+                    label.Appearance.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                    label.SetBounds(22, 54+i*52, 180, 22);
+                    _fields[i].SetBounds(205, 50+i*52, 300, 30);
+                    panel.Controls.Add(label); panel.Controls.Add(_fields[i]);
                 }
-                _fields[4].UseSystemPasswordChar = true;
-                var ok=new Button { Text="Tạo",Left=310,Top=265,Width=80,DialogResult=DialogResult.OK };
-                var cancel=new Button { Text="Hủy",Left=400,Top=265,Width=80,DialogResult=DialogResult.Cancel };
-                Controls.Add(ok);Controls.Add(cancel);AcceptButton=ok;CancelButton=cancel;
+                _fields[4].Properties.UseSystemPasswordChar = true;
+                var ok=new SimpleButton { Text="TẠO TÀI KHOẢN", DialogResult=DialogResult.OK };
+                ok.SetBounds(350, 326, 155, 34);
+                var cancel=new SimpleButton { Text="HỦY", DialogResult=DialogResult.Cancel };
+                cancel.SetBounds(255, 326, 85, 34);
+                panel.Controls.Add(ok); panel.Controls.Add(cancel);
+                AcceptButton=ok; CancelButton=cancel;
             }
             private static string Empty(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         }
@@ -466,13 +493,13 @@ namespace PCTP.Security
             }
         }
 
-        private sealed class RoleScopeDialog : Form
+        private sealed class RoleScopeDialog : XtraForm
         {
-            private readonly System.Windows.Forms.ComboBox _type = new System.Windows.Forms.ComboBox();
-            private readonly TextBox _value=new TextBox();
-            private readonly TextBox _function=new TextBox();
-            private readonly TextBox _site=new TextBox();
-            private readonly CheckBox _allowed=new CheckBox { Text="Cho phép",Checked=true };
+            private readonly ComboBoxEdit _type = new ComboBoxEdit();
+            private readonly TextEdit _value=new TextEdit();
+            private readonly TextEdit _function=new TextEdit();
+            private readonly TextEdit _site=new TextEdit();
+            private readonly CheckEdit _allowed=new CheckEdit { Text="Cho phép",Checked=true };
             public string ScopeType => Convert.ToString(_type.SelectedItem);
             public string ScopeValue => _value.Text.Trim();
             public string FunctionCode => string.IsNullOrWhiteSpace(_function.Text)?null:_function.Text.Trim();
@@ -480,18 +507,36 @@ namespace PCTP.Security
             public bool IsAllowed => _allowed.Checked;
             public RoleScopeDialog()
             {
-                Text="Thêm phạm vi dữ liệu";Width=520;Height=330;StartPosition=FormStartPosition.CenterParent;
-                _type.DropDownStyle=ComboBoxStyle.DropDownList;_type.Items.AddRange(new object[]{"ALL","SITE","DEPARTMENT","WAREHOUSE","LINE","PROCESS","OWN"});_type.SelectedIndex=1;
-                Add("Loại phạm vi",_type,20);Add("Giá trị (* với ALL)",_value,70);Add("FunctionCode (trống = tất cả)",_function,120);Add("SiteCode (trống = mọi site)",_site,170);
-                _allowed.SetBounds(200,215,180,25);Controls.Add(_allowed);
-                var ok=new Button{Text="Lưu",Left=300,Top=250,Width=80,DialogResult=DialogResult.OK};
-                var cancel=new Button{Text="Hủy",Left=390,Top=250,Width=80,DialogResult=DialogResult.Cancel};
-                Controls.Add(ok);Controls.Add(cancel);AcceptButton=ok;CancelButton=cancel;
+                Text="Thêm phạm vi dữ liệu"; Width=550; Height=390;
+                StartPosition=FormStartPosition.CenterParent;
+                FormBorderStyle=FormBorderStyle.FixedDialog;
+                MaximizeBox=false; MinimizeBox=false; ShowIcon=false;
+                var panel = new PanelControl { Dock=DockStyle.Fill, BorderStyle=DevExpress.XtraEditors.Controls.BorderStyles.NoBorder, Padding=new Padding(22) };
+                Controls.Add(panel);
+                var title = new LabelControl { Text="PHẠM VI DỮ LIỆU CỦA VAI TRÒ" };
+                title.Appearance.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+                title.Appearance.ForeColor = Color.FromArgb(35,75,120);
+                title.SetBounds(22,16,470,28); panel.Controls.Add(title);
+                _type.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+                _type.Properties.Items.AddRange(new object[]{"ALL","SITE","DEPARTMENT","WAREHOUSE","LINE","PROCESS","OWN"});
+                _type.SelectedIndex=1;
+                Add(panel,"Loại phạm vi",_type,58);
+                Add(panel,"Giá trị (* với ALL)",_value,112);
+                Add(panel,"FunctionCode (trống = tất cả)",_function,166);
+                Add(panel,"SiteCode (trống = mọi site)",_site,220);
+                _allowed.SetBounds(205,270,180,26); panel.Controls.Add(_allowed);
+                var cancel=new SimpleButton{Text="HỦY"}; cancel.SetBounds(300,315,85,34); cancel.DialogResult=DialogResult.Cancel;
+                var ok=new SimpleButton{Text="LƯU"}; ok.SetBounds(395,315,95,34); ok.DialogResult=DialogResult.OK;
+                panel.Controls.Add(ok); panel.Controls.Add(cancel);
+                AcceptButton=ok; CancelButton=cancel;
             }
-            private void Add(string label,Control control,int top)
+            private static void Add(Control parent,string caption,Control control,int top)
             {
-                Controls.Add(new Label{Text=label,Left=15,Top=top+4,Width=180});
-                control.SetBounds(200,top,285,26);Controls.Add(control);
+                var label=new LabelControl{Text=caption};
+                label.Appearance.Font=new Font("Segoe UI",9F,FontStyle.Bold);
+                label.SetBounds(22,top+5,175,22);
+                control.SetBounds(205,top,285,30);
+                parent.Controls.Add(label); parent.Controls.Add(control);
             }
         }
     }
