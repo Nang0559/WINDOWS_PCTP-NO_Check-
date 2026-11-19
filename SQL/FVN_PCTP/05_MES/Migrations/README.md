@@ -443,8 +443,10 @@ not update business status, issue inventory or execute transitions.
 Grant `MES.PRODUCTION_FLOW / VIEW` and data scope deliberately:
 - Site-level scope allows a site-wide read-only overview.
 - Department-level scope limits the owner departments visible to the user.
-- Related department visibility is expanded only through active rows in
-  `MES.FVN_ProductionDepartmentRelation`, optionally limited by ProductPartNo.
+- Component-department visibility is derived from the IFS BOM alternative
+  snapshotted on each FIRM plan line's component-demand header.
+- Additional upstream/downstream/shared visibility can be configured in
+  `MES.FVN_ProductionDepartmentRelation` using owner and related product PartNo.
 - A related department row is marked as read-only context in the dashboard.
 The form's task-navigation buttons are independently enabled only when the
 user has the corresponding workflow VIEW permission; the destination service
