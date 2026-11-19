@@ -763,6 +763,14 @@
     <Compile Include="LogIn.Designer.cs">
       <DependentUpon>LogIn.cs</DependentUpon>
     </Compile>
+    <Compile Include="Security\PasswordHasher.cs" />
+    <Compile Include="Security\UserSession.cs" />
+    <Compile Include="Security\AuthenticationRepository.cs" />
+    <Compile Include="Security\AuthenticationService.cs" />
+    <Compile Include="Security\LoginForm.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Security\ChangePasswordDialog.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Security\SecurityAdministrationRepository.cs" />
+    <Compile Include="Security\FormSecurityAdministration.cs"><SubType>Form</SubType></Compile>
     <Compile Include="Infrastructure\Configuration\ReportConnectionAlias.cs" />
     <Compile Include="Infrastructure\Configuration\RuntimeConfigurationBootstrap.cs" />
     <Compile Include="Program.cs" />
