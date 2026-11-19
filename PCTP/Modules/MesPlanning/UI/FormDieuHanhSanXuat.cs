@@ -80,7 +80,6 @@ namespace PCTP.Modules.MesPlanning.UI
             _finished.AutoSize = true;
             orderPanel.Controls.Add(_finished);
             AddButton(orderPanel, "TẠO LOT SẢN XUẤT", CreateLotClick);
-            AddButton(orderPanel, "RELEASE LỆNH", (s, e) => TransitionOrder(10));
             AddButton(orderPanel, "START LỆNH", (s, e) => TransitionOrder(20));
             AddButton(orderPanel, "PAUSE LỆNH", (s, e) => TransitionOrder(30));
             AddButton(orderPanel, "RESUME LỆNH", (s, e) => TransitionOrder(20));
@@ -98,7 +97,6 @@ namespace PCTP.Modules.MesPlanning.UI
             AddButton(operationPanel, "START", (s, e) => TransitionOperation(30));
             AddButton(operationPanel, "PAUSE", (s, e) => TransitionOperation(40));
             AddButton(operationPanel, "RESUME", (s, e) => TransitionOperation(30));
-            AddButton(operationPanel, "COMPLETE", (s, e) => TransitionOperation(50));
             AddButton(operationPanel, "TẢI ROUTING THEO LOT", LoadRoutingClick);
             _routingSteps.Width = 980; _routingSteps.Height = 160; _routingSteps.ReadOnly = true;
             _routingSteps.AllowUserToAddRows = false; _routingSteps.AllowUserToDeleteRows = false;
