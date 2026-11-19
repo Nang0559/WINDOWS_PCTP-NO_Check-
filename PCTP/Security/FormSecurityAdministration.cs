@@ -280,7 +280,7 @@ namespace PCTP.Security
             public UserRolesDialog(DataTable roles)
             {
                 Roles=roles; Text="Gán vai trò"; Width=430; Height=500; StartPosition=FormStartPosition.CenterParent;
-                var grid=Grid(); grid.DataSource=Roles; Controls.Add(grid);
+                var grid=FormSecurityAdministration.Grid(); grid.DataSource=Roles; Controls.Add(grid);
                 if(grid.Columns["IsAssigned"]!=null) grid.Columns["IsAssigned"].ReadOnly=false;
                 foreach(DataGridViewColumn c in grid.Columns) if(c.Name!="IsAssigned") c.ReadOnly=true;
                 grid.CurrentCellDirtyStateChanged+=(s,e)=>{if(grid.IsCurrentCellDirty)grid.CommitEdit(DataGridViewDataErrorContexts.Commit);};
