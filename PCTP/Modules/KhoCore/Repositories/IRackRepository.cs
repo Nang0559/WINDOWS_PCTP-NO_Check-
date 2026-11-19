@@ -10,6 +10,8 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         int Create(int warehouseId, string rackName, int rowCount, int columnCount);
         
         Rack GetById(int rackId);
+        string GetWarehouseNameById(int warehouseId);
+        string GetWarehouseNameByRackId(int rackId);
 
         List<Rack> GetRacksByWarehouse(int warehouseId);
 
