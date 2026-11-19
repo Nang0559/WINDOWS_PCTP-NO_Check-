@@ -18,8 +18,8 @@ IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '0
 IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '037')
     RETURN;
 
-IF OBJECT_ID(N'IFS.SyncBatch', N'U') IS NULL
-   OR OBJECT_ID(N'IFS.SyncStageRow', N'U') IS NULL
+IF OBJECT_ID(N'IFS.FVN_SyncBatch', N'U') IS NULL
+   OR OBJECT_ID(N'IFS.FVN_SyncStageRow', N'U') IS NULL
    OR OBJECT_ID(N'IFS.usp_ApplySyncBatch', N'P') IS NULL
     THROW 53703, 'IFS synchronization objects are missing.', 1;
 
@@ -27,19 +27,19 @@ BEGIN TRY
     BEGIN TRANSACTION;
 
     /* Store the explicit selection with the batch for audit/history. */
-    IF COL_LENGTH(N'IFS.SyncBatch', N'SelectedEntities') IS NULL
-        ALTER TABLE IFS.SyncBatch ADD SelectedEntities nvarchar(500) NULL;
+    IF COL_LENGTH(N'IFS.FVN_SyncBatch', N'SelectedEntities') IS NULL
+        ALTER TABLE IFS.FVN_SyncBatch ADD SelectedEntities nvarchar(500) NULL;
 
     /* FULL remains unchanged; SELECTIVE records a batch that stages only selected entities. */
     IF EXISTS
     (
         SELECT 1 FROM sys.check_constraints
-        WHERE parent_object_id = OBJECT_ID(N'IFS.SyncBatch')
+        WHERE parent_object_id = OBJECT_ID(N'IFS.FVN_SyncBatch')
           AND name = N'CK_IFS_Batch_Mode'
     )
-        ALTER TABLE IFS.SyncBatch DROP CONSTRAINT CK_IFS_Batch_Mode;
+        ALTER TABLE IFS.FVN_SyncBatch DROP CONSTRAINT CK_IFS_Batch_Mode;
 
-    ALTER TABLE IFS.SyncBatch WITH CHECK
+    ALTER TABLE IFS.FVN_SyncBatch WITH CHECK
         ADD CONSTRAINT CK_IFS_Batch_Mode
         CHECK (SyncMode IN ('FULL','INCREMENTAL','SELECTIVE'));
 
@@ -59,7 +59,7 @@ BEGIN TRY
         THROW 53704, 'Cannot read IFS.usp_ApplySyncBatch definition.', 1;
 
     SET @Start = CHARINDEX(
-        N'IF NOT EXISTS(SELECT 1 FROM IFS.SyncStageRow WHERE SyncBatchId=@SyncBatchId AND EntityName=''PART_CATALOG'')',
+        N'IF NOT EXISTS(SELECT 1 FROM IFS.FVN_SyncStageRow WHERE SyncBatchId=@SyncBatchId AND EntityName=''PART_CATALOG'')',
         @Definition);
     SET @End = CHARINDEX(@EndToken, @Definition, @Start);
 
