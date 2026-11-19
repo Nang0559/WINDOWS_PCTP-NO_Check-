@@ -2,6 +2,7 @@
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Models;
+using PCTP.Infrastructure.Security;
 using System;
 using System.Collections.Generic;
 
@@ -21,6 +22,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
         public List<Rack> GetByWarehouse(int warehouseId)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             if (warehouseId <= 0)
                 throw new ArgumentException(
                     "WarehouseId không hợp lệ.",
@@ -31,6 +33,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
         public Rack GetById(int rackId)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             if (rackId <= 0)
                 throw new ArgumentException(
                     "RackId không hợp lệ.",
@@ -45,6 +48,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             int rowCount,
             int columnCount)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_ADJUST", "ADMIN");
             if (warehouseId <= 0)
                 throw new ArgumentException(
                     "WarehouseId không hợp lệ.");
@@ -77,6 +81,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             int rowCount,
             int columnCount)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_ADJUST", "ADMIN");
             if (rackId <= 0)
                 throw new ArgumentException(
                     "RackId không hợp lệ.");
@@ -97,6 +102,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
         public void Delete(int rackId)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_ADJUST", "ADMIN");
             if (rackId <= 0)
                 throw new ArgumentException(
                     "RackId không hợp lệ.");
@@ -104,6 +110,10 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             _repository.DeleteCascade(rackId);
         }
 
-        public List<RackRenderInfo> GetRackRenderInfos() => _repository.GetRackRenderInfos();
+        public List<RackRenderInfo> GetRackRenderInfos()
+        {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
+            return _repository.GetRackRenderInfos();
+        }
     }
 }
