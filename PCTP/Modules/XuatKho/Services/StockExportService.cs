@@ -11,6 +11,7 @@ using PCTP.Shared.Common;
 using PCTP.Shared.Enums;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
+using PCTP.Infrastructure.Security;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,6 +48,7 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult PickToChoGiao(StockExportRequest request)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
             // ItemCode thiếu: lấy từ chính SlotLot của LOT cần pick (nguồn sự thật), không bắt người dùng/caller đoán.
             if (request != null && string.IsNullOrWhiteSpace(request.ItemCode) &&
                 request.SlotId.HasValue && request.SlotId.Value > 0 && !string.IsNullOrWhiteSpace(request.LotNo))
@@ -164,11 +166,13 @@ namespace PCTP.Modules.XuatKho.Services
 
         public List<HangChoGiao> GetPendingChoGiao()
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             return _choGiaoRepo.GetPending();
         }
 
         public StockExportResult CancelChoGiao(int hangChoGiaoId, string nguoiThucHien)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CANCEL");
             if (_stockMovement == null)
                 return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
 
@@ -238,6 +242,7 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult ConfirmGiaoHangTuChoGiao(int hangChoGiaoId, string nguoiGiao)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
             if (_stockMovement == null)
                 return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
 
@@ -319,6 +324,7 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult XuatTrucTiep(StockExportRequest request)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
             var validation = _validationService.ValidateXuatTrucTiep(request);
             if (!validation.IsValid)
                 return MapFail(validation);
