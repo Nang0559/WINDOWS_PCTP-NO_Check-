@@ -490,10 +490,21 @@ BEGIN TRY
  AS
  BEGIN
   SET NOCOUNT ON;
-  SELECT AdminAuditId,ActorUserId,EventCode,TargetType,TargetId,BeforeJson,AfterJson,OccurredAtUtc,MachineName
-  FROM SEC.AdminAudit WHERE (@FromUtc IS NULL OR OccurredAtUtc>=@FromUtc)
-   AND (@ToUtc IS NULL OR OccurredAtUtc<@ToUtc)
-  ORDER BY OccurredAtUtc DESC,AdminAuditId DESC;
+  SELECT AuditId,ActorUserId,EventCode,TargetType,TargetId,BeforeJson,AfterJson,OccurredAtUtc,MachineName,AuditSource
+  FROM(
+   SELECT AdminAuditId AuditId,ActorUserId,EventCode,TargetType,TargetId,BeforeJson,AfterJson,
+    OccurredAtUtc,MachineName,CAST(''ADMIN'' AS varchar(10)) AuditSource
+   FROM SEC.AdminAudit WHERE (@FromUtc IS NULL OR OccurredAtUtc>=@FromUtc)
+    AND (@ToUtc IS NULL OR OccurredAtUtc<@ToUtc)
+   UNION ALL
+   SELECT LoginAuditId,UserId,
+    CASE WHEN IsSuccess=1 THEN ''LOGIN_SUCCESS'' ELSE ''LOGIN_FAILED'' END,
+    ''LOGIN'',UserName,CAST(NULL AS nvarchar(max)),FailureCode,OccurredAtUtc,MachineName,
+    CAST(''LOGIN'' AS varchar(10))
+   FROM SEC.LoginAudit WHERE (@FromUtc IS NULL OR OccurredAtUtc>=@FromUtc)
+    AND (@ToUtc IS NULL OR OccurredAtUtc<@ToUtc)
+  ) A
+  ORDER BY OccurredAtUtc DESC,AuditId DESC;
  END');
 
  INSERT MES.FVN_SchemaMigration(MigrationVersion,MigrationName)
