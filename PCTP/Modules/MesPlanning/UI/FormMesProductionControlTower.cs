@@ -24,7 +24,7 @@ namespace PCTP.Modules.MesPlanning.UI
             new PCTP.Shared.MesControls.FvnSiteDateRangeFilterControl();
         private readonly PCTP.Shared.MesControls.FvnDepartmentTaskGridControl _taskGrid =
             new PCTP.Shared.MesControls.FvnDepartmentTaskGridControl();
-        private readonly MemoEdit _details = new MemoEdit();
+        private readonly LabelControl _details = new LabelControl();
         private readonly PCTP.Shared.MesControls.FvnKpiStageStripControl _stageStrip = new PCTP.Shared.MesControls.FvnKpiStageStripControl();
         private readonly PCTP.Shared.MesControls.FvnProgressSummaryControl _progressSummary = new PCTP.Shared.MesControls.FvnProgressSummaryControl();
         private readonly PCTP.Shared.MesControls.FvnScopeBadgeControl _scopeBadge = new PCTP.Shared.MesControls.FvnScopeBadgeControl();
@@ -92,7 +92,7 @@ namespace PCTP.Modules.MesPlanning.UI
             var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, Padding = new Padding(12),
-                ColumnCount = 1, RowCount = 4, BackColor = Color.FromArgb(245, 247, 250)
+                ColumnCount = 1, RowCount = 4
             };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
@@ -173,11 +173,12 @@ namespace PCTP.Modules.MesPlanning.UI
                 else OpenSelectedTimeline();
             };
             _details.Dock = DockStyle.Fill;
-            _details.Properties.ReadOnly = true;
-            _details.Properties.ScrollBars = ScrollBars.Vertical;
-            _details.Properties.Appearance.Font = new Font("Segoe UI", 9.25f);
-            _details.EditValue = "Chọn một dòng để xem chi tiết dòng chảy, bộ phận liên quan và điểm đang chờ.";
+            _details.Dock = DockStyle.Fill;
+            _details.AutoSizeMode = LabelAutoSizeMode.None;
+            _details.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
+            _details.Text = "Chọn một dòng để xem chi tiết dòng chảy, bộ phận liên quan và điểm đang chờ.";
             var detailPanel = new PanelControl { Dock = DockStyle.Fill, BorderStyle = BorderStyles.NoBorder, Padding = new Padding(8) };
+            detailPanel.AutoScroll = true;
             var detailTitle = new LabelControl
             {
                 Dock = DockStyle.Top, Height = 28, Text = "CHI TIẾT DÒNG CHẢY / ĐIỂM CHỜ",
@@ -242,7 +243,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 if (e.Error != null)
                 {
                     _status.Text = "Không tải được dòng chảy: " + e.Error.GetBaseException().Message;
-                    _status.Appearance.ForeColor = Color.Firebrick;
+                    _status.Appearance.Options.UseForeColor = false;
                     return;
                 }
                 var result = e.Result as LoadResult;
@@ -260,7 +261,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 _refreshStamp.Text = "Cập nhật: " + DateTime.Now.ToString("HH:mm:ss");
                 _status.Text = "Đang theo dõi " + _data.Rows.Count.ToString("N0") +
                     " dòng kế hoạch trong phạm vi được cấp. Màn hình chỉ đọc.";
-                _status.Appearance.ForeColor = Color.FromArgb(70, 85, 100);
+                _status.Appearance.Options.UseForeColor = false;
                 ShowSelectedDetails();
                 UpdateSelectionButton();
                 UpdateNavigationButtons();
@@ -290,7 +291,7 @@ namespace PCTP.Modules.MesPlanning.UI
             }
             _filters.SetBusy(true);
             _status.Text = "Đang đồng bộ trạng thái kế hoạch, linh kiện, lệnh và sản xuất...";
-            _status.Appearance.ForeColor = Color.SteelBlue;
+            _status.Appearance.Options.UseForeColor = false;
             _worker.RunWorkerAsync(new LoadArgs
             {
                 Site = _filters.SiteCode,
@@ -373,34 +374,11 @@ namespace PCTP.Modules.MesPlanning.UI
         private void View_RowCellStyle(object sender, RowCellStyleEventArgs e)
         {
             var row = _taskGrid.View.GetDataRow(e.RowHandle);
-            if (row == null || !row.Table.Columns.Contains("FlowStage")) return;
-            if (Convert.ToBoolean(row["IsRelatedDepartment"]))
-            {
-                e.Appearance.BackColor = Color.FromArgb(244, 246, 248);
-                e.Appearance.ForeColor = Color.FromArgb(105, 115, 125);
-                return;
-            }
-            if (e.Column.FieldName == "TaskLabel" && Convert.ToString(row["TaskLabel"]) != "Theo dõi")
-            {
-                e.Appearance.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-                e.Appearance.ForeColor = Color.FromArgb(23, 89, 154);
-            }
-            string stage = Convert.ToString(row["FlowStage"]);
-            if (stage == "COMPONENTS")
-            {
-                e.Appearance.BackColor = Color.FromArgb(255, 247, 230);
-                e.Appearance.ForeColor = Color.FromArgb(145, 82, 12);
-            }
-            else if (stage == "DONE")
-            {
-                e.Appearance.BackColor = Color.FromArgb(232, 247, 238);
-                e.Appearance.ForeColor = Color.FromArgb(25, 105, 62);
-            }
-            else if (stage == "PRODUCTION")
-            {
-                e.Appearance.BackColor = Color.FromArgb(235, 243, 255);
-                e.Appearance.ForeColor = Color.FromArgb(35, 77, 130);
-            }
+            if (row == null || !row.Table.Columns.Contains("TaskCode")) return;
+            if (e.Column.FieldName == "TaskLabel" &&
+                row["TaskCode"] != DBNull.Value &&
+                (ProductionFlowTaskCode)row["TaskCode"] != ProductionFlowTaskCode.None)
+                e.Appearance.Font = new Font(e.Appearance.Font, FontStyle.Bold);
         }
 
         private void ShowSelectedDetails()
