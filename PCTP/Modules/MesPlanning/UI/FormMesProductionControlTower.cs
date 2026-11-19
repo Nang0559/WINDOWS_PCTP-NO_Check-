@@ -358,19 +358,25 @@ namespace PCTP.Modules.MesPlanning.UI
                     session.HasDataScope("MES.PRODUCTION_EXECUTION", "DEPARTMENT", department, site);
 
                 if (stage == "PLAN" && planStatus == "IMPORTED" &&
+                    session.HasPermission("MES.PLAN_UPLOAD", "VIEW") &&
                     session.HasPermission("MES.PLAN_UPLOAD", "CONFIRM"))
                     row["MyTask"] = "Kiểm tra kế hoạch";
                 else if (stage == "PLAN" && planStatus == "VALIDATED" &&
+                    session.HasPermission("MES.PLAN_UPLOAD", "VIEW") &&
                     session.HasPermission("MES.PLAN_UPLOAD", "APPROVE"))
                     row["MyTask"] = "FIRM kế hoạch";
                 else if (stage == "COMPONENTS" &&
+                    session.HasPermission("MES.COMPONENT_DEMAND", "VIEW") &&
+                    session.HasPermission("MES.COMPONENT_ISSUE", "VIEW") &&
                     session.HasPermission("MES.COMPONENT_ISSUE", "CONFIRM") &&
                     session.HasDataScope("MES.COMPONENT_ISSUE", "SITE", site, site))
                     row["MyTask"] = "Cấp linh kiện";
                 else if (stage == "ORDER" && productionDepartmentScope &&
+                    session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW") &&
                     session.HasPermission("MES.PRODUCTION_EXECUTION", "CREATE"))
                     row["MyTask"] = "Tạo lệnh sản xuất";
                 else if (stage == "PRODUCTION" && productionDepartmentScope &&
+                    session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW") &&
                     session.HasPermission("MES.PRODUCTION_EXECUTION", "CONFIRM"))
                     row["MyTask"] = "Thực hiện công đoạn";
             }
