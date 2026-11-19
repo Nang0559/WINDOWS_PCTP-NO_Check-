@@ -225,7 +225,8 @@ ORDER BY t.TransferredAtUtc DESC, t.ComponentLotTransferId DESC;";
         {
             if (string.IsNullOrWhiteSpace(siteCode)) return new DataTable();
             string site = siteCode.Trim().ToUpperInvariant();
-            AuthorizationGuard.DemandScope(TransferFunction, "SITE", site, site);
+            // Danh sách slot đích chỉ phục vụ việc ghi điều chuyển → cần quyền CONFIRM chứ không chỉ VIEW.
+            AuthorizationGuard.DemandActionAndScope(TransferFunction, "CONFIRM", "SITE", site, site);
             return _slots.GetActiveSlots(site);
         }
 

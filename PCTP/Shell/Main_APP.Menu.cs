@@ -76,6 +76,7 @@ namespace PCTP
             _menuKho.Elements.Add(cmdRackControl);
 
             _menuKhoTonTP = CreateMenuItem("menuKhoTonTP", "Tồn kho thành phẩm", OpenTonKhoThanhPham);
+            _menuKho.Elements.Add(CreateMenuItem("menuKhoLinhKien", "Kho linh kiện PART", OpenKhoLinhKien));
             _menuKho.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Kiểm kê hàng về (QR)", OpenNhanLinhKien));
             _menuKho.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
             _menuKho.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
@@ -164,6 +165,7 @@ namespace PCTP
                 ["menuChuyenHangNoiBo"] = "WAREHOUSE.MOVE",
                 ["menuThuHoiHangNoiBo"] = "WAREHOUSE.MOVE",
                 ["menuKhoTonTP"] = "WAREHOUSE.STOCK_VIEW",
+                ["menuKhoLinhKien"] = "WAREHOUSE.COMPONENT_STOCK",
                 ["menuNhanLinhKien"] = "WAREHOUSE.COMPONENT_RECEIPT",
                 ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
                 ["menuDieuHanhSanXuat"] = "MES.PRODUCTION_EXECUTION",
@@ -359,6 +361,7 @@ namespace PCTP
         private static string ResolveFunctionCodeFromTitle(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return null;
+            if (title.IndexOf("Kho linh kiện", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.COMPONENT_STOCK";
             if (title.IndexOf("Điều hành sản xuất", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PRODUCTION_EXECUTION";
             if (title.IndexOf("Upload kế hoạch", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PLAN_UPLOAD";
             if (title.IndexOf("Nhận linh kiện", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.RECEIPT";
@@ -440,6 +443,14 @@ namespace PCTP
         {
             // lotFilter rỗng → chế độ xem "Tồn kho hiện tại" (không phải điều chỉnh 1 LOT).
             OpenFromMenu(() => TONKHOTP.ShowForLot(this, string.Empty), "Tồn kho thành phẩm");
+        }
+
+        private void OpenKhoLinhKien(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(
+                this,
+                () => new PCTP.Modules.KhoLinhKien.UI.FormKhoLinhKien()),
+                "Kho linh kiện PART");
         }
 
         private void OpenNhanLinhKien(object sender, EventArgs e)

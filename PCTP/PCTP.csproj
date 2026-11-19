@@ -1112,10 +1112,10 @@
     <Compile Include="Modules\NhapKho\ComponentReceiving\IComponentReceivingService.cs" />
     <Compile Include="Modules\NhapKho\ComponentReceiving\ComponentReceivingService.cs" />
     <Compile Include="Modules\NhapKho\ComponentReceiving\ComponentReceivingQuery.cs" />
-    <Compile Include="Modules\NhapKho\UI\FormKiemKeHangVeList.cs">
+    <Compile Include="Modules\KhoLinhKien\UI\FormKiemKeHangVeList.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\NhapKho\UI\FormKiemKeHangVeScan.cs">
+    <Compile Include="Modules\KhoLinhKien\UI\FormKiemKeHangVeScan.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Infrastructure\Repositories\PhieuTrackingRepository.cs" />
