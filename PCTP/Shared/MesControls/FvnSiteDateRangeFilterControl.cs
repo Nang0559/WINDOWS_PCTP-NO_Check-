@@ -25,7 +25,9 @@ namespace PCTP.Shared.MesControls
             };
             panel.Controls.Add(Caption("SITE", 48));
             _site.Width = 110;
-            _site.Properties.NullValuePrompt = "SiteCode";
+            _site.Properties.NullValuePrompt = "Site theo quyền";
+            _site.Properties.ReadOnly = true;
+            _site.Properties.AllowFocused = false;
             panel.Controls.Add(_site);
             panel.Controls.Add(Caption("TỪ NGÀY", 66));
             ConfigureDate(_from, DateTime.Today.AddDays(-7));
@@ -61,7 +63,7 @@ namespace PCTP.Shared.MesControls
 
         public void SetBusy(bool busy)
         {
-            _site.Enabled = !busy;
+            _site.Enabled = false;
             _from.Enabled = !busy;
             _to.Enabled = !busy;
             _refresh.Enabled = !busy;
