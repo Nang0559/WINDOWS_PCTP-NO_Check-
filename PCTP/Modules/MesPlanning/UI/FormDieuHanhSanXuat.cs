@@ -6,6 +6,10 @@ using System.Globalization;
 using System.Windows.Forms;
 using System.Drawing.Printing;
 using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Controls;
+using DevExpress.XtraTab;
+using DevExpress.XtraGrid;
+using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraPrinting.BarCode;
 
 namespace PCTP.Modules.MesPlanning.UI
@@ -14,7 +18,7 @@ namespace PCTP.Modules.MesPlanning.UI
     {
         private readonly IProductionExecutionService _service;
         private readonly IProductionWorkflowService _workflow;
-        private readonly TextBox _routingStepId = new TextBox();
+        private readonly TextEdit _routingStepId = new TextEdit();
         private readonly TextBox _planLineId = new TextBox(), _orderNo = new TextBox();
         private readonly TextBox _orderId = new TextBox(), _goodQty = new TextBox(), _ngQty = new TextBox();
         private readonly TextBox _lotId = new TextBox(), _operationLotId = new TextBox(), _consumeProductionLotId = new TextBox();
@@ -23,12 +27,15 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly TextBox _inputSlot = new TextBox(), _outputSlot = new TextBox();
         private readonly TextBox _materialLineId = new TextBox(), _componentLotId = new TextBox();
         private readonly TextBox _consumeQty = new TextBox(), _consumeSlot = new TextBox();
-        private readonly CheckBox _finished = new CheckBox();
-        private readonly DateTimePicker _productionDate = new DateTimePicker();
-        private readonly Label _status = new Label();
-        private readonly DataGridView _materials = new DataGridView();
-        private readonly DataGridView _routingSteps = new DataGridView();
-        private readonly DataGridView _labels = new DataGridView();
+        private readonly CheckEdit _finished = new CheckEdit();
+        private readonly DateEdit _productionDate = new DateEdit();
+        private readonly LabelControl _status = new LabelControl();
+        private readonly GridControl _materials = new GridControl();
+        private readonly GridView _materialView = new GridView();
+        private readonly GridControl _routingSteps = new GridControl();
+        private readonly GridView _routingView = new GridView();
+        private readonly GridControl _labels = new GridControl();
+        private readonly GridView _labelView = new GridView();
         private readonly TextBox _labelQty = new TextBox(), _labelScan = new TextBox();
         private readonly TextBox _labelVoidReason = new TextBox();
         private DataTable _printRows;
@@ -58,10 +65,10 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void BuildUi()
         {
-            var tabs = new TabControl { Dock = DockStyle.Fill };
-            var orderTab = new TabPage("Lệnh và LOT");
-            var operationTab = new TabPage("Công đoạn");
-            var consumeTab = new TabPage("Tiêu hao LOT linh kiện");
+            var tabs = new XtraTabControl { Dock = DockStyle.Fill };
+            var orderTab = new XtraTabPage { Text = "Lệnh và LOT" };
+            var operationTab = new XtraTabPage { Text = "Công đoạn" };
+            var consumeTab = new XtraTabPage { Text = "Tiêu hao LOT linh kiện" };
 
             var orderPanel = Panel();
             AddField(orderPanel, "ProductionPlanLineId", _planLineId);
@@ -69,8 +76,11 @@ namespace PCTP.Modules.MesPlanning.UI
             AddButton(orderPanel, "TẠO LỆNH TỪ KẾ HOẠCH", CreateOrderClick);
             AddField(orderPanel, "ProductionOrderId", _orderId);
             AddField(orderPanel, "ProductionLotId (sau khi tạo LOT)", _lotId);
-            _productionDate.Format = DateTimePickerFormat.Custom;
-            _productionDate.CustomFormat = "dd/MM/yyyy HH:mm";
+            _productionDate.Properties.DisplayFormat.FormatString = "dd/MM/yyyy HH:mm";
+            _productionDate.Properties.EditFormat.FormatString = "dd/MM/yyyy HH:mm";
+            _productionDate.Properties.Mask.EditMask = "dd/MM/yyyy HH:mm";
+            _productionDate.Properties.CalendarTimeEditing = DefaultBoolean.True;
+            _productionDate.DateTime = DateTime.Now;
             _productionDate.Width = 190;
             orderPanel.Controls.Add(new Label { Text = "Ngày/giờ sản xuất", AutoSize = true, Padding = new Padding(4, 8, 0, 0) });
             orderPanel.Controls.Add(_productionDate);
@@ -98,16 +108,15 @@ namespace PCTP.Modules.MesPlanning.UI
             AddButton(operationPanel, "PAUSE", (s, e) => TransitionOperation(40));
             AddButton(operationPanel, "RESUME", (s, e) => TransitionOperation(30));
             AddButton(operationPanel, "TẢI ROUTING THEO LOT", LoadRoutingClick);
-            _routingSteps.Width = 980; _routingSteps.Height = 160; _routingSteps.ReadOnly = true;
-            _routingSteps.AllowUserToAddRows = false; _routingSteps.AllowUserToDeleteRows = false;
-            _routingSteps.MultiSelect = false; _routingSteps.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            _routingSteps.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
-            _routingSteps.SelectionChanged += (s, e) =>
+            _routingSteps.Dock = DockStyle.Top; _routingSteps.Height = 160;
+            _routingSteps.MainView = _routingView; _routingSteps.ViewCollection.Add(_routingView);
+            ConfigureGrid(_routingView);
+            _routingView.FocusedRowChanged += (s, e) =>
             {
-                if (_routingSteps.SelectedRows.Count == 0) return;
-                var row = _routingSteps.SelectedRows[0];
-                _routingStepId.Text = Convert.ToString(row.Cells["RoutingStepId"].Value);
-                _operationNo.Text = Convert.ToString(row.Cells["OperationNo"].Value);
+                var row = _routingView.GetFocusedDataRow();
+                if (row == null) return;
+                _routingStepId.Text = Convert.ToString(row["RoutingStepId"]);
+                _operationNo.Text = Convert.ToString(row["OperationNo"]);
             };
             operationPanel.Controls.Add(_routingSteps);
             AddButton(operationPanel, "LỊCH SỬ LOT", (s, e) => OpenTimeline("OPERATION", _operationLotId));
@@ -120,12 +129,9 @@ namespace PCTP.Modules.MesPlanning.UI
             AddField(operationPanel, "Số sản phẩm cần chuẩn bị tem", _labelQty);
             AddButton(operationPanel, "1. CHUẨN BỊ / CẤP TEM", PrepareLabelsClick);
             AddButton(operationPanel, "2. IN TEM CÔNG ĐOẠN", PrintLabelsClick);
-            _labels.Width = 980;
-            _labels.Height = 190;
-            _labels.ReadOnly = true;
-            _labels.AllowUserToAddRows = false;
-            _labels.AllowUserToDeleteRows = false;
-            _labels.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+            _labels.Dock = DockStyle.Top; _labels.Height = 190;
+            _labels.MainView = _labelView; _labels.ViewCollection.Add(_labelView);
+            ConfigureGrid(_labelView);
             operationPanel.Controls.Add(_labels);
             AddField(operationPanel, "Quét QR tem MES hoặc LabelCode để xác nhận dán tem", _labelScan);
             AddButton(operationPanel, "XÁC NHẬN ĐÃ DÁN TEM", ApplyLabelClick);
@@ -134,20 +140,16 @@ namespace PCTP.Modules.MesPlanning.UI
             operationTab.Controls.Add(operationPanel);
 
             var consumePanel = Panel();
-            var loadMaterials = new Button { Text = "TẢI LINH KIỆN THEO LỆNH", AutoSize = true, Height = 34 };
+            var loadMaterials = new SimpleButton { Text = "TẢI LINH KIỆN THEO LỆNH", AutoSize = true, Height = 34 };
             loadMaterials.Click += LoadMaterialsClick;
             consumePanel.Controls.Add(loadMaterials);
-            _materials.Width = 980;
-            _materials.Height = 190;
-            _materials.ReadOnly = true;
-            _materials.AllowUserToAddRows = false;
-            _materials.MultiSelect = false;
-            _materials.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            _materials.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
-            _materials.SelectionChanged += (s, e) =>
+            _materials.Dock = DockStyle.Top; _materials.Height = 190;
+            _materials.MainView = _materialView; _materials.ViewCollection.Add(_materialView);
+            ConfigureGrid(_materialView);
+            _materialView.FocusedRowChanged += (s, e) =>
             {
-                if (_materials.SelectedRows.Count > 0)
-                    _materialLineId.Text = Convert.ToString(_materials.SelectedRows[0].Cells["ProductionOrderMaterialId"].Value);
+                var row = _materialView.GetFocusedDataRow();
+                if (row != null) _materialLineId.Text = Convert.ToString(row["ProductionOrderMaterialId"]);
             };
             consumePanel.Controls.Add(_materials);
             AddField(consumePanel, "ProductionOrderMaterialId", _materialLineId);
@@ -166,11 +168,23 @@ namespace PCTP.Modules.MesPlanning.UI
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             _status.Dock = DockStyle.Fill;
-            _status.TextAlign = ContentAlignment.MiddleLeft;
+            _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _status.Text = "Lệnh/LOT/công đoạn/tiêu hao đều ghi vào MES; DIRECT không tạo tồn WIP, VIA_WIP dùng ledger chung.";
             root.Controls.Add(tabs, 0, 0);
             root.Controls.Add(_status, 0, 1);
             Controls.Add(root);
+        }
+
+        private static void ConfigureGrid(GridView view)
+        {
+            view.OptionsBehavior.Editable = false;
+            view.OptionsBehavior.ReadOnly = true;
+            view.OptionsView.ShowGroupPanel = false;
+            view.OptionsView.ShowAutoFilterRow = true;
+            view.OptionsView.ColumnAutoWidth = false;
+            view.OptionsSelection.MultiSelect = false;
+            view.OptionsSelection.EnableAppearanceFocusedCell = false;
+            view.FocusRectStyle = DrawFocusRectStyle.RowFocus;
         }
 
         private static FlowLayoutPanel Panel()
@@ -178,7 +192,7 @@ namespace PCTP.Modules.MesPlanning.UI
             return new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(12), WrapContents = true };
         }
 
-        private static void AddField(FlowLayoutPanel panel, string caption, TextBox input)
+        private static void AddField(FlowLayoutPanel panel, string caption, TextEdit input)
         {
             var group = new Panel { Width = 320, Height = 58, Margin = new Padding(5) };
             group.Controls.Add(new Label { Text = caption, Dock = DockStyle.Top, Height = 22 });
@@ -190,12 +204,12 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private static void AddButton(FlowLayoutPanel panel, string caption, EventHandler handler)
         {
-            var button = new Button { Text = caption, AutoSize = true, Height = 34, Margin = new Padding(8, 18, 8, 8) };
+            var button = new SimpleButton { Text = caption, AutoSize = true, Height = 34, Margin = new Padding(8, 18, 8, 8) };
             button.Click += handler;
             panel.Controls.Add(button);
         }
 
-        private static long LongValue(TextBox input, string name)
+        private static long LongValue(TextEdit input, string name)
         {
             long value;
             if (!long.TryParse(input.Text.Trim(), out value) || value <= 0)
@@ -203,7 +217,7 @@ namespace PCTP.Modules.MesPlanning.UI
             return value;
         }
 
-        private static decimal DecimalValue(TextBox input, string name, bool allowZero)
+        private static decimal DecimalValue(TextEdit input, string name, bool allowZero)
         {
             decimal value;
             if (!decimal.TryParse(input.Text.Trim(), NumberStyles.Number, CultureInfo.CurrentCulture, out value) ||
@@ -212,7 +226,7 @@ namespace PCTP.Modules.MesPlanning.UI
             return value;
         }
 
-        private static int? OptionalSlot(TextBox input)
+        private static int? OptionalSlot(TextEdit input)
         {
             if (string.IsNullOrWhiteSpace(input.Text)) return null;
             int value;
@@ -237,7 +251,7 @@ namespace PCTP.Modules.MesPlanning.UI
             Run(() =>
             {
                 var result = _service.CreateLot(LongValue(_orderId, "ProductionOrderId"),
-                    _productionDate.Value.ToUniversalTime(), DecimalValue(_goodQty, "GoodQty", false),
+                    _productionDate.DateTime.ToUniversalTime(), DecimalValue(_goodQty, "GoodQty", false),
                     DecimalValue(_ngQty, "NgQty", true), _finished.Checked, Environment.UserName);
                 if (result.Rows.Count > 0)
                 {
@@ -272,7 +286,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 _labels.DataSource = _service.PrepareLabels(
                     LongValue(_operationLotId, "ProductionLotId"), _operationNo.Text,
                     quantity, Environment.UserName);
-                return "Đã cấp " + _labels.Rows.Count.ToString("N0") +
+                return "Đã cấp " + _labelView.RowCount.ToString("N0") +
                     " tem duy nhất cho công đoạn " + _operationNo.Text + ".";
             });
         }
@@ -339,6 +353,7 @@ namespace PCTP.Modules.MesPlanning.UI
                     };
                     document.Print();
                     _labels.DataSource = _printRows;
+                    _labelView.BestFitColumns();
                     return "Đã gửi " + _printRows.Rows.Count.ToString("N0") +
                         " tem tới máy in. QR Code và dữ liệu tem đã được gửi tới máy in.";
                 }
@@ -373,6 +388,7 @@ namespace PCTP.Modules.MesPlanning.UI
             Run(() =>
             {
                 _materials.DataSource = _service.GetOrderMaterials(LongValue(_orderId, "ProductionOrderId"));
+                _materialView.BestFitColumns();
                 return "Đã tải danh sách linh kiện theo BOM của lệnh sản xuất.";
             });
         }
@@ -406,6 +422,7 @@ namespace PCTP.Modules.MesPlanning.UI
             Run(() =>
             {
                 _routingSteps.DataSource = _service.GetRoutingSteps(LongValue(_operationLotId, "ProductionLotId"));
+                _routingView.BestFitColumns();
                 return "Đã tải routing theo LOT. Chọn công đoạn trong danh sách để thao tác workflow.";
             });
         }
@@ -443,7 +460,7 @@ namespace PCTP.Modules.MesPlanning.UI
             catch (Exception ex)
             {
                 _status.Text = ex.Message;
-                MessageBox.Show(this, ex.Message, "Điều hành sản xuất MES",
+                XtraMessageBox.Show(this, ex.Message, "Điều hành sản xuất MES",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
