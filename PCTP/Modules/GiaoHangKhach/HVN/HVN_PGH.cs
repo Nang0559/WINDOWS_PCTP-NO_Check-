@@ -22,7 +22,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 {
     public partial class HVN_PGH : XtraForm, IHVNView
     {
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
+    
         public int SttDangSuaSl => _sttSuaSl;
         private readonly HVN_Presenter _presenter;
         private DataTable _addressTable = new DataTable();
@@ -43,6 +43,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         public HVN_PGH(string customerNo = "100001")
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             InitializeComponent();
             _waitForm = new WaitFormService(this);
             _customerNo = CustomerTableConfig.NormalizeCustomerNo(customerNo);
