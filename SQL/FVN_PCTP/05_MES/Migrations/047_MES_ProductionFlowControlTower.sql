@@ -146,6 +146,7 @@ BEGIN TRY
    ISNULL(ord.OrderPlannedQty,0) OrderPlannedQty,ISNULL(ord.CompletedQty,0) CompletedQty,
    ISNULL(lot.ProductionLotCount,0) ProductionLotCount,ISNULL(lot.ProducedQty,0) ProducedQty,
    ISNULL(op.OperationCount,0) OperationCount,ISNULL(op.CompletedOperationCount,0) CompletedOperationCount,
+   ISNULL(op.PausedOperationCount,0) PausedOperationCount,
    evt.LastEventAtUtc,evt.LastEventAction,evt.LastEventActor,
    CASE
     WHEN pf.PlanWorkflowStatusCode<20 AND pf.PlanStatus<>N''FIRM'' THEN N''PLAN''
@@ -159,14 +160,16 @@ BEGIN TRY
     WHEN dem.ComponentDemandId IS NULL THEN N''Chưa có yêu cầu linh kiện''
     WHEN dem.OutstandingQty>0 THEN N''Còn thiếu linh kiện: ''+CONVERT(nvarchar(40),dem.OutstandingQty)
     WHEN ord.ProductionOrderId IS NULL THEN N''Chưa tạo lệnh sản xuất''
-    WHEN ISNULL(lot.ProductionLotCount,0)=0 THEN N''Đã có lệnh, đang chờ tạo LOT sản xuất''
+    WHEN ord.OrderStatus=N''CREATED'' THEN N''Lệnh đã tạo, đang chờ RELEASE''
+    WHEN ISNULL(lot.ProductionLotCount,0)=0 THEN N''Lệnh đã RELEASE, đang chờ tạo LOT sản xuất''
+    WHEN ord.OrderStatus=N''PAUSED'' OR op.PausedOperationCount>0 THEN N''Lệnh / công đoạn đang tạm dừng''
     WHEN op.OperationCount>op.CompletedOperationCount THEN N''Còn công đoạn chưa hoàn thành''
     ELSE N''Không có điểm chờ được suy ra'' END WaitingReason,
    CASE
     WHEN pf.PlanWorkflowStatusCode<20 AND pf.PlanStatus<>N''FIRM'' THEN N''PLANNING''
     WHEN dem.ComponentDemandId IS NULL OR dem.OutstandingQty>0 THEN N''PART''
-    WHEN ord.ProductionOrderId IS NULL OR ISNULL(lot.ProductionLotCount,0)=0 THEN N''PRODUCTION''
-    WHEN op.OperationCount>op.CompletedOperationCount THEN N''PRODUCTION''
+    WHEN ord.ProductionOrderId IS NULL OR ord.OrderStatus=N''CREATED'' OR ISNULL(lot.ProductionLotCount,0)=0 THEN N''PRODUCTION''
+    WHEN ord.OrderStatus=N''PAUSED'' OR op.PausedOperationCount>0 OR op.OperationCount>op.CompletedOperationCount THEN N''PRODUCTION''
     ELSE NULL END WaitingAt
   FROM PlanFlow pf
   OUTER APPLY
@@ -196,7 +199,8 @@ BEGIN TRY
   OUTER APPLY
   (
    SELECT COUNT_BIG(*) OperationCount,
-    SUM(CASE WHEN w.StatusCode=50 THEN CONVERT(bigint,1) ELSE CONVERT(bigint,0) END) CompletedOperationCount
+    SUM(CASE WHEN w.StatusCode=50 THEN CONVERT(bigint,1) ELSE CONVERT(bigint,0) END) CompletedOperationCount,
+    SUM(CASE WHEN w.StatusCode=40 THEN CONVERT(bigint,1) ELSE CONVERT(bigint,0) END) PausedOperationCount
    FROM MES.FVN_ProductionLot pl
    JOIN MES.FVN_ProductionOperationWorkflow w ON w.ProductionLotId=pl.ProductionLotId
    WHERE pl.ProductionOrderId=ord.ProductionOrderId
