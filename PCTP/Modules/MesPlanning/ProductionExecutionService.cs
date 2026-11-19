@@ -94,7 +94,7 @@ namespace PCTP.Modules.MesPlanning
             int fromSlotId, decimal quantity, string actor)
         {
             actor = AuthorizationGuard.ActorCode;
-            DemandSite("MES.PRODUCTION_EXECUTION", "CONFIRM", _repository.GetLotSiteCode(productionLotId));
+            DemandProductionScope("CONFIRM", _repository.GetLotSiteCode(productionLotId), _repository.GetLotDepartmentCode(productionLotId));
             if (orderMaterialId <= 0 || productionLotId <= 0 || materialLotId <= 0 ||
                 fromSlotId <= 0 || quantity <= 0 || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("Thông tin tiêu hao LOT linh kiện không hợp lệ.");
