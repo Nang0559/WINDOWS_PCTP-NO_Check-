@@ -191,6 +191,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 }
             };
             _view.FocusedRowChanged += (s, e) => ShowSelectedDetails();
+            _view.DoubleClick += (s, e) => OpenSelectedTask();
             _details.Dock = DockStyle.Fill;
             _details.Properties.ReadOnly = true;
             _details.Properties.ScrollBars = ScrollBars.Vertical;
@@ -476,6 +477,19 @@ namespace PCTP.Modules.MesPlanning.UI
                 "Lý do: " + Convert.ToString(row["WaitingReason"]) + Environment.NewLine +
                 "Cập nhật gần nhất: " + Convert.ToString(row["LastEventAtUtc"]) + " | " +
                 Convert.ToString(row["LastEventAction"]) + " | " + Convert.ToString(row["LastEventActor"]);
+        }
+
+        private void OpenSelectedTask()
+        {
+            var row = _view.GetFocusedDataRow();
+            if (row == null || Convert.ToBoolean(row["IsRelatedDepartment"])) return;
+            string task = Convert.ToString(row["MyTask"]);
+            if (task == "Kiểm tra kế hoạch" || task == "FIRM kế hoạch")
+                OpenPlan();
+            else if (task == "Cấp linh kiện")
+                OpenPart();
+            else if (task == "Tạo lệnh sản xuất" || task == "Thực hiện công đoạn")
+                OpenProduction();
         }
 
         private void OpenPlan()
