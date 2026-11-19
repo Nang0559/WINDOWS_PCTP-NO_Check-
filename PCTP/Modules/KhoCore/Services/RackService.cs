@@ -25,7 +25,6 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         {
             string warehouse = _repository.GetWarehouseNameById(warehouseId);
             AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_VIEW", "VIEW", "WAREHOUSE", warehouse, null);
-            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             if (warehouseId <= 0)
                 throw new ArgumentException(
                     "WarehouseId không hợp lệ.",
