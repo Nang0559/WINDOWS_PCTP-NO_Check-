@@ -95,14 +95,19 @@ BEGIN TRY
     WHERE FunctionCode=@FunctionCode AND IsActive=1)
    THROW 53824,''Function code is invalid or inactive.'',1;
   IF EXISTS(SELECT 1 FROM SEC.UserRole ur JOIN SEC.Role r ON r.RoleId=ur.RoleId
-    WHERE ur.UserId=@UserId AND r.RoleCode=''SYSTEM_ADMIN'') AND @IsAllowed=0 AND @ScopeType=''ALL''
-   THROW 53825,''Cannot revoke ALL scope from a SYSTEM_ADMIN account.'',1;
+    WHERE ur.UserId=@UserId AND r.RoleCode=''SYSTEM_ADMIN'')
+   THROW 53825,''Direct data scopes of a SYSTEM_ADMIN account cannot be changed.'',1;
+  IF @ScopeType=''SITE'' AND NOT EXISTS(SELECT 1 FROM dbo.FVN_PCTPSite
+    WHERE SiteCode=@ScopeValue AND IsActive=1)
+   THROW 53826,''Site scope must reference an active PCTP site.'',1;
+  BEGIN TRANSACTION;
   INSERT SEC.UserDataScope(UserId,FunctionCode,ScopeType,ScopeValue,SiteCode,IsAllowed)
    VALUES(@UserId,@FunctionCode,@ScopeType,@ScopeValue,@SiteCode,@IsAllowed);
   INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId,AfterJson)
    VALUES(@ActorUserId,''USER_DATA_SCOPE_ADDED'',''USER'',CONVERT(nvarchar(100),@UserId),
     (SELECT @FunctionCode FunctionCode,@ScopeType ScopeType,@ScopeValue ScopeValue,
       @SiteCode SiteCode,@IsAllowed IsAllowed FOR JSON PATH,WITHOUT_ARRAY_WRAPPER));
+  COMMIT TRANSACTION;
  END');
 
  EXEC(N'
