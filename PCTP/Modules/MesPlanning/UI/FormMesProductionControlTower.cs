@@ -228,6 +228,7 @@ namespace PCTP.Modules.MesPlanning.UI
                     return;
                 }
                 _data = e.Result as DataTable ?? new DataTable();
+                EnrichActionableTasks();
                 _grid.DataSource = _data;
                 ConfigureColumns();
                 UpdateKpis();
@@ -286,6 +287,7 @@ namespace PCTP.Modules.MesPlanning.UI
             SetCaption("OperationCount", "Số công đoạn");
             SetCaption("CompletedOperationCount", "CĐ hoàn thành");
             SetCaption("FlowStage", "Giai đoạn");
+            SetCaption("MyTask", "Việc thuộc quyền xử lý");
             SetCaption("WaitingAt", "Đang chờ tại");
             SetCaption("WaitingReason", "Điểm chờ / cảnh báo");
             SetCaption("LastEventAtUtc", "Cập nhật workflow");
@@ -301,6 +303,43 @@ namespace PCTP.Modules.MesPlanning.UI
         private void SetCaption(string field, string caption)
         {
             if (_view.Columns[field] != null) _view.Columns[field].Caption = caption;
+        }
+
+        private void EnrichActionableTasks()
+        {
+            if (!_data.Columns.Contains("MyTask"))
+                _data.Columns.Add("MyTask", typeof(string));
+            var session = UserSession.Current;
+            foreach (DataRow row in _data.Rows)
+            {
+                row["MyTask"] = "Theo dõi";
+                // Cross-department dependencies are context only, never actionable.
+                if (Convert.ToBoolean(row["IsRelatedDepartment"])) continue;
+
+                string stage = Convert.ToString(row["FlowStage"]);
+                string planStatus = Convert.ToString(row["PlanStatus"]);
+                string site = Convert.ToString(row["SiteCode"]);
+                string department = Convert.ToString(row["DepartmentCode"]);
+                bool productionDepartmentScope = !string.IsNullOrWhiteSpace(department) &&
+                    session.HasDataScope("MES.PRODUCTION_EXECUTION", "DEPARTMENT", department, site);
+
+                if (stage == "PLAN" && planStatus == "IMPORTED" &&
+                    session.HasPermission("MES.PLAN_UPLOAD", "CONFIRM"))
+                    row["MyTask"] = "Kiểm tra kế hoạch";
+                else if (stage == "PLAN" && planStatus == "VALIDATED" &&
+                    session.HasPermission("MES.PLAN_UPLOAD", "APPROVE"))
+                    row["MyTask"] = "FIRM kế hoạch";
+                else if (stage == "COMPONENTS" &&
+                    session.HasPermission("MES.COMPONENT_ISSUE", "CONFIRM") &&
+                    session.HasDataScope("MES.COMPONENT_ISSUE", "SITE", site, site))
+                    row["MyTask"] = "Cấp linh kiện";
+                else if (stage == "ORDER" && productionDepartmentScope &&
+                    session.HasPermission("MES.PRODUCTION_EXECUTION", "CREATE"))
+                    row["MyTask"] = "Tạo lệnh sản xuất";
+                else if (stage == "PRODUCTION" && productionDepartmentScope &&
+                    session.HasPermission("MES.PRODUCTION_EXECUTION", "CONFIRM"))
+                    row["MyTask"] = "Thực hiện công đoạn";
+            }
         }
 
         private void UpdateKpis()
@@ -365,6 +404,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 "Lệnh: " + Convert.ToString(row["OrderNo"]) + " | " + Convert.ToString(row["OrderStatus"]) + Environment.NewLine +
                 "LOT: " + Convert.ToString(row["ProductionLotCount"]) + " | SL đã SX: " + Convert.ToString(row["ProducedQty"]) + Environment.NewLine +
                 "Công đoạn: " + Convert.ToString(row["CompletedOperationCount"]) + "/" + Convert.ToString(row["OperationCount"]) + Environment.NewLine +
+                "Việc thuộc quyền: " + Convert.ToString(row["MyTask"]) + Environment.NewLine +
                 "Đang chờ tại: " + Convert.ToString(row["WaitingAt"]) + Environment.NewLine +
                 "Lý do: " + Convert.ToString(row["WaitingReason"]) + Environment.NewLine +
                 "Cập nhật gần nhất: " + Convert.ToString(row["LastEventAtUtc"]) + " | " +
