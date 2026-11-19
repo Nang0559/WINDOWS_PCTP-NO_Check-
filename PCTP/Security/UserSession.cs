@@ -71,22 +71,26 @@ namespace PCTP.Security
 
         public bool HasDataScope(string functionCode, string scopeType, string scopeValue, string siteCode)
         {
+            Func<UserDataScope, bool> appliesToFunction = s =>
+                string.IsNullOrWhiteSpace(s.FunctionCode) ||
+                string.Equals(s.FunctionCode, functionCode, StringComparison.OrdinalIgnoreCase);
             Func<UserDataScope, bool> matches = s =>
-                (string.IsNullOrWhiteSpace(s.FunctionCode) ||
-                 string.Equals(s.FunctionCode, functionCode, StringComparison.OrdinalIgnoreCase)) &&
                 (string.Equals(s.ScopeType, "ALL", StringComparison.OrdinalIgnoreCase) ||
                  (string.Equals(s.ScopeType, scopeType, StringComparison.OrdinalIgnoreCase) &&
                   (s.ScopeValue == "*" || string.Equals(s.ScopeValue, scopeValue, StringComparison.OrdinalIgnoreCase)))) &&
                 (string.IsNullOrWhiteSpace(s.SiteCode) ||
                  string.Equals(s.SiteCode, siteCode, StringComparison.OrdinalIgnoreCase));
 
-            // Explicit account scopes take precedence over role scopes for the same data key.
-            var userScopes = DataScopes.Where(s =>
-                string.Equals(s.ScopeSource, "USER", StringComparison.OrdinalIgnoreCase) && matches(s)).ToList();
-            var effective = userScopes.Count > 0
-                ? userScopes
+            // Once a user-specific scope policy exists for this function, it is the complete
+            // allow-list. Do not fall back to a broader role scope when no user row matches.
+            var userPolicy = DataScopes.Where(s =>
+                string.Equals(s.ScopeSource, "USER", StringComparison.OrdinalIgnoreCase) &&
+                appliesToFunction(s)).ToList();
+            var effective = userPolicy.Count > 0
+                ? userPolicy.Where(matches).ToList()
                 : DataScopes.Where(s =>
-                    !string.Equals(s.ScopeSource, "USER", StringComparison.OrdinalIgnoreCase) && matches(s)).ToList();
+                    !string.Equals(s.ScopeSource, "USER", StringComparison.OrdinalIgnoreCase) &&
+                    appliesToFunction(s) && matches(s)).ToList();
 
             if (effective.Count == 0) return false;
             if (effective.Any(s => !s.IsAllowed)) return false;
