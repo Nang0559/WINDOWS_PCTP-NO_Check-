@@ -30,6 +30,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         private readonly IWorkflowTransitionService _workflow;
         private readonly IAffectedLotTraceService _affectedLotTraceService;
 
+        public string SiteCode => _reworkStockService.SiteCode;
+
         public QTChungService(
             IPhieuXuLyBatThuongRepository repo,
             IPhieuTraHangRepository phieuTraHangRepo,
@@ -82,7 +84,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public int TaoPhieuXuLyBatThuong(int phieuTraHangCTId, string model, string phanLoaiXuLy, string boPhanPhatHanh, string nguoiThucHien)
         {
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CREATE");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CREATE", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             if (phieuTraHangCTId <= 0) throw new ArgumentException("phieuTraHangCTId không hợp lệ.", nameof(phieuTraHangCTId));
             ValidateNguoiThucHien(nguoiThucHien);
 
@@ -114,7 +116,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public List<int> TaoPhieuXuLyTuPhieuTra(int phieuTraHangId, string model, string phanLoaiXuLy, string nguoiThucHien)
         {
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CREATE");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CREATE", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             if (phieuTraHangId <= 0) throw new ArgumentException("phieuTraHangId không hợp lệ.", nameof(phieuTraHangId));
             ValidateNguoiThucHien(nguoiThucHien);
 
@@ -224,7 +226,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public AffectedLotTraceResult TruyVetLOT(int phieuXuLyId, string nguoiThucHien)
         {
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             ValidateNguoiThucHien(nguoiThucHien);
             if (_affectedLotTraceService == null)
                 throw new InvalidOperationException("QT Chung chưa được cấu hình IAffectedLotTraceService.");
@@ -235,7 +237,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public ScanResult QCDinhHuong(int phieuXuLyId, HuongXuLyBatThuong huong, string nguoiThucHien)
         {
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             ValidateNguoiThucHien(nguoiThucHien);
             var phieu = GetRequired(phieuXuLyId);
 
@@ -291,7 +293,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public List<LotInfo> GetLotsCanRework(int phieuXuLyId)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             var phieu = GetRequired(phieuXuLyId);
             if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
                 throw new InvalidOperationException("Chỉ phiếu có hướng CanRework mới được tra cứu Lot rework.");
@@ -303,13 +305,13 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat)
         {
             nguoiXuat = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             return XuatKhoRework(phieuXuLyId, slotId, lotNo, soLuong, nguoiXuat, Guid.NewGuid());
         }
 
         public ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat, Guid operationId)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             nguoiXuat = AuthorizationGuard.ActorCode;
             ValidateNguoiThucHien(nguoiXuat);
             if (slotId <= 0) return ScanResult.Fail("SlotId không hợp lệ.");
@@ -382,8 +384,8 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa xuất Rework theo phi�
 
         public ScanResult GiaoHangRework(int phieuXuLyId, List<LotInfo> lots, string ngayGiao, string nguoiNhan, string boPhanNhan)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             ValidateNguoiThucHien(nguoiNhan);
             if (lots == null || lots.Count == 0) return ScanResult.Fail("Danh sách Lot giao rework không được rỗng.");
             if (string.IsNullOrWhiteSpace(ngayGiao)) return ScanResult.Fail("NgayGiao không được rỗng.");
@@ -545,7 +547,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa giao Rework theo phiế
         public void GhiNhanDangRework(int phieuXuLyId, string ghiChu, string nguoiThucHien)
         {
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "EDIT");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "EDIT", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             ValidateNguoiThucHien(nguoiThucHien);
             var phieu = GetRequired(phieuXuLyId);
             if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
@@ -588,7 +590,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
         public ScanResult QCXacNhanCuoi(int phieuXuLyId, int soLuongOK, int soLuongNG, string nguoiQC, int? slotIdOK = null, int? slotIdNG = null, string lotNo = null)
         {
             nguoiQC = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "APPROVE");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "APPROVE", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             ValidateNguoiThucHien(nguoiQC);
             if (soLuongOK < 0) return ScanResult.Fail("SoLuongOK không hợp lệ.");
             if (soLuongNG < 0) return ScanResult.Fail("SoLuongNG không hợp lệ.");
@@ -688,7 +690,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
 
         public void GhiNhanKiemTraTem(int qcId, bool daKiemTra)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "EDIT");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "EDIT", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             if (qcId <= 0) throw new ArgumentException("qcId không hợp lệ.", nameof(qcId));
             _traHangQTChungRepository.UpdateDaKiemTraTem(qcId, daKiemTra);
         }
@@ -696,7 +698,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
         public ScanResult XacNhanChoGiaoBu(int phieuXuLyId, string nguoiThucHien)
         {
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             ValidateNguoiThucHien(nguoiThucHien);
             var phieu = GetRequired(phieuXuLyId);
             if (phieu.HuongXuLy != HuongXuLyBatThuong.ChiGiaoBu) return ScanResult.Fail("Chỉ phiếu hướng ChiGiaoBu mới được xác nhận giao bù.");
@@ -722,7 +724,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
         public ScanResult DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien)
         {
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             return DanhDauChoGiaoBu(phieuXuLyId, nguoiThucHien, null);
         }
 
@@ -733,7 +735,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
         /// </summary>
         public ScanResult DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien, Action beforeStatusUpdate)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             nguoiThucHien = AuthorizationGuard.ActorCode;
             ValidateNguoiThucHien(nguoiThucHien);
             var phieu = GetRequired(phieuXuLyId);
@@ -767,7 +769,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
         public ScanResult NhapLaiHangNG(int phieuXuLyId, string lotNo, int soLuongNG, int? slotIdOK, int? slotIdNG, string nguoiNhap)
         {
             nguoiNhap = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             ValidateNguoiThucHien(nguoiNhap);
             if (string.IsNullOrWhiteSpace(lotNo)) return ScanResult.Fail("LotNo không được rỗng.");
             if (soLuongNG <= 0) return ScanResult.Fail("SoLuongNG phải lớn hơn 0.");
@@ -795,7 +797,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
         public ScanResult HoanTat(int phieuXuLyId, string nguoiThucHien)
         {
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "APPROVE");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "APPROVE", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             ValidateNguoiThucHien(nguoiThucHien);
             var phieu = GetRequired(phieuXuLyId);
             if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.HoanTat)) return ScanResult.Fail($"Không thể chuyển QT Chung {phieu.Status} → {QTChungStatus.HoanTat}.");
@@ -829,7 +831,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
         public ScanResult GiaoLaiBoPhanPhatHien(int phieuXuLyId, string boPhanNhan, int soLuongGiaoLai, string nguoiThucHien)
         {
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             ValidateNguoiThucHien(nguoiThucHien);
             if (string.IsNullOrWhiteSpace(boPhanNhan)) return ScanResult.Fail("BoPhanNhan không được rỗng.");
             if (soLuongGiaoLai <= 0) return ScanResult.Fail("SoLuongGiaoLai phải lớn hơn 0.");
@@ -840,7 +842,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
         public ScanResult HuyQTChung(int phieuXuLyId, string lyDoHuy, string nguoiThucHien)
         {
             nguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CANCEL");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CANCEL", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             ValidateNguoiThucHien(nguoiThucHien);
             if (string.IsNullOrWhiteSpace(lyDoHuy)) return ScanResult.Fail("LyDoHuy không được rỗng.");
             var phieu = GetRequired(phieuXuLyId);
@@ -874,7 +876,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
         }
 
         public PhieuXuLyBatThuong GetById(int phieuXuLyId) {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             return GetRequired(phieuXuLyId);
         }
 
@@ -886,7 +888,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
 
         public IReadOnlyList<QTChungStatus> GetAllowedNext(int phieuXuLyId)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             var phieu = GetRequired(phieuXuLyId);
             var result = new List<QTChungStatus>();
             foreach (QTChungStatus candidate in Enum.GetValues(typeof(QTChungStatus)))
@@ -901,7 +903,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
 
         public List<QTChungTimelineItem> GetTimeline(int phieuXuLyId)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _reworkStockService.SiteCode, _reworkStockService.SiteCode);
             GetRequired(phieuXuLyId);
             return _traHangQTChungRepository.GetTimeline(phieuXuLyId) ?? new List<QTChungTimelineItem>();
         }
