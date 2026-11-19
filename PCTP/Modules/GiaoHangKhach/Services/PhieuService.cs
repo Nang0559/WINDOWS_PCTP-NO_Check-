@@ -13,6 +13,7 @@ using PCTP.Modules.GiaoHangKhach.OrderLoading.WorkingState;
 using PCTP.Modules.GiaoHangKhach.WorkingState;
 using PCTP.Shared.Common;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
+using PCTP.Infrastructure.Security;
 using PCTP.Shared.Enums;
 using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
@@ -73,6 +74,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void LoadPhieu(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios = null, bool isLoaiSP = false, long loadRequestId = 0)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             SetTrangThaiBan(isBanQR, isLoaiSP);
             _isGiaoDb = false;
             string ngayGiaoDate = string.IsNullOrEmpty(ngayGiao) ? string.Empty : (ngayGiao.Length >= 10 ? ngayGiao.Substring(0, 10) : ngayGiao);
@@ -105,6 +107,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT");
             if (!PCTP.Shared.Helpers.DateText.TryParseApp(ngayGiao, out DateTime dt) || dt.Year < 2000) return;
             bool isSP = _isLoaiSP;
             string ngayXuat = dt.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
@@ -131,13 +134,14 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DataTable TinhLechIFS(DataTable donHangBangRieng, string ngayXuatIFS) { if (!_cfg.Delivery.LoadTuBangRieng || _ifsDataCache == null) return new DataTable(); return _phieuRepo.SoSanhLechIFS(donHangBangRieng, _ifsDataCache); }
         public TrangThaiBan GetTrangThaiDangBan() => _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.MP });
         public TrangThaiBan GetTrangThaiDangBanSP() { if (!_cfg.Delivery.CoConfigSP) return new TrangThaiBan { DangBan = false }; return _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.SP }); }
-        public bool XoaDocQRCode(bool isSP = false) { _phieuRepo.XoaDocQRCode(GetDocQrTableActive(isSP)); return true; }
-        public DataTable GetDonHangHienTai(string tenbang) => _phieuRepo.GetDonHangHienTai(tenbang);
-        public DataTable GetDonHangYmvnTuTmp() => _phieuRepo.LoadTmpOrderForGear(GetTenBan());
-        public DataTable GetDonHangChuaLot(bool isSP = false) => _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), GetDocQrTableActive(isSP));
+        public bool XoaDocQRCode(bool isSP = false) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "DELETE"); _phieuRepo.XoaDocQRCode(GetDocQrTableActive(isSP)); return true; }
+        public DataTable GetDonHangHienTai(string tenbang) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW"); return _phieuRepo.GetDonHangHienTai(tenbang); }
+        public DataTable GetDonHangYmvnTuTmp() { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW"); return _phieuRepo.LoadTmpOrderForGear(GetTenBan()); }
+        public DataTable GetDonHangChuaLot(bool isSP = false) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW"); return _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), GetDocQrTableActive(isSP)); }
 
         public DataTable LoadGhepLot()
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             string tenBan = GetTenBan(_isLoaiSP);
             if (_cfg.Delivery.CoGear)
             {
@@ -169,7 +173,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             dt.Columns.Add("GearName", typeof(string));
             return dt;
         }
-        public void LayLaiLotNo(int stt, bool isSP = false) => _phieuRepo.LayLaiLotNo(stt, GetTenBan(isSP), GetDocQrTableActive(isSP));
+        public void LayLaiLotNo(int stt, bool isSP = false) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT"); _phieuRepo.LayLaiLotNo(stt, GetTenBan(isSP), GetDocQrTableActive(isSP)); }
         public DataTable GetDanhSachMaHangGiaoDB() => _giaoDbService.GetDanhSachMaHang();
         public int TaoPhieuVaChiTietGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet) => _giaoDbService.TaoPhieuVaChiTiet(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
         public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm) => _giaoDbService.LuuGiaoDB(donHang, gioXuat, addNm);
@@ -180,8 +184,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm) { _isGiaoDb = true; return _giaoDbService.LoadTmpPhieuGiaoDB(ngayGiao, addNm); }
         public void XuLySauUploadGiaoDB() => _giaoDbService.XuLySauUpload();
         public string CanhBaoLuoiRongGiaoDB(DateTime ngayGiao, int addNm) => _giaoDbService.CanhBaoLuoiRong(ngayGiao, addNm);
-        public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) => _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu);
-        public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu) => _phieuRepo.CapNhapTTPHIEU(nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu);
+        public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CREATE"); return _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu); }
+        public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT"); _phieuRepo.CapNhapTTPHIEU(nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu); }
         // Bảng TMP mà các luồng Cập Nhập Kho đang đọc: YMVN (CoGear) luôn dùng TmpTable;
         // các khách còn lại theo đúng cách PhieuKhoService.CapNhapKho chọn (SP / Giao DB).
         private string ResolveTmpTableForNote()
@@ -193,10 +197,16 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         }
 
         public void LuuGhiChuTuLuoi(DataTable donHang)
-            => _phieuRepo.LuuGhiChuVaoTmp(ResolveTmpTableForNote(), donHang);
+        {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT");
+            _phieuRepo.LuuGhiChuVaoTmp(ResolveTmpTableForNote(), donHang);
+        }
 
         public void LuuGhiChuMotDong(int stt, string note)
-            => _phieuRepo.LuuGhiChuVaoTmp(ResolveTmpTableForNote(), stt, note);
+        {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT");
+            _phieuRepo.LuuGhiChuVaoTmp(ResolveTmpTableForNote(), stt, note);
+        }
         public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "") => _khoService.CapNhapKho(gioGiaoFcc, nhaMay, gioMa, _isLoaiSP, _isGiaoDb);
         public void CapNhapKhoYMVN(string ngayGiao, string gioXuat, string nhaMay, DataTable donHang) => _ymvnService.CapNhapKho(ngayGiao, gioXuat, nhaMay, donHang);
         public void HoanThanhYMVN(bool isLoaiSP = false) => _ymvnService.HoanThanh(isLoaiSP);
@@ -204,6 +214,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public List<string> GetGioDaGiao(string nhaMay, string ngayGiao)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             DataTable history = _phieuRepo.LoadLuuPhieuCaNgay(nhaMay, ngayGiao);
             if (history == null || history.Rows.Count == 0) return new List<string>();
             return history.AsEnumerable()
@@ -251,8 +262,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         }
 
         public static int TinhSoHop(int soLuong, int qcDongGoi) { if (qcDongGoi <= 0) return 0; int hop = soLuong / qcDongGoi; if (soLuong % qcDongGoi > 0) hop++; return hop; }
-        public DataTable GetDanhSachLotTuKho(string maHang) => _phieuRepo.GetDanhSachLotTuKho(maHang);
-        public void NhapLotThuCong(int stt, string lotNo, string tenbang) => _phieuRepo.CapNhapLotTmpPhieu(stt, lotNo, GetTenBan());
+        public DataTable GetDanhSachLotTuKho(string maHang) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW"); return _phieuRepo.GetDanhSachLotTuKho(maHang); }
+        public void NhapLotThuCong(int stt, string lotNo, string tenbang) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT"); _phieuRepo.CapNhapLotTmpPhieu(stt, lotNo, GetTenBan()); }
 
         private OrderLoadContext CreateOrderLoadContext(DateTime ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios, bool isLoaiSP, long loadRequestId)
         {
