@@ -27,7 +27,8 @@ BEGIN TRY
   SiteCode nvarchar(30) NOT NULL,
   OwnerDepartmentCode nvarchar(4) NOT NULL,
   RelatedDepartmentCode nvarchar(4) NOT NULL,
-  ProductPartNo nvarchar(100) NULL,
+  OwnerProductPartNo nvarchar(100) NULL,
+  RelatedProductPartNo nvarchar(100) NULL,
   RelationType varchar(20) NOT NULL CONSTRAINT DF_FVN_ProductionDepartmentRelation_Type DEFAULT('COMPONENT'),
   IsActive bit NOT NULL CONSTRAINT DF_FVN_ProductionDepartmentRelation_Active DEFAULT(1),
   CreatedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_ProductionDepartmentRelation_Created DEFAULT(SYSUTCDATETIME()),
@@ -36,7 +37,7 @@ BEGIN TRY
   CONSTRAINT CK_FVN_ProductionDepartmentRelation_Type CHECK(RelationType IN('COMPONENT','UPSTREAM','DOWNSTREAM','SHARED'))
  );
  CREATE UNIQUE INDEX UX_FVN_ProductionDepartmentRelation
-  ON MES.FVN_ProductionDepartmentRelation(SiteCode,OwnerDepartmentCode,RelatedDepartmentCode,ProductPartNo,RelationType);
+  ON MES.FVN_ProductionDepartmentRelation(SiteCode,OwnerDepartmentCode,RelatedDepartmentCode,OwnerProductPartNo,RelatedProductPartNo,RelationType);
 
  EXEC(N'
  CREATE PROCEDURE MES.usp_FVN_ProductionFlow_Dashboard
@@ -87,7 +88,9 @@ BEGIN TRY
       (SELECT 1 FROM MES.FVN_ProductionDepartmentRelation r
        JOIN @Scope s ON s.DepartmentCode=r.OwnerDepartmentCode
        WHERE r.SiteCode=p.SiteCode AND r.RelatedDepartmentCode=map.DepartmentCode
-        AND r.IsActive=1 AND (r.ProductPartNo IS NULL OR r.ProductPartNo=l.ProductPartNo))
+        AND r.IsActive=1
+        AND (r.OwnerProductPartNo IS NULL OR r.OwnerProductPartNo=pf.ProductPartNo)
+        AND (r.RelatedProductPartNo IS NULL OR r.RelatedProductPartNo=l.ProductPartNo))
     )
   )
   SELECT pf.ProductionPlanLineId,pf.ProductionPlanId,pf.SiteCode,pf.PlanNo,
@@ -186,6 +189,6 @@ GO
 Configure explicit product/department dependencies before granting related visibility.
 Example only — replace codes with real departments/parts from the plant:
 INSERT MES.FVN_ProductionDepartmentRelation
- (SiteCode,OwnerDepartmentCode,RelatedDepartmentCode,ProductPartNo,RelationType,CreatedBy)
-VALUES(N'SITE01',N'0101',N'0201',N'PART-EXAMPLE','COMPONENT',N'ADMIN');
+ (SiteCode,OwnerDepartmentCode,RelatedDepartmentCode,OwnerProductPartNo,RelatedProductPartNo,RelationType,CreatedBy)
+VALUES(N'SITE01',N'0101',N'0201',N'FINISHED-PART-EXAMPLE',N'COMPONENT-PART-EXAMPLE','COMPONENT',N'ADMIN');
 */
