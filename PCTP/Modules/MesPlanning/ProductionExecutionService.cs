@@ -49,6 +49,11 @@ namespace PCTP.Modules.MesPlanning
                 throw new ArgumentException("PlanLine, OrderNo và người tạo là bắt buộc.");
             if (!string.Equals(_repository.GetPlanLineStatus(planLineId), "FIRM", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Chỉ được tạo lệnh sản xuất từ dòng kế hoạch đã chuyển FIRM.");
+            decimal? outstanding = _repository.GetPlanLineOutstandingComponentQty(planLineId);
+            if (!outstanding.HasValue)
+                throw new InvalidOperationException("Kế hoạch chưa có yêu cầu linh kiện được sinh từ BOM.");
+            if (outstanding.Value > 0m)
+                throw new InvalidOperationException("Chưa thể tạo lệnh: còn thiếu " + outstanding.Value.ToString("N3") + " đơn vị linh kiện theo yêu cầu cấp phát.");
             return _repository.CreateOrder(planLineId, orderNo.Trim(), actor.Trim());
         }
 
