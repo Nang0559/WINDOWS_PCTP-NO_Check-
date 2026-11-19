@@ -181,10 +181,11 @@ WHERE s.SiteCode=@site AND s.SlotId=@SlotId;";
             ItemCode = @ItemCode,
             ImportDate = @ImportDate,
             IsOccupied = 1
-        WHERE SlotId = @SlotId;";
+        WHERE SiteCode=@site AND SlotId = @SlotId;";
 
             int affected = ExecuteNonQuery(
                 sql,
+                SiteParam(),
                 new SqlParameter("@Quantity", SqlDbType.Int)
                 {
                     Value = quantity
@@ -220,10 +221,10 @@ WHERE s.SiteCode=@site AND s.SlotId=@SlotId;";
             const string sql = @"
 UPDATE dbo.FVN_Slot
 SET Quantity = 0, ItemCode = NULL, ImportDate = NULL, IsOccupied = 0
-WHERE SlotId = @SlotId;";
+WHERE SiteCode=@site AND SlotId = @SlotId;";
 
             ExecuteNonQuery(sql,
-                new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId });
+                SiteParam(), new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId });
         }
 
         public void UpdateQuantityFromLots(int slotId)
@@ -238,13 +239,14 @@ WHERE SlotId = @SlotId;";
         SET Quantity = (
             SELECT ISNULL(SUM(sl.Quantity), 0)
             FROM dbo.FVN_SlotLot sl
-            WHERE sl.SlotId = Slot.SlotId
+            WHERE sl.SiteCode=Slot.SiteCode AND sl.SlotId = Slot.SlotId
               AND sl.PhieuStatus = 0
         )
-        WHERE SlotId = @SlotId;";
+        WHERE SiteCode=@site AND SlotId = @SlotId;";
 
             ExecuteNonQuery(
                 sql,
+                SiteParam(),
                 new SqlParameter("@SlotId", SqlDbType.Int)
                 {
                     Value = slotId
@@ -411,8 +413,8 @@ WHERE SlotId = @SlotId;";
         public void UpdateSlotLotQuantity(int slotLotId, int newQuantity)
         {
             int rows = ExecuteNonQuery(
-                "UPDATE dbo.FVN_SlotLot SET Quantity = @qty WHERE SlotLotId = @id",
-                new SqlParameter("@qty", newQuantity),
+                "UPDATE dbo.FVN_SlotLot SET Quantity = @qty WHERE SiteCode=@site AND SlotLotId = @id",
+                SiteParam(), new SqlParameter("@qty", newQuantity),
                 new SqlParameter("@id", slotLotId));
             if (rows == 0)
                 throw new InvalidOperationException($"Không tìm thấy SlotLot Id={slotLotId} để cập nhật.");
@@ -420,7 +422,7 @@ WHERE SlotId = @SlotId;";
 
         public void DeleteSlotLot(int slotLotId)
         {
-            ExecuteNonQuery("DELETE FROM dbo.FVN_SlotLot WHERE SlotLotId = @id",
+            ExecuteNonQuery("DELETE FROM dbo.FVN_SlotLot WHERE SiteCode=@site AND SlotLotId = @id",
                 new SqlParameter("@id", slotLotId));
         }
         // ============================================================
@@ -500,11 +502,12 @@ WHERE SlotId = @SlotId;";
 
             const string sql = @"
 INSERT INTO dbo.FVN_SlotLot
-    (SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, CreatedDate, PhieuStatus)
+    (SiteCode, SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, CreatedDate, PhieuStatus)
 VALUES
-    (@SlotId, @ItemCode, @LotNo, @Quantity, @TemCode, @QrData, @ImportDate, GETDATE(), @PhieuStatus);";
+    (@site, @SlotId, @ItemCode, @LotNo, @Quantity, @TemCode, @QrData, @ImportDate, GETDATE(), @PhieuStatus);";
 
             ExecuteNonQuery(sql,
+                SiteParam(),
                 new SqlParameter("@PhieuStatus", SqlDbType.TinyInt) { Value = phieuStatus },
                 new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId },
                 new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = itemCode.Trim() },
@@ -530,7 +533,7 @@ FROM dbo.FVN_Slot s
 OUTER APPLY (
     SELECT SUM(Quantity) AS TotalQty, MAX(ImportDate) AS MaxImportDate
     FROM dbo.FVN_SlotLot
-    WHERE SlotId = s.SlotId AND PhieuStatus = 0
+    WHERE SiteCode=s.SiteCode AND SlotId = s.SlotId AND PhieuStatus = 0
 ) x
 OUTER APPLY (
     SELECT TOP 1 ItemCode
@@ -538,9 +541,10 @@ OUTER APPLY (
     WHERE SlotId = s.SlotId AND PhieuStatus = 0 AND Quantity > 0
     ORDER BY ImportDate DESC, SlotLotId DESC
 ) l
-WHERE s.SlotId = @SlotId;";
+WHERE s.SiteCode=@site AND s.SlotId = @SlotId;";
 
             ExecuteNonQuery(sql,
+                SiteParam(),
                 new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId });
         }
 
@@ -550,9 +554,10 @@ WHERE s.SlotId = @SlotId;";
 
             const string sql = @"
 SELECT COUNT(1) FROM dbo.FVN_SlotLot
-WHERE SlotId = @SlotId AND LotNo = @LotNo AND PhieuStatus = 0;";
+WHERE SiteCode=@site AND SlotId = @SlotId AND LotNo = @LotNo AND PhieuStatus = 0;";
 
             object result = ExecuteScalar(sql,
+                SiteParam(),
                 new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId },
                 new SqlParameter("@LotNo", SqlDbType.NVarChar, 100) { Value = lotNo.Trim() });
 
@@ -572,17 +577,18 @@ WHERE SlotId = @SlotId AND LotNo = @LotNo AND PhieuStatus = 0;";
             string match = LotCodeHelper.BuildLotMatchSql("sl.LotNo", "@lot");
 
             string sql = $@"
-SELECT sl.SlotId, sl.LotNo, sl.Quantity, sl.TemCode,
+SELECT sl.SlotId, sl.LotNo, sl.Quantity, sl.TemCode, sl.ImportDate,
        w.Name AS WarehouseName, r.RackName, s.SlotNumber
 FROM dbo.FVN_SlotLot sl
-JOIN dbo.FVN_Slot s ON s.SlotId = sl.SlotId
-JOIN dbo.FVN_Rack r ON r.RackId = s.RackId
-JOIN dbo.FVN_Warehouse w ON w.WarehouseId = r.WarehouseId
-WHERE sl.PhieuStatus = 0 AND sl.Quantity > 0
+JOIN dbo.FVN_Slot s ON s.SiteCode=sl.SiteCode AND s.SlotId = sl.SlotId
+JOIN dbo.FVN_Rack r ON r.SiteCode=s.SiteCode AND r.RackId = s.RackId
+JOIN dbo.FVN_Warehouse w ON w.SiteCode=r.SiteCode AND w.WarehouseId = r.WarehouseId
+WHERE sl.SiteCode=@site AND s.SiteCode=@site AND r.SiteCode=@site AND w.SiteCode=@site AND sl.PhieuStatus = 0 AND sl.Quantity > 0
   AND {match}
 ORDER BY w.Name, r.RackName, s.SlotNumber;";
 
             DataTable dt = LoadData(sql,
+                SiteParam(),
                 new SqlParameter("@lot", SqlDbType.NVarChar, 200) { Value = lot.Trim() });
 
             var result = new List<SlotChuaLotInfo>();
@@ -613,13 +619,13 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
                STUFF((
                    SELECT ',' + sl.TemCode
                    FROM dbo.FVN_SlotLot sl
-                   WHERE sl.SlotId = s.SlotId AND sl.PhieuStatus = 0
+                   WHERE sl.SiteCode=s.SiteCode AND sl.SlotId = s.SlotId AND sl.PhieuStatus = 0
                    FOR XML PATH(''), TYPE
                ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS TemCode
         FROM dbo.FVN_Slot s
-        JOIN dbo.FVN_Rack r ON s.RackId = r.RackId
-        JOIN dbo.FVN_Warehouse w ON r.WarehouseId = w.WarehouseId
-        WHERE w.Name <> @BulkWh
+        JOIN dbo.FVN_Rack r ON r.SiteCode=s.SiteCode AND s.RackId = r.RackId
+        JOIN dbo.FVN_Warehouse w ON w.SiteCode=r.SiteCode AND r.WarehouseId = w.WarehouseId
+        WHERE s.SiteCode=@site AND r.SiteCode=@site AND w.SiteCode=@site AND w.Name <> @BulkWh
           AND (
                 (s.ItemCode = @ItemCode AND (s.Capacity - s.Quantity) >= @SoLuongNhap)
                 OR (s.IsOccupied = 0)
@@ -628,6 +634,7 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
                  w.Name, r.RackName, s.SlotNumber;";
 
             DataTable dt = LoadData(sql,
+                SiteParam(),
                 new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = (object)itemCode ?? DBNull.Value },
                 new SqlParameter("@SoLuongNhap", SqlDbType.Int) { Value = soLuongNhap },
                 new SqlParameter("@BulkWh", SqlDbType.NVarChar, 100) { Value = BulkImportConfig.WarehouseName });
@@ -658,11 +665,12 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
             const string findSql = @"
         SELECT s.SlotNumber, s.Capacity
         FROM dbo.FVN_Slot s
-        JOIN dbo.FVN_Rack r ON r.RackId = s.RackId
-        JOIN dbo.FVN_Warehouse w ON w.WarehouseId = r.WarehouseId
-        WHERE w.Name = @wh AND r.RackName = @rack;";
+        JOIN dbo.FVN_Rack r ON r.SiteCode=s.SiteCode AND r.RackId = s.RackId
+        JOIN dbo.FVN_Warehouse w ON w.SiteCode=r.SiteCode AND w.WarehouseId = r.WarehouseId
+        WHERE s.SiteCode=@site AND r.SiteCode=@site AND w.SiteCode=@site AND w.Name = @wh AND r.RackName = @rack;";
 
             DataTable dt = LoadData(findSql,
+                SiteParam(),
                 new SqlParameter("@wh", SqlDbType.NVarChar, 100) { Value = warehouseName },
                 new SqlParameter("@rack", SqlDbType.NVarChar, 100) { Value = rackName });
 
@@ -682,17 +690,17 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
             try
             {
                 int whId = DbValueHelper.ToInt(ExecuteScalar(
-                    "INSERT INTO dbo.FVN_Warehouse (Name) OUTPUT INSERTED.WarehouseId VALUES (@n)",
-                    new SqlParameter("@n", SqlDbType.NVarChar, 100) { Value = warehouseName }));
+                    "INSERT INTO dbo.FVN_Warehouse (SiteCode, Name) OUTPUT INSERTED.WarehouseId VALUES (@site, @n)",
+                    SiteParam(), new SqlParameter("@n", SqlDbType.NVarChar, 100) { Value = warehouseName }));
 
                 int rackId = DbValueHelper.ToInt(ExecuteScalar(
-                    "INSERT INTO dbo.FVN_Rack (WarehouseId, RackName) OUTPUT INSERTED.RackId VALUES (@w,@r)",
-                    new SqlParameter("@w", SqlDbType.Int) { Value = whId },
+                    "INSERT INTO dbo.FVN_Rack (SiteCode, WarehouseId, RackName) OUTPUT INSERTED.RackId VALUES (@site, @w,@r)",
+                    SiteParam(), new SqlParameter("@w", SqlDbType.Int) { Value = whId },
                     new SqlParameter("@r", SqlDbType.NVarChar, 100) { Value = rackName }));
 
                 ExecuteNonQuery(
-                    "INSERT INTO dbo.FVN_Slot (RackId, SlotNumber, IsOccupied, Capacity, Quantity) VALUES (@rk, 1, 0, @cap, 0)",
-                    new SqlParameter("@rk", SqlDbType.Int) { Value = rackId },
+                    "INSERT INTO dbo.FVN_Slot (SiteCode, RackId, SlotNumber, IsOccupied, Capacity, Quantity) VALUES (@site, @rk, 1, 0, @cap, 0)",
+                    SiteParam(), new SqlParameter("@rk", SqlDbType.Int) { Value = rackId },
                     new SqlParameter("@cap", SqlDbType.Int) { Value = capacity });
 
                 if (ownTransaction) Uow.Commit();
@@ -727,10 +735,11 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
                 WHEN @Quantity > 0 THEN 1
                 ELSE 0
             END
-        WHERE SlotId = @SlotId;";
+        WHERE SiteCode=@site AND SlotId = @SlotId;";
 
             int affected = ExecuteNonQuery(
                 sql,
+                SiteParam(),
                 new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100)
                 {
                     Value = string.IsNullOrWhiteSpace(itemCode)
@@ -765,9 +774,9 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
             DataTable dt = LoadData(
                 "SELECT s.SlotId " +
                 "FROM dbo.FVN_Slot s " +
-                "INNER JOIN dbo.FVN_Rack r ON r.RackId = s.RackId " +
-                "WHERE r.RackName = @rack",
-                new SqlParameter("@rack", rackName));
+                "INNER JOIN dbo.FVN_Rack r ON r.SiteCode=s.SiteCode AND r.RackId = s.RackId " +
+                "WHERE s.SiteCode=@site AND r.SiteCode=@site AND r.RackName = @rack",
+                SiteParam(), new SqlParameter("@rack", rackName));
 
             if (dt.Rows.Count != 1)
                 return 0; // 0 hoặc >1 dòng đều coi là không xác định được — không đoán bừa
@@ -804,8 +813,8 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
                 int moved = ExecuteNonQuery(
                     @"UPDATE dbo.FVN_SlotLot
                       SET SlotId = @To
-                      WHERE SlotId = @From AND PhieuStatus = 0 AND LotNo = @LotNo;",
-                    new SqlParameter("@To", SqlDbType.Int) { Value = toSlotId },
+                      WHERE SiteCode=@site AND SlotId = @From AND PhieuStatus = 0 AND LotNo = @LotNo;",
+                    SiteParam(), new SqlParameter("@To", SqlDbType.Int) { Value = toSlotId },
                     new SqlParameter("@From", SqlDbType.Int) { Value = fromSlotId },
                     new SqlParameter("@LotNo", SqlDbType.NVarChar, 200) { Value = lotNo.Trim() });
 
@@ -854,8 +863,8 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
                 DataTable dt = LoadData(
                     @"SELECT SlotLotId, ItemCode, LotNo, Quantity, TemCode, QrData, MaPhieu, ImportDate
                       FROM dbo.FVN_SlotLot WITH (UPDLOCK, ROWLOCK)
-                      WHERE SlotId = @SlotId AND PhieuStatus = 0 AND Quantity > 0 AND ItemCode = @ItemCode;",
-                    new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId },
+                      WHERE SiteCode=@site AND SlotId = @SlotId AND PhieuStatus = 0 AND Quantity > 0 AND ItemCode = @ItemCode;",
+                    SiteParam(), new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId },
                     new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = itemCode.Trim() });
 
                 // So khớp LOT theo khoá tương đương 13/20 ký tự (giữ đúng logic cũ), FIFO theo ImportDate.
@@ -892,14 +901,14 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
                     if (take == cand.Lot.Quantity)
                     {
                         affected = ExecuteNonQuery(
-                            "DELETE FROM dbo.FVN_SlotLot WHERE SlotLotId = @Id AND Quantity = @Q;",
-                            new SqlParameter("@Id", SqlDbType.Int) { Value = cand.SlotLotId },
+                            "DELETE FROM dbo.FVN_SlotLot WHERE SiteCode=@site AND SlotLotId = @Id AND Quantity = @Q;",
+                            SiteParam(), new SqlParameter("@Id", SqlDbType.Int) { Value = cand.SlotLotId },
                             new SqlParameter("@Q", SqlDbType.Int) { Value = take });
                     }
                     else
                     {
                         affected = ExecuteNonQuery(
-                            "UPDATE dbo.FVN_SlotLot SET Quantity = Quantity - @Q WHERE SlotLotId = @Id AND Quantity >= @Q;",
+                            "UPDATE dbo.FVN_SlotLot SET Quantity = Quantity - @Q WHERE SiteCode=@site AND SlotLotId = @Id AND Quantity >= @Q;",
                             new SqlParameter("@Id", SqlDbType.Int) { Value = cand.SlotLotId },
                             new SqlParameter("@Q", SqlDbType.Int) { Value = take });
                     }
