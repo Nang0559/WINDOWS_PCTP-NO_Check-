@@ -769,6 +769,7 @@
     <Compile Include="Security\AuthenticationService.cs" />
     <Compile Include="Security\LoginForm.cs"><SubType>Form</SubType></Compile>
     <Compile Include="Security\ChangePasswordDialog.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Infrastructure\Security\AuthorizationGuard.cs" />
     <Compile Include="Security\SecurityAdministrationRepository.cs" />
     <Compile Include="Security\FormSecurityAdministration.cs"><SubType>Form</SubType></Compile>
     <Compile Include="Infrastructure\Configuration\ReportConnectionAlias.cs" />
