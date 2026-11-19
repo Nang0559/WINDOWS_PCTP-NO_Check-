@@ -24,7 +24,7 @@ namespace PCTP.Modules.KhoCore.UI
     /// </summary>
     public sealed class FormDieuChinhTonKhoLot : XtraForm
     {
-            AuthorizationGuard.Demand("WAREHOUSE.STOCK_ADJUST", "VIEW");
+    
         private readonly UnitOfWork _uow;
         private readonly StockTpRepository _stockTp;
         private readonly SlotRepository _slotRepo;
@@ -53,6 +53,7 @@ namespace PCTP.Modules.KhoCore.UI
 
         public FormDieuChinhTonKhoLot()
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_ADJUST", "VIEW");
             Text = "Điều chỉnh tồn kho LOT";
             Width = 1180;
             Height = 780;
