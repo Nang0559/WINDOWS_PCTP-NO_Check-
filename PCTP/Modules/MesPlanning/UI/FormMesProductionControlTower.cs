@@ -29,6 +29,8 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly PCTP.Shared.MesControls.FvnProgressSummaryControl _progressSummary = new PCTP.Shared.MesControls.FvnProgressSummaryControl();
         private readonly PCTP.Shared.MesControls.FvnScopeBadgeControl _scopeBadge = new PCTP.Shared.MesControls.FvnScopeBadgeControl();
         private readonly PCTP.Shared.MesControls.FvnHoldAlertControl _holdAlert = new PCTP.Shared.MesControls.FvnHoldAlertControl();
+        private readonly PCTP.Shared.MesControls.FvnFlowStepperControl _flowStepper = new PCTP.Shared.MesControls.FvnFlowStepperControl();
+        private readonly PCTP.Shared.MesControls.FvnHoldListControl _holdList = new PCTP.Shared.MesControls.FvnHoldListControl();
         private readonly LabelControl _status = new LabelControl();
         private readonly LabelControl _refreshStamp = new LabelControl();
         private readonly CheckEdit _onlyMyTasks = new CheckEdit();
@@ -184,6 +186,8 @@ namespace PCTP.Modules.MesPlanning.UI
             _holdAlert.Dock = DockStyle.Top;
             _progressSummary.Dock = DockStyle.Bottom;
             detailPanel.Controls.Add(_details);
+            detailPanel.Controls.Add(_holdList);
+            detailPanel.Controls.Add(_flowStepper);
             detailPanel.Controls.Add(_progressSummary);
             detailPanel.Controls.Add(_holdAlert);
             detailPanel.Controls.Add(_scopeBadge);
@@ -377,6 +381,13 @@ namespace PCTP.Modules.MesPlanning.UI
                 _progressSummary.SetProgress(0, 0);
                 _scopeBadge.SetRelated(false);
                 _holdAlert.SetDependency(string.Empty, string.Empty, false);
+                _flowStepper.SetStates(
+                    PCTP.Shared.MesControls.FvnFlowStepState.Pending,
+                    PCTP.Shared.MesControls.FvnFlowStepState.Pending,
+                    PCTP.Shared.MesControls.FvnFlowStepState.Pending,
+                    PCTP.Shared.MesControls.FvnFlowStepState.Pending,
+                    PCTP.Shared.MesControls.FvnFlowStepState.Pending);
+                _holdList.Bind(new DataTable());
                 return;
             }
             decimal required = SafeDecimal(row["RequiredComponentQty"]);
@@ -390,6 +401,8 @@ namespace PCTP.Modules.MesPlanning.UI
             bool isRelated = Convert.ToBoolean(row["IsRelatedDepartment"]);
             _scopeBadge.SetRelated(isRelated);
             _holdAlert.SetDependency(Convert.ToString(row["WaitingAt"]), Convert.ToString(row["WaitingReason"]), isRelated);
+            UpdateFlowStepper(row, isRelated);
+            _holdList.Bind(BuildHoldRows(row, isRelated));
             string related = isRelated ? "BỘ PHẬN LIÊN QUAN (chỉ xem)" : "BỘ PHẬN TRONG PHẠM VI";
             _details.Text =
                 related + Environment.NewLine +
@@ -408,6 +421,72 @@ namespace PCTP.Modules.MesPlanning.UI
                 "Lý do: " + Convert.ToString(row["WaitingReason"]) + Environment.NewLine +
                 "Cập nhật gần nhất: " + Convert.ToString(row["LastEventAtUtc"]) + " | " +
                 Convert.ToString(row["LastEventAction"]) + " | " + Convert.ToString(row["LastEventActor"]);
+        }
+
+        private void UpdateFlowStepper(DataRow row, bool related)
+        {
+            var relatedState = PCTP.Shared.MesControls.FvnFlowStepState.Related;
+            var pending = PCTP.Shared.MesControls.FvnFlowStepState.Pending;
+            var complete = PCTP.Shared.MesControls.FvnFlowStepState.Complete;
+            var active = PCTP.Shared.MesControls.FvnFlowStepState.Active;
+            var hold = PCTP.Shared.MesControls.FvnFlowStepState.Hold;
+            string stage = Convert.ToString(row["FlowStage"]);
+            string planStatus = Convert.ToString(row["PlanStatus"]);
+            bool demandExists = !string.IsNullOrWhiteSpace(Convert.ToString(row["DemandStatus"]));
+            decimal outstanding = SafeDecimal(row["OutstandingComponentQty"]);
+            int lots = SafeInt(row["ProductionLotCount"]);
+            int operations = SafeInt(row["OperationCount"]);
+            int completed = SafeInt(row["CompletedOperationCount"]);
+            int paused = SafeInt(row["PausedOperationCount"]);
+            bool orderExists = row["ProductionOrderId"] != DBNull.Value;
+            var plan = planStatus == "FIRM" ? complete : stage == "PLAN" ? active : pending;
+            var components = !demandExists ? (stage == "COMPONENTS" ? hold : pending) :
+                outstanding > 0m ? hold : complete;
+            var order = orderExists ? (lots > 0 ? complete : active) :
+                (stage == "ORDER" ? active : pending);
+            var production = paused > 0 ? hold :
+                operations > 0 && completed >= operations ? complete :
+                lots > 0 ? active : pending;
+            var done = stage == "DONE" ? complete : pending;
+            if (related)
+            {
+                if (plan != complete) plan = relatedState;
+                if (components != complete) components = relatedState;
+                if (order != complete) order = relatedState;
+                if (production != complete) production = relatedState;
+                if (done != complete) done = relatedState;
+            }
+            _flowStepper.SetStates(plan, components, order, production, done);
+        }
+
+        private static DataTable BuildHoldRows(DataRow row, bool related)
+        {
+            var table = new DataTable("FlowHolds");
+            table.Columns.Add("HoldType", typeof(string));
+            table.Columns.Add("OwnerDepartment", typeof(string));
+            table.Columns.Add("BlockedDepartment", typeof(string));
+            table.Columns.Add("Reason", typeof(string));
+            table.Columns.Add("HoldStatus", typeof(string));
+            table.Columns.Add("IsRelated", typeof(string));
+            string department = Convert.ToString(row["DepartmentCode"]);
+            string blocked = related ? "Bộ phận của tôi" : "Dòng chảy kế tiếp";
+            Action<string, string> add = (type, reason) =>
+                table.Rows.Add(type, department, blocked, reason, "OPEN",
+                    related ? "Chỉ xem" : "Trong phạm vi");
+            if (Convert.ToString(row["PlanStatus"]) != "FIRM" &&
+                Convert.ToString(row["FlowStage"]) == "PLAN")
+                add("PLAN_NOT_FIRM", "Kế hoạch chưa được xác nhận FIRM");
+            if (string.IsNullOrWhiteSpace(Convert.ToString(row["DemandStatus"])))
+                add("DEMAND_NOT_CREATED", "Chưa phát sinh yêu cầu linh kiện từ BOM");
+            else if (SafeDecimal(row["OutstandingComponentQty"]) > 0m)
+                add("COMPONENT_SHORTAGE", "Còn thiếu " + Convert.ToString(row["OutstandingComponentQty"]) + " linh kiện");
+            if (row["ProductionOrderId"] == DBNull.Value)
+                add("ORDER_NOT_CREATED", "Chưa tạo lệnh sản xuất");
+            if (SafeInt(row["PausedOperationCount"]) > 0)
+                add("OPERATION_PAUSED", "Có " + Convert.ToString(row["PausedOperationCount"]) + " công đoạn đang tạm dừng");
+            if (SafeInt(row["OperationCount"]) > SafeInt(row["CompletedOperationCount"]))
+                add("OPERATION_REMAINING", "Còn công đoạn chưa hoàn thành");
+            return table;
         }
 
         private void UpdateSelectionButton()
