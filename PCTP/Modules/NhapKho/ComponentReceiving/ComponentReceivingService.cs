@@ -17,6 +17,7 @@ namespace PCTP.Modules.NhapKho.ComponentReceiving
             if (request != null)
                 AuthorizationGuard.DemandActionAndScope("WAREHOUSE.RECEIPT", "CONFIRM", "SITE", request.SiteCode, request.SiteCode);
             if (request == null) throw new ArgumentNullException(nameof(request));
+            request.ReceivedBy = AuthorizationGuard.ActorCode;
             request.SiteCode = (request.SiteCode ?? string.Empty).Trim().ToUpperInvariant();
             request.ReceiptNo = (request.ReceiptNo ?? string.Empty).Trim();
             request.QrPayload = (request.QrPayload ?? string.Empty).Trim();
