@@ -17,6 +17,48 @@ namespace PCTP.Modules.MesPlanning
                 throw new InvalidOperationException("Thiếu connection string FVN_PCTP.");
         }
 
+        public string GetPlanLineSiteCode(long planLineId)
+        {
+            return ScalarSite("SELECT SiteCode FROM MES.FVN_ProductionPlanLine WHERE ProductionPlanLineId=@Id", planLineId);
+        }
+
+        public string GetOrderSiteCode(long orderId)
+        {
+            return ScalarSite("SELECT SiteCode FROM MES.FVN_ProductionOrder WHERE ProductionOrderId=@Id", orderId);
+        }
+
+        public string GetLotSiteCode(long productionLotId)
+        {
+            return ScalarSite("SELECT SiteCode FROM MES.FVN_ProductionLot WHERE ProductionLotId=@Id", productionLotId);
+        }
+
+        public string GetLabelSiteCode(string labelCode)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"SELECT TOP(1) pl.SiteCode
+                FROM MES.FVN_ProductionLabel l
+                JOIN MES.FVN_ProductionLot pl ON pl.ProductionLotId=l.ProductionLotId
+                WHERE l.LabelCode=@LabelCode", cn))
+            {
+                cmd.Parameters.Add("@LabelCode", SqlDbType.VarChar, 16).Value = labelCode;
+                cn.Open();
+                var value = cmd.ExecuteScalar();
+                return value == null || value == DBNull.Value ? null : Convert.ToString(value);
+            }
+        }
+
+        private string ScalarSite(string sql, long id)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.Add("@Id", SqlDbType.BigInt).Value = id;
+                cn.Open();
+                var value = cmd.ExecuteScalar();
+                return value == null || value == DBNull.Value ? null : Convert.ToString(value);
+            }
+        }
+
         public DataTable GetOrderMaterials(long orderId)
         {
             return Execute("MES.usp_FVN_ProductionOrder_MaterialList", cmd =>
