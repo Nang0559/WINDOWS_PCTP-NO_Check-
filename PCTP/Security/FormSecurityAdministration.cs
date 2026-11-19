@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Data;
 using System.Drawing;
@@ -315,7 +316,17 @@ namespace PCTP.Security
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 try
                 {
+                    // Chỉ gửi những vai trò người dùng thực sự đổi (so với giá trị gốc khi mở hộp thoại),
+                    // gán thêm trước rồi mới gỡ để không rơi vào trạng thái thiếu quyền giữa chừng.
+                    var changed = new System.Collections.Generic.List<DataRow>();
                     foreach (DataRow row in dialog.Roles.Rows)
+                    {
+                        if (row.RowState != DataRowState.Modified) continue;
+                        if (Convert.ToBoolean(row["IsAssigned", DataRowVersion.Original]) ==
+                            Convert.ToBoolean(row["IsAssigned", DataRowVersion.Current])) continue;
+                        changed.Add(row);
+                    }
+                    foreach (DataRow row in changed.OrderByDescending(r => Convert.ToBoolean(r["IsAssigned"])))
                         _repository.AssignUserRole(userId.Value, Convert.ToInt32(row["RoleId"]),
                             Convert.ToBoolean(row["IsAssigned"]), _session.UserId);
                     LoadUsers();
