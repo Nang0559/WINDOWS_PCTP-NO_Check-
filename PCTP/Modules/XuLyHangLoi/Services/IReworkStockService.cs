@@ -18,6 +18,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
     /// </summary>
     public interface IReworkStockService
     {
+        string SiteCode { get; }
         List<LotInfo> GetLotsCanRework(string maHang, string lotNo);
         List<LotInfo> GetLotsCanReworkByPhieuXuLy(int phieuXuLyId);
 
