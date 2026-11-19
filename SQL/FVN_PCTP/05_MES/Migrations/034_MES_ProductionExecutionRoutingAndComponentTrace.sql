@@ -72,7 +72,7 @@ BEGIN TRY
   CONSTRAINT CK_FVN_ProductionPartPolicy_Type CHECK(OutputLotType IN('WIP','FG'))
  );
 
- UPDATE d SET SupplyMode=''MAKE'',SourceAreaCode=p.OutputLotType
+ UPDATE d SET SupplyMode='MAKE',SourceAreaCode=p.OutputLotType
  FROM MES.FVN_ComponentDemandLine d
  JOIN MES.FVN_ProductionPartPolicy p ON p.SiteCode=d.SiteCode
   AND p.PartNo=d.ComponentPartNo AND p.IsActive=1;
