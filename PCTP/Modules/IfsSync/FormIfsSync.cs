@@ -276,10 +276,10 @@ namespace PCTP.Modules.IfsSync
                         try
                         {
                             using (var command = new SqlCommand(@"
-SELECT TOP (0) SyncBatchId, WarehouseRows, SelectedEntities FROM [IFS].[SyncBatch];
-SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];
-SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse];
-SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];", sql))
+                            SELECT TOP (0) SyncBatchId, WarehouseRows, SelectedEntities FROM [IFS].[SyncBatch];
+                            SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];
+                            SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse];
+                            SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];", sql))
                             {
                                 command.ExecuteNonQuery();
                             }
