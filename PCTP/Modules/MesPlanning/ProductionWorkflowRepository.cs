@@ -16,6 +16,30 @@ namespace PCTP.Modules.MesPlanning
                 throw new InvalidOperationException("Thiếu connection string FVN_PCTP.");
         }
 
+        public int GetCurrentStatus(string entityType, long entityId, long? relatedId)
+        {
+            string sql;
+            if (string.Equals(entityType, "PLAN", StringComparison.OrdinalIgnoreCase))
+                sql = "SELECT WorkflowStatusCode FROM MES.FVN_ProductionPlan WHERE ProductionPlanId=@EntityId";
+            else if (string.Equals(entityType, "ORDER", StringComparison.OrdinalIgnoreCase))
+                sql = "SELECT WorkflowStatusCode FROM MES.FVN_ProductionOrder WHERE ProductionOrderId=@EntityId";
+            else if (string.Equals(entityType, "OPERATION", StringComparison.OrdinalIgnoreCase))
+                sql = "SELECT StatusCode FROM MES.FVN_ProductionOperationWorkflow WHERE ProductionLotId=@EntityId AND RoutingStepId=@RelatedId";
+            else throw new ArgumentException("EntityType chỉ nhận PLAN, ORDER hoặc OPERATION.");
+
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.Add("@EntityId", SqlDbType.BigInt).Value = entityId;
+                cmd.Parameters.Add("@RelatedId", SqlDbType.BigInt).Value = (object)relatedId ?? DBNull.Value;
+                cn.Open();
+                var value = cmd.ExecuteScalar();
+                if (value == null || value == DBNull.Value)
+                    throw new InvalidOperationException("Không tìm thấy trạng thái workflow của đối tượng.");
+                return Convert.ToInt32(value);
+            }
+        }
+
         public DataTable GetEntitySites(string entityType, long entityId)
         {
             string sql;
