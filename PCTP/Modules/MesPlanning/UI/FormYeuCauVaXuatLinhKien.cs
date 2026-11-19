@@ -61,12 +61,12 @@ namespace PCTP.Modules.MesPlanning.UI
         private void GenerateClick(object sender,EventArgs e)
         {
             try{var row=Selected(_plans);var id=CellLong(row,"ProductionPlanLineId");if(id<=0)throw new InvalidOperationException("Chọn một dòng kế hoạch.");
-                var demandId=_service.GenerateDemand(id,Environment.UserName);_status.Text="Đã tạo yêu cầu linh kiện #"+demandId+" từ BOM IFS.";LoadDemand();}
+                var demandId=_service.GenerateDemand(id,CellText(row,"SiteCode"),Environment.UserName);_status.Text="Đã tạo yêu cầu linh kiện #"+demandId+" từ BOM IFS.";LoadDemand();}
             catch(Exception ex){MessageBox.Show(this,ex.Message,"Tạo yêu cầu linh kiện",MessageBoxButtons.OK,MessageBoxIcon.Warning);}
         }
         private void LoadDemand()
         {
-            try{var id=CellLong(Selected(_plans),"ProductionPlanLineId");_demands.DataSource=id>0?_service.GetDemandLines(id):new DataTable();LoadIssueOptions();}
+            try{var id=CellLong(Selected(_plans),"ProductionPlanLineId");_demands.DataSource=id>0?_service.GetDemandLines(id,CellText(Selected(_plans),"SiteCode")):new DataTable();LoadIssueOptions();}
             catch(Exception ex){_status.Text=ex.Message;}
         }
         private void LoadIssueOptions()
