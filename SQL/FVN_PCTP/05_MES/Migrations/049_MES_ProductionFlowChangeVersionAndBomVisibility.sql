@@ -123,7 +123,7 @@ BEGIN TRY
    ISNULL(dem.OutstandingQty,0) OutstandingComponentQty,
    ord.ProductionOrderId,ord.OrderNo,ord.OrderStatus,ord.OrderWorkflowStatusCode,
    ISNULL(ord.OrderPlannedQty,0) OrderPlannedQty,ISNULL(ord.CompletedQty,0) CompletedQty,
-   ISNULL(lot.ProductionLotCount,0) ProductionLotCount,ISNULL(lot.ProducedQty,0) ProducedQty,
+   ISNULL(lot.ProductionLotCount,0) ProductionLotCount,ISNULL(lot.ProducedQty,0) ProducedQty,lot.LatestProductionLotId,
    ISNULL(op.OperationCount,0) OperationCount,ISNULL(op.CompletedOperationCount,0) CompletedOperationCount,
    ISNULL(op.PausedOperationCount,0) PausedOperationCount,
    evt.LastEventAtUtc,evt.LastEventAction,evt.LastEventActor,
@@ -173,7 +173,7 @@ BEGIN TRY
   ) ord
   OUTER APPLY
   (
-   SELECT COUNT_BIG(*) ProductionLotCount,SUM(ISNULL(pl.FinalGoodQty,pl.GoodQty)) ProducedQty
+   SELECT COUNT_BIG(*) ProductionLotCount,SUM(ISNULL(pl.FinalGoodQty,pl.GoodQty)) ProducedQty,MAX(pl.ProductionLotId) LatestProductionLotId
    FROM MES.FVN_ProductionLot pl WHERE pl.ProductionOrderId=ord.ProductionOrderId
   ) lot
   OUTER APPLY
