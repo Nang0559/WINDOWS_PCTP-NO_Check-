@@ -249,9 +249,11 @@ namespace PCTP.Presentation.Presenters
                     string gearName = (item.GearName ?? string.Empty).Trim();
                     if (gearName.Length == 0 && !IsLotNoGear(item.Lot))
                     {
-                        MessageBox.Show("Dòng ghép LOT của mã " + item.MaHang + " không có Gear. Bấm \"Kiểm tra ghép LOT\" để tải lại rồi chọn dòng cần in.",
-                            "In ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
+                        // Không chặn cứng: cho người dùng chọn in tiếp với ô Gear trống hoặc quay lại tải lại ghép LOT.
+                        DialogResult dr = MessageBox.Show("Dòng ghép LOT của mã " + item.MaHang + " không có Gear.\r\n"
+                            + "Chọn Yes để vẫn in tem với ô Gear trống, hoặc No rồi bấm \"Kiểm tra ghép LOT\" để tải lại.",
+                            "In ghép LOT", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+                        if (dr != DialogResult.Yes) return;
                     }
                     gearByPayload[(item.Lot ?? string.Empty).Trim()] = gearName;
                 }
