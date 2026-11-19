@@ -3,6 +3,7 @@ using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
+using PCTP.Infrastructure.Security;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +24,7 @@ namespace PCTP.Modules.KhoCore.Services
             InspectionConfig config,
             IReadOnlyList<string> rawBoxScans)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             var details = new List<BoxScanResult>();
 
             foreach (string raw in rawBoxScans)
@@ -90,6 +92,7 @@ namespace PCTP.Modules.KhoCore.Services
             IReadOnlyList<BoxScanResult> results,
             string finalResult)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
             foreach (var box in results)
             {
                 _logRepo.SaveLog(new InspectionLogEntry
