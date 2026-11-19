@@ -223,7 +223,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 }
                 _data = e.Result as DataTable ?? new DataTable();
                 EnrichActionableTasks();
-                _taskGrid.Grid.DataSource = _data;
+                _taskGrid.Bind(_data);
                 ConfigureColumns();
                 UpdateKpis();
                 _refreshStamp.Text = "Cập nhật: " + DateTime.Now.ToString("HH:mm:ss");
