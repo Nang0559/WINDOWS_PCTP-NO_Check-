@@ -16,6 +16,27 @@ namespace PCTP.Modules.MesPlanning
                 throw new InvalidOperationException("Thiếu connection string FVN_PCTP.");
         }
 
+        public DataTable GetEntitySites(string entityType, long entityId)
+        {
+            string sql;
+            if (string.Equals(entityType, "PLAN", StringComparison.OrdinalIgnoreCase))
+                sql = "SELECT DISTINCT SiteCode FROM MES.FVN_ProductionPlanLine WHERE ProductionPlanId=@EntityId";
+            else if (string.Equals(entityType, "ORDER", StringComparison.OrdinalIgnoreCase))
+                sql = "SELECT SiteCode FROM MES.FVN_ProductionOrder WHERE ProductionOrderId=@EntityId";
+            else if (string.Equals(entityType, "OPERATION", StringComparison.OrdinalIgnoreCase))
+                sql = "SELECT SiteCode FROM MES.FVN_ProductionLot WHERE ProductionLotId=@EntityId";
+            else throw new ArgumentException("EntityType chỉ nhận PLAN, ORDER hoặc OPERATION.");
+
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.Add("@EntityId", SqlDbType.BigInt).Value = entityId;
+                var result = new DataTable();
+                using (var adapter = new SqlDataAdapter(cmd)) adapter.Fill(result);
+                return result;
+            }
+        }
+
         public DataTable Transition(string entityType, long entityId, long? relatedId, int fromStatus,
             int toStatus, string actor, string reason, string correlationId)
         {
