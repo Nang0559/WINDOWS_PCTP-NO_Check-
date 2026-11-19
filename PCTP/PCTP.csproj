@@ -466,6 +466,11 @@
     <Compile Include="Modules\KhoCore\Services\InspectionService.cs" />
     <Compile Include="Modules\KhoCore\Services\IStockHistoryService.cs" />
     <Compile Include="Modules\KhoCore\Services\StockHistoryService.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentPoStatus.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentStockFilter.cs" />
+    <Compile Include="Modules\KhoLinhKien\UI\FormKhoLinhKien.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\KhoVatLy\Application\Adapters\KhoCoreSlotQueryAdapter.cs" />
     <Compile Include="Modules\KhoVatLy\MainStockModuleFactory.cs" />
     <Compile Include="Modules\KhoVatLy\MainStockSV.Canvas.cs">
@@ -767,12 +772,20 @@
     <Compile Include="Security\UserSession.cs" />
     <Compile Include="Security\AuthenticationRepository.cs" />
     <Compile Include="Security\AuthenticationService.cs" />
-    <Compile Include="Security\LoginForm.cs"><SubType>Form</SubType></Compile>
-    <Compile Include="Security\ChangePasswordDialog.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Security\LoginForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Security\ChangePasswordDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Infrastructure\Security\AuthorizationGuard.cs" />
     <Compile Include="Security\SecurityAdministrationRepository.cs" />
-    <Compile Include="Security\PermissionMatrixControl.cs"><SubType>UserControl</SubType></Compile>
-    <Compile Include="Security\FormSecurityAdministration.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Security\PermissionMatrixControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Security\FormSecurityAdministration.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Infrastructure\Configuration\ReportConnectionAlias.cs" />
     <Compile Include="Infrastructure\Configuration\RuntimeConfigurationBootstrap.cs" />
     <Compile Include="Program.cs" />
@@ -1065,32 +1078,46 @@
     <Compile Include="Modules\MesPlanning\ProductionWorkflowRepository.cs" />
     <Compile Include="Modules\MesPlanning\IProductionWorkflowService.cs" />
     <Compile Include="Modules\MesPlanning\ProductionWorkflowService.cs" />
-    <Compile Include="Modules\MesPlanning\UI\FormProductionWorkflowTimeline.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Modules\MesPlanning\UI\FormProductionWorkflowTimeline.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\MesPlanning\ProductionExecutionService.cs" />
-    <Compile Include="Modules\MesPlanning\UI\FormDieuHanhSanXuat.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Modules\MesPlanning\UI\FormDieuHanhSanXuat.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\MesPlanning\IProductionTraceRepository.cs" />
     <Compile Include="Modules\MesPlanning\ProductionTraceRepository.cs" />
     <Compile Include="Modules\MesPlanning\IProductionTraceService.cs" />
     <Compile Include="Modules\MesPlanning\ProductionTraceService.cs" />
-    <Compile Include="Modules\MesPlanning\UI\FormTruyXuatLinhKien.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Modules\MesPlanning\UI\FormTruyXuatLinhKien.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\MesPlanning\IComponentDemandRepository.cs" />
     <Compile Include="Modules\MesPlanning\ComponentDemandRepository.cs" />
     <Compile Include="Modules\MesPlanning\IComponentDemandService.cs" />
     <Compile Include="Modules\MesPlanning\ComponentDemandService.cs" />
-    <Compile Include="Modules\MesPlanning\UI\FormYeuCauVaXuatLinhKien.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Modules\MesPlanning\UI\FormYeuCauVaXuatLinhKien.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\MesPlanning\ProductionPlanImportRow.cs" />
     <Compile Include="Modules\MesPlanning\IProductionPlanRepository.cs" />
     <Compile Include="Modules\MesPlanning\ProductionPlanRepository.cs" />
     <Compile Include="Modules\MesPlanning\IProductionPlanService.cs" />
     <Compile Include="Modules\MesPlanning\ProductionPlanService.cs" />
-    <Compile Include="Modules\MesPlanning\UI\FormUploadKeHoachSanXuat.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Modules\MesPlanning\UI\FormUploadKeHoachSanXuat.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\NhapKho\ComponentReceiving\IComponentReceivingRepository.cs" />
     <Compile Include="Modules\NhapKho\ComponentReceiving\ComponentReceivingRepository.cs" />
     <Compile Include="Modules\NhapKho\ComponentReceiving\IComponentReceivingService.cs" />
     <Compile Include="Modules\NhapKho\ComponentReceiving\ComponentReceivingService.cs" />
     <Compile Include="Modules\NhapKho\ComponentReceiving\ComponentReceivingQuery.cs" />
-    <Compile Include="Modules\NhapKho\UI\FormKiemKeHangVeList.cs"><SubType>Form</SubType></Compile>
-    <Compile Include="Modules\NhapKho\UI\FormKiemKeHangVeScan.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Modules\NhapKho\UI\FormKiemKeHangVeList.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\NhapKho\UI\FormKiemKeHangVeScan.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Infrastructure\Repositories\PhieuTrackingRepository.cs" />
     <Compile Include="Modules\NhapKho\Repository\StockTPRepository.cs" />
     <Compile Include="Modules\KhoVatLy\Report\RpInNhapKho.cs">
