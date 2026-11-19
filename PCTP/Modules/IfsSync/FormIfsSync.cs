@@ -276,7 +276,7 @@ namespace PCTP.Modules.IfsSync
                         try
                         {
                             using (var command = new SqlCommand(@"
-SELECT TOP (0) SyncBatchId, WarehouseRows FROM [IFS].[SyncBatch];
+SELECT TOP (0) SyncBatchId, WarehouseRows, SelectedEntities FROM [IFS].[SyncBatch];
 SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];
 SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse];
 SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];", sql))
@@ -299,7 +299,7 @@ SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];", sql))
                         }
                     }
 
-                    return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migration 012, 027 và 028 đã sẵn sàng.";
+                    return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migration 012, 027, 028 và 037 đã sẵn sàng.";
                 }), "Đang kiểm tra kết nối Oracle IFS và SQL Server FVN_PCTP...");
 
                 _status.Text = message;
