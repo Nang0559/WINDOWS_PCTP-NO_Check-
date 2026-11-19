@@ -174,6 +174,32 @@ BEGIN TRY
  INSERT SEC.Role(RoleCode,RoleName,Description,IsSystem) VALUES('SYSTEM_ADMIN',N'Quản trị hệ thống',N'Quản trị tài khoản, quyền và phạm vi; không bỏ qua kiểm tra quyền.',1);
 
  EXEC(N'
+ CREATE PROCEDURE SEC.usp_Account_GetBootstrapState
+ AS
+ BEGIN
+  SET NOCOUNT ON;
+  SELECT CONVERT(bit,CASE WHEN EXISTS(SELECT 1 FROM SEC.UserAccount) THEN 1 ELSE 0 END) HasUsers;
+ END');
+
+ EXEC(N'
+ CREATE PROCEDURE SEC.usp_Account_ChangePassword
+  @UserId bigint,@CurrentPasswordHash varbinary(32)=NULL,@NewPasswordSalt varbinary(32),
+  @NewPasswordHash varbinary(32),@PasswordIterations int,@IsFirstPassword bit=0
+ AS
+ BEGIN
+  SET NOCOUNT ON; SET XACT_ABORT ON;
+  IF DATALENGTH(@NewPasswordSalt)<16 OR DATALENGTH(@NewPasswordHash)<>32 OR @PasswordIterations NOT BETWEEN 100000 AND 1000000
+   THROW 53714,''Password credential parameters are invalid.'',1;
+  IF @IsFirstPassword=0 AND NOT EXISTS(SELECT 1 FROM SEC.UserAccount
+   WHERE UserId=@UserId AND PasswordHash=@CurrentPasswordHash)
+   THROW 53715,''Current password is incorrect.'',1;
+  UPDATE SEC.UserAccount SET PasswordSalt=@NewPasswordSalt,PasswordHash=@NewPasswordHash,
+   PasswordIterations=@PasswordIterations,MustChangePassword=0,FailedLoginCount=0,LockedUntilUtc=NULL,
+   UpdatedAtUtc=SYSUTCDATETIME() WHERE UserId=@UserId AND IsActive=1;
+  IF @@ROWCOUNT=0 THROW 53716,''Active account not found.'',1;
+ END');
+
+ EXEC(N'
  CREATE PROCEDURE SEC.usp_Account_GetCredential @UserName nvarchar(80)
  AS
  BEGIN
