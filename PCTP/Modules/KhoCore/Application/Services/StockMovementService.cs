@@ -19,6 +19,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
         private readonly IStockReceivingRepository _receiving;
         private readonly IUnitOfWork _uow;
 
+        public string SiteCode => _balance.SiteCode;
+
         public StockMovementService(IStockBalanceRepository balance, IStockSlotRepository slots)
             : this(balance, slots, null, null) { }
 
