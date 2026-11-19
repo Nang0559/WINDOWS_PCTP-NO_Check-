@@ -6,9 +6,6 @@ using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Infrastructure.Security;
-using PCTP.Shared.UiMd;
-using PCTP.Modules.GiaoHangKhach;
-using PCTP.Shared.Common;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -28,7 +25,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly LabelControl _status = new LabelControl();
 
         public FormProductionPlanWorkflow()
-            : this(new ProductionPlanService(new ProductionPlanRepository()), CreateWorkflow())
+            : this(new ProductionPlanService(new ProductionPlanRepository()), MesWorkflowComposition.Create())
         {
         }
 
@@ -44,15 +41,6 @@ namespace PCTP.Modules.MesPlanning.UI
             MinimumSize = new Size(1050, 650);
             BuildUi();
             Load += (s, e) => LoadPlans();
-        }
-
-        private static IProductionWorkflowService CreateWorkflow()
-        {
-            var provider = new ClassSQL.SQLPROVIDER();
-            var executor = new PhieuSqlExecutor(provider);
-            var unitOfWork = new UnitOfWork(provider);
-            var transitions = new WorkflowTransitionService(new WorkflowRepository(executor, unitOfWork));
-            return new ProductionWorkflowService(new ProductionWorkflowRepository(), transitions);
         }
 
         private void BuildUi()
