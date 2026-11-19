@@ -1,4 +1,5 @@
 using System;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.NhapKho.ComponentReceiving
 {
@@ -13,6 +14,8 @@ namespace PCTP.Modules.NhapKho.ComponentReceiving
 
         public ComponentReceiptResult Receive(ComponentReceiptRequest request)
         {
+            if (request != null)
+                AuthorizationGuard.DemandActionAndScope("WAREHOUSE.RECEIPT", "CONFIRM", "SITE", request.SiteCode, request.SiteCode);
             if (request == null) throw new ArgumentNullException(nameof(request));
             request.SiteCode = (request.SiteCode ?? string.Empty).Trim().ToUpperInvariant();
             request.ReceiptNo = (request.ReceiptNo ?? string.Empty).Trim();
