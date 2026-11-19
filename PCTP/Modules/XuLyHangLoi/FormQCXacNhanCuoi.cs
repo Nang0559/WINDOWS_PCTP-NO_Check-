@@ -1,4 +1,5 @@
 ﻿using System;
+using PCTP.Infrastructure.Security;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,6 +18,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
     public class FormQCXacNhanCuoi : XtraForm
     {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
         private readonly IQTChungService _qtChungService;
         private readonly int _phieuXuLyId;
         private readonly IReworkStockService _reworkStockService; // null → chỉ dùng SL lỗi của phiếu
