@@ -146,6 +146,14 @@ namespace PCTP.Modules.XuatKho.Repositories
             }).ToList();
         }
 
+        public int CountPending()
+        {
+            object value = ExecuteScalar(
+                "SELECT COUNT(*) FROM FVN_HangChoGiao WHERE TrangThai = @status",
+                new SqlParameter("@status", HangChoGiaoStatus.ChoGiao.ToString()));
+            return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+        }
+
         public List<HangChoGiao> GetPending()
         {
             DataTable dt = LoadData(
