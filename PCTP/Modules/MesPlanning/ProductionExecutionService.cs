@@ -8,11 +8,18 @@ namespace PCTP.Modules.MesPlanning
     {
         private readonly IProductionExecutionRepository _repository;
 
-        private static void DemandSite(string functionCode, string actionCode, string siteCode)
+        private static void DemandProductionScope(string actionCode, string siteCode, string departmentCode)
         {
             if (string.IsNullOrWhiteSpace(siteCode))
                 throw new UnauthorizedAccessException("Không xác định được SiteCode của đối tượng MES.");
-            AuthorizationGuard.DemandActionAndScope(functionCode, actionCode, "SITE", siteCode, siteCode);
+            AuthorizationGuard.DemandActionAndScope("MES.PRODUCTION_EXECUTION", actionCode, "SITE", siteCode, siteCode);
+            if (!string.Equals(actionCode, "VIEW", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrWhiteSpace(departmentCode))
+                    throw new UnauthorizedAccessException("Không xác định được bộ phận sở hữu đối tượng sản xuất.");
+                AuthorizationGuard.DemandActionAndScope("MES.PRODUCTION_EXECUTION", actionCode,
+                    "DEPARTMENT", departmentCode, siteCode);
+            }
         }
 
         public ProductionExecutionService(IProductionExecutionRepository repository)
@@ -22,14 +29,14 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable GetRoutingSteps(long productionLotId)
         {
-            DemandSite("MES.PRODUCTION_EXECUTION", "VIEW", _repository.GetLotSiteCode(productionLotId));
+            DemandProductionScope("VIEW", _repository.GetLotSiteCode(productionLotId), null);
             if (productionLotId <= 0) throw new ArgumentException("ProductionLotId không hợp lệ.");
             return _repository.GetRoutingSteps(productionLotId);
         }
 
         public DataTable GetOrderMaterials(long orderId)
         {
-            DemandSite("MES.PRODUCTION_EXECUTION", "VIEW", _repository.GetOrderSiteCode(orderId));
+            DemandProductionScope("VIEW", _repository.GetOrderSiteCode(orderId), null);
             if (orderId <= 0) throw new ArgumentException("ProductionOrderId không hợp lệ.");
             return _repository.GetOrderMaterials(orderId);
         }
@@ -37,7 +44,7 @@ namespace PCTP.Modules.MesPlanning
         public DataTable CreateOrder(long planLineId, string orderNo, string actor)
         {
             actor = AuthorizationGuard.ActorCode;
-            DemandSite("MES.PRODUCTION_EXECUTION", "CREATE", _repository.GetPlanLineSiteCode(planLineId));
+            DemandProductionScope("CREATE", _repository.GetPlanLineSiteCode(planLineId), _repository.GetPlanLineDepartmentCode(planLineId));
             if (planLineId <= 0 || string.IsNullOrWhiteSpace(orderNo) || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("PlanLine, OrderNo và người tạo là bắt buộc.");
             if (!string.Equals(_repository.GetPlanLineStatus(planLineId), "FIRM", StringComparison.OrdinalIgnoreCase))
@@ -49,7 +56,7 @@ namespace PCTP.Modules.MesPlanning
             decimal ngQty, bool finished, string actor)
         {
             actor = AuthorizationGuard.ActorCode;
-            DemandSite("MES.PRODUCTION_EXECUTION", "CREATE", _repository.GetOrderSiteCode(orderId));
+            DemandProductionScope("CREATE", _repository.GetOrderSiteCode(orderId), _repository.GetOrderDepartmentCode(orderId));
             if (orderId <= 0 || goodQty <= 0 || ngQty < 0 || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("Thông tin tạo LOT sản xuất không hợp lệ.");
             return _repository.CreateLot(orderId, producedAtUtc, goodQty, ngQty, finished, actor.Trim());
@@ -59,7 +66,7 @@ namespace PCTP.Modules.MesPlanning
             decimal goodQty, decimal ngQty, int? inputSlotId, int? outputSlotId, string actor)
         {
             actor = AuthorizationGuard.ActorCode;
-            DemandSite("MES.PRODUCTION_EXECUTION", "CONFIRM", _repository.GetLotSiteCode(productionLotId));
+            DemandProductionScope("CONFIRM", _repository.GetLotSiteCode(productionLotId), _repository.GetLotDepartmentCode(productionLotId));
             if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) ||
                 inputQty <= 0 || goodQty < 0 || ngQty < 0 || goodQty + ngQty > inputQty ||
                 string.IsNullOrWhiteSpace(actor))
@@ -97,7 +104,7 @@ namespace PCTP.Modules.MesPlanning
         public DataTable PrepareLabels(long productionLotId, string operationNo, int targetQty, string actor)
         {
             actor = AuthorizationGuard.ActorCode;
-            DemandSite("MES.PRODUCTION_EXECUTION", "CREATE", _repository.GetLotSiteCode(productionLotId));
+            DemandProductionScope("CREATE", _repository.GetLotSiteCode(productionLotId), _repository.GetLotDepartmentCode(productionLotId));
             if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) ||
                 targetQty <= 0 || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("LOT, công đoạn, số lượng tem và người thao tác là bắt buộc.");
@@ -107,7 +114,7 @@ namespace PCTP.Modules.MesPlanning
         public DataTable PrintLabels(long productionLotId, string operationNo, string actor, bool isReprint)
         {
             actor = AuthorizationGuard.ActorCode;
-            DemandSite("MES.PRODUCTION_EXECUTION", "PRINT", _repository.GetLotSiteCode(productionLotId));
+            DemandProductionScope("PRINT", _repository.GetLotSiteCode(productionLotId), _repository.GetLotDepartmentCode(productionLotId));
             if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("LOT, công đoạn và người in là bắt buộc.");
             return _repository.PrintLabels(productionLotId, operationNo.Trim(), actor.Trim(), isReprint);
@@ -130,7 +137,7 @@ namespace PCTP.Modules.MesPlanning
                 if (!string.Equals(parts[3], operationNo.Trim(), StringComparison.OrdinalIgnoreCase))
                     throw new ArgumentException("QR tem thuộc công đoạn khác với công đoạn đang thao tác.");
             }
-            DemandSite("MES.PRODUCTION_EXECUTION", "CONFIRM", _repository.GetLabelSiteCode(token));
+            DemandProductionScope("CONFIRM", _repository.GetLabelSiteCode(token), _repository.GetLabelDepartmentCode(token));
             return _repository.ApplyLabel(token, operationNo.Trim(), actor.Trim());
         }
 
@@ -149,7 +156,7 @@ namespace PCTP.Modules.MesPlanning
                     throw new ArgumentException("QR tem MES không đúng định dạng FVN2|LabelCode|LOT|OperationNo.");
                 token = parts[1];
             }
-            DemandSite("MES.PRODUCTION_EXECUTION", "CANCEL", _repository.GetLabelSiteCode(token));
+            DemandProductionScope("CANCEL", _repository.GetLabelSiteCode(token), _repository.GetLabelDepartmentCode(token));
             return _repository.VoidLabel(token, actor.Trim(), reason.Trim());
         }
 
