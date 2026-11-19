@@ -50,16 +50,12 @@ BEGIN TRY
  );
 
  IF COL_LENGTH(N'MES.FVN_ComponentDemandLine',N'SupplyMode') IS NULL
- BEGIN
-  ALTER TABLE MES.FVN_ComponentDemandLine ADD SupplyMode varchar(8) NOT NULL
-   CONSTRAINT DF_FVN_ComponentDemandLine_SupplyMode DEFAULT('BUY');
-  ALTER TABLE MES.FVN_ComponentDemandLine ADD SourceAreaCode varchar(8) NOT NULL
-   CONSTRAINT DF_FVN_ComponentDemandLine_SourceArea DEFAULT('PART');
- END;
+  EXEC(N'ALTER TABLE MES.FVN_ComponentDemandLine ADD SupplyMode varchar(8) NOT NULL CONSTRAINT DF_FVN_ComponentDemandLine_SupplyMode DEFAULT(''BUY'')');
+ IF COL_LENGTH(N'MES.FVN_ComponentDemandLine',N'SourceAreaCode') IS NULL
+  EXEC(N'ALTER TABLE MES.FVN_ComponentDemandLine ADD SourceAreaCode varchar(8) NOT NULL CONSTRAINT DF_FVN_ComponentDemandLine_SourceArea DEFAULT(''PART'')');
 
  IF NOT EXISTS(SELECT 1 FROM sys.check_constraints WHERE parent_object_id=OBJECT_ID(N'MES.FVN_ComponentDemandLine') AND name=N'CK_FVN_ComponentDemandLine_SupplyArea')
-  ALTER TABLE MES.FVN_ComponentDemandLine ADD CONSTRAINT CK_FVN_ComponentDemandLine_SupplyArea
-   CHECK(SupplyMode IN('BUY','MAKE') AND SourceAreaCode IN('PART','WIP','FG'));
+  EXEC(N'ALTER TABLE MES.FVN_ComponentDemandLine ADD CONSTRAINT CK_FVN_ComponentDemandLine_SupplyArea CHECK(SupplyMode IN(''BUY'',''MAKE'') AND SourceAreaCode IN(''PART'',''WIP'',''FG''))');
 
  IF OBJECT_ID(N'MES.FVN_ProductionPartPolicy',N'U') IS NULL
  CREATE TABLE MES.FVN_ProductionPartPolicy(
@@ -72,10 +68,10 @@ BEGIN TRY
   CONSTRAINT CK_FVN_ProductionPartPolicy_Type CHECK(OutputLotType IN('WIP','FG'))
  );
 
- UPDATE d SET SupplyMode='MAKE',SourceAreaCode=p.OutputLotType
- FROM MES.FVN_ComponentDemandLine d
- JOIN MES.FVN_ProductionPartPolicy p ON p.SiteCode=d.SiteCode
-  AND p.PartNo=d.ComponentPartNo AND p.IsActive=1;
+ EXEC(N'UPDATE d SET SupplyMode=''MAKE'',SourceAreaCode=p.OutputLotType
+  FROM MES.FVN_ComponentDemandLine d
+  JOIN MES.FVN_ProductionPartPolicy p ON p.SiteCode=d.SiteCode
+   AND p.PartNo=d.ComponentPartNo AND p.IsActive=1');
 
  IF OBJECT_ID(N'MES.FVN_ProductionRouting',N'U') IS NULL
  CREATE TABLE MES.FVN_ProductionRouting(
@@ -174,9 +170,9 @@ BEGIN TRY
  );
 
  IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'MES.FVN_ProductionOrder') AND name=N'UX_FVN_ProductionOrder_LotIdentity')
- CREATE UNIQUE INDEX UX_FVN_ProductionOrder_LotIdentity
- ON MES.FVN_ProductionOrder(SiteCode,ProductPartNo,ProductionDate,ShiftCode,ProductionLineCode,DepartmentCode)
- WHERE ProductionDate IS NOT NULL AND ShiftCode IS NOT NULL AND ProductionLineCode IS NOT NULL AND DepartmentCode IS NOT NULL;
+  EXEC(N'CREATE UNIQUE INDEX UX_FVN_ProductionOrder_LotIdentity
+   ON MES.FVN_ProductionOrder(SiteCode,ProductPartNo,ProductionDate,ShiftCode,ProductionLineCode,DepartmentCode)
+   WHERE ProductionDate IS NOT NULL AND ShiftCode IS NOT NULL AND ProductionLineCode IS NOT NULL AND DepartmentCode IS NOT NULL');
 
  IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'MES.FVN_FinishedLotGenealogy') AND name=N'IX_FVN_Genealogy_ComponentLot')
  CREATE INDEX IX_FVN_Genealogy_ComponentLot ON MES.FVN_FinishedLotGenealogy(ComponentLotId,FinishedLotId) INCLUDE(ProductionOrderId,ConsumedQty,MaterialExecutionEventId);
