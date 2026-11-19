@@ -22,6 +22,22 @@ namespace PCTP.Modules.MesPlanning
             return ScalarSite("SELECT SiteCode FROM MES.FVN_ProductionPlanLine WHERE ProductionPlanLineId=@Id", planLineId);
         }
 
+        public string GetPlanLineStatus(long planLineId)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"
+SELECT p.Status
+FROM MES.FVN_ProductionPlanLine l
+JOIN MES.FVN_ProductionPlan p ON p.ProductionPlanId=l.ProductionPlanId
+WHERE l.ProductionPlanLineId=@Id;", cn))
+            {
+                cmd.Parameters.Add("@Id", SqlDbType.BigInt).Value = planLineId;
+                cn.Open();
+                var value = cmd.ExecuteScalar();
+                return value == null || value == DBNull.Value ? null : Convert.ToString(value);
+            }
+        }
+
         public string GetOrderSiteCode(long orderId)
         {
             return ScalarSite("SELECT SiteCode FROM MES.FVN_ProductionOrder WHERE ProductionOrderId=@Id", orderId);
