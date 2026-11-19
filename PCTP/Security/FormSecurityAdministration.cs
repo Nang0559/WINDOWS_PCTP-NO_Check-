@@ -102,6 +102,12 @@ namespace PCTP.Security
             accountAccessTabs.TabPages.Add(accountPermissionTab);
             accountAccessTabs.TabPages.Add(accountScopeTab);
             accountAccessPanel.Controls.Add(accountAccessTabs);
+            var accountAccessNotice = new Label {
+                Dock = DockStyle.Top, Height = 26,
+                Text = "Quyền riêng và phạm vi riêng được nạp lại khi tài khoản đăng nhập phiên mới.",
+                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(8, 0, 0, 0)
+            };
+            accountAccessPanel.Controls.Add(accountAccessNotice);
             accountAccessTab.Controls.Add(accountAccessPanel);
 
             var auditButtons = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40 };
@@ -227,6 +233,7 @@ namespace PCTP.Security
                 _repository.SaveUserOverride(userId.Value,
                     Convert.ToString(row.Cells["FunctionCode"].Value),
                     Convert.ToString(row.Cells["ActionCode"].Value), effect, _session.UserId);
+                LoadUserOverrides();
             }
             catch (Exception ex)
             {
