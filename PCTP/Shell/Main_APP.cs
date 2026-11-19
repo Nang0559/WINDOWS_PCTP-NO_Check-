@@ -225,12 +225,14 @@ namespace PCTP
         {
             var group = new AccordionControlElement
             {
+                Name = "menuMesBomGroup",
                 Text = "Kỹ thuật / BOM",
                 Style = ElementStyle.Group,
                 Expanded = true
             };
             var item = new AccordionControlElement
             {
+                Name = "menuMesBomGraphic",
                 Text = "Product Structure Graphic",
                 Style = ElementStyle.Item
             };
