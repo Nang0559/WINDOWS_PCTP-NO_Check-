@@ -23,6 +23,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly GridControl _grid = new GridControl();
         private readonly GridView _view;
         private readonly LabelControl _status = new LabelControl();
+        public long SelectedPlanLineId { get; private set; }
 
         public FormProductionPlanWorkflow()
             : this(new ProductionPlanService(new ProductionPlanRepository()), MesWorkflowComposition.Create())
@@ -63,6 +64,7 @@ namespace PCTP.Modules.MesPlanning.UI
             AddButton(toolbar, "2. FIRM + SINH NHU CẦU BOM", () => Transition(20));
             AddButton(toolbar, "HỦY KẾ HOẠCH", () => Transition(900));
             AddButton(toolbar, "LỊCH SỬ WORKFLOW", OpenTimeline);
+            AddButton(toolbar, "CHỌN DÒNG KẾ HOẠCH", SelectPlanLine);
 
             _reason.Width = 220;
             _reason.Properties.NullValuePrompt = "Lý do / ghi chú (nếu có)";
@@ -135,6 +137,21 @@ namespace PCTP.Modules.MesPlanning.UI
                 _workflow.TransitionPlan(planId, current, targetStatus, AuthorizationGuard.ActorCode, _reason.Text);
                 _status.Text = "Đã gửi lệnh " + action + " cho kế hoạch " + Convert.ToString(row["PlanNo"]) + ".";
                 LoadPlans();
+            }
+            catch (Exception ex) { ShowError(ex); }
+        }
+
+        private void SelectPlanLine()
+        {
+            try
+            {
+                var row = SelectedPlan();
+                if (row == null) throw new InvalidOperationException("Chọn một dòng kế hoạch.");
+                if (StatusCode(Convert.ToString(row["Status"])) != 20)
+                    throw new InvalidOperationException("Chỉ được tạo lệnh từ kế hoạch đã FIRM.");
+                SelectedPlanLineId = Convert.ToInt64(row["ProductionPlanLineId"]);
+                DialogResult = DialogResult.OK;
+                Close();
             }
             catch (Exception ex) { ShowError(ex); }
         }
