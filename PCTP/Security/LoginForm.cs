@@ -1,21 +1,24 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using DevExpress.XtraEditors;
 
 namespace PCTP.Security
 {
-    public sealed class LoginForm : Form
+    /// <summary>Đăng nhập / khởi tạo quản trị viên bằng bộ điều khiển DevExpress.</summary>
+    public sealed class LoginForm : XtraForm
     {
         private readonly AuthenticationService _authentication;
-        private readonly TextBox _userName = new TextBox();
-        private readonly TextBox _displayName = new TextBox();
-        private readonly TextBox _password = new TextBox();
-        private readonly TextBox _confirm = new TextBox();
-        private readonly Label _heading = new Label();
-        private readonly Label _hint = new Label();
-        private readonly Label _displayNameLabel = new Label { Text = "Họ tên hiển thị", Left = 24, Top = 124, Width = 175 };
-        private readonly Label _confirmLabel = new Label { Text = "Xác nhận mật khẩu", Left = 24, Top = 212, Width = 175 };
-        private readonly Button _submit = new Button();
+        private readonly TextEdit _userName = new TextEdit();
+        private readonly TextEdit _displayName = new TextEdit();
+        private readonly TextEdit _password = new TextEdit();
+        private readonly TextEdit _confirm = new TextEdit();
+        private readonly LabelControl _heading = new LabelControl();
+        private readonly LabelControl _subHeading = new LabelControl();
+        private readonly LabelControl _hint = new LabelControl();
+        private readonly LabelControl _displayNameLabel = new LabelControl { Text = "Họ tên hiển thị" };
+        private readonly LabelControl _confirmLabel = new LabelControl { Text = "Xác nhận mật khẩu" };
+        private readonly SimpleButton _submit = new SimpleButton();
         private bool _bootstrap;
 
         public UserSession AuthenticatedSession { get; private set; }
@@ -26,46 +29,73 @@ namespace PCTP.Security
             Text = "PCTP / MES - Đăng nhập";
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false; MinimizeBox = false;
-            ClientSize = new Size(480, 310);
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ShowIcon = false;
+            ClientSize = new Size(520, 430);
+            Appearance.Font = new Font("Segoe UI", 9F);
             Build();
             Shown += InitializeMode;
         }
 
         private void Build()
         {
-            _heading.SetBounds(24, 20, 430, 34);
-            _heading.Font = new Font(Font, FontStyle.Bold);
-            _heading.Font = new Font(_heading.Font.FontFamily, 14, FontStyle.Bold);
-            Controls.Add(_heading);
+            var card = new PanelControl
+            {
+                Dock = DockStyle.Fill,
+                BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder,
+                Padding = new Padding(28, 24, 28, 20)
+            };
+            Controls.Add(card);
 
-            AddField("Tên đăng nhập", _userName, 76);
-            _displayName.SetBounds(205, 120, 249, 26);
-            Controls.Add(_displayNameLabel);
-            Controls.Add(_displayName);
-            AddField("Mật khẩu", _password, 164);
-            _confirm.SetBounds(205, 208, 249, 26);
-            Controls.Add(_confirmLabel);
-            Controls.Add(_confirm);
-            _password.UseSystemPasswordChar = true;
-            _confirm.UseSystemPasswordChar = true;
+            _heading.Text = "PCTP  |  MES";
+            _heading.Appearance.Font = new Font("Segoe UI", 19F, FontStyle.Bold);
+            _heading.Appearance.ForeColor = Color.FromArgb(35, 75, 120);
+            _heading.SetBounds(28, 24, 440, 38);
+            card.Controls.Add(_heading);
 
-            _hint.SetBounds(24, 250, 430, 22);
-            _hint.ForeColor = Color.DimGray;
-            Controls.Add(_hint);
+            _subHeading.Text = "HỆ THỐNG QUẢN LÝ SẢN XUẤT";
+            _subHeading.Appearance.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _subHeading.Appearance.ForeColor = Color.Gray;
+            _subHeading.SetBounds(30, 64, 440, 22);
+            card.Controls.Add(_subHeading);
+
+            AddField(card, "Tên đăng nhập", _userName, 112);
+            AddField(card, "Họ tên hiển thị", _displayName, 174);
+            AddField(card, "Mật khẩu", _password, 236);
+            AddField(card, "Xác nhận mật khẩu", _confirm, 298);
+
+            _password.Properties.UseSystemPasswordChar = true;
+            _confirm.Properties.UseSystemPasswordChar = true;
+
+            _hint.Appearance.ForeColor = Color.DimGray;
+            _hint.Appearance.Options.UseForeColor = true;
+            _hint.AutoSizeMode = LabelAutoSizeMode.None;
+            _hint.SetBounds(30, 356, 455, 30);
+            card.Controls.Add(_hint);
+
             _submit.Text = "ĐĂNG NHẬP";
-            _submit.SetBounds(330, 274, 124, 30);
+            _submit.Appearance.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _submit.Appearance.BackColor = Color.FromArgb(35, 105, 165);
+            _submit.Appearance.ForeColor = Color.White;
+            _submit.Appearance.Options.UseBackColor = true;
+            _submit.Appearance.Options.UseForeColor = true;
+            _submit.SetBounds(330, 390, 155, 34);
             _submit.Click += Submit;
-            Controls.Add(_submit);
+            card.Controls.Add(_submit);
             AcceptButton = _submit;
-            CancelButton = null;
         }
 
-        private void AddField(string caption, TextBox box, int y)
+        private static void AddField(Control parent, string caption, TextEdit editor, int top)
         {
-            var label = new Label { Text = caption, Left = 24, Top = y + 4, Width = 175 };
-            box.SetBounds(205, y, 249, 26);
-            Controls.Add(label); Controls.Add(box);
+            var label = new LabelControl { Text = caption };
+            label.Appearance.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            label.SetBounds(30, top, 455, 20);
+            editor.SetBounds(30, top + 23, 455, 30);
+            editor.Properties.NullValuePrompt = caption;
+            editor.Properties.NullValuePromptShowForEmptyValue = true;
+            parent.Controls.Add(label);
+            parent.Controls.Add(editor);
         }
 
         private void InitializeMode(object sender, EventArgs e)
@@ -73,20 +103,26 @@ namespace PCTP.Security
             try
             {
                 _bootstrap = !_authentication.HasUsers();
-                _heading.Text = _bootstrap ? "Khởi tạo quản trị viên đầu tiên" : "Đăng nhập hệ thống";
-                _displayNameLabel.Visible = _bootstrap;
+                _heading.Text = _bootstrap ? "Khởi tạo quản trị viên" : "Chào mừng trở lại";
+                _subHeading.Text = _bootstrap ? "THIẾT LẬP TÀI KHOẢN QUẢN TRỊ ĐẦU TIÊN" : "ĐĂNG NHẬP HỆ THỐNG PCTP / MES";
                 _displayName.Visible = _bootstrap;
-                _confirmLabel.Visible = _bootstrap;
+                _displayNameLabel.Visible = _bootstrap;
                 _confirm.Visible = _bootstrap;
+                _confirmLabel.Visible = _bootstrap;
+                // Ẩn cả caption tương ứng, không để lại khoảng trống gây rối mắt.
+                foreach (Control control in _displayName.Parent.Controls)
+                    if (control is LabelControl && ((LabelControl)control).Text == "Họ tên hiển thị") control.Visible = _bootstrap;
+                foreach (Control control in _confirm.Parent.Controls)
+                    if (control is LabelControl && ((LabelControl)control).Text == "Xác nhận mật khẩu") control.Visible = _bootstrap;
                 _hint.Text = _bootstrap
-                    ? "Khởi tạo lần đầu: tài khoản này nhận vai trò SYSTEM_ADMIN."
-                    : "Tài khoản được quản lý tập trung trong FVN_PCTP.";
-                _submit.Text = _bootstrap ? "TẠO QUẢN TRỊ" : "ĐĂNG NHẬP";
+                    ? "Tài khoản khởi tạo đầu tiên sẽ được gán vai trò SYSTEM_ADMIN."
+                    : "Sử dụng tài khoản được quản lý trong cơ sở dữ liệu FVN_PCTP.";
+                _submit.Text = _bootstrap ? "TẠO QUẢN TRỊ VIÊN" : "ĐĂNG NHẬP";
                 _userName.Focus();
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Không thể kết nối hệ thống xác thực.\r\n" + ex.Message,
+                XtraMessageBox.Show(this, "Không thể kết nối hệ thống xác thực.\r\n" + ex.Message,
                     Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 DialogResult = DialogResult.Abort;
                 Close();
@@ -120,13 +156,6 @@ namespace PCTP.Security
                             AuthenticatedSession = _authentication.Authenticate(_userName.Text, dialog.NewPassword);
                         }
                     }
-                    else
-                    {
-                        using (var dialog = new ChangePasswordDialog(false))
-                        {
-                            // Password change is optional; it is shown only through a separate command.
-                        }
-                    }
                 }
 
                 UserSession.SignIn(AuthenticatedSession);
@@ -135,9 +164,11 @@ namespace PCTP.Security
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "PCTP - Xác thực",
+                XtraMessageBox.Show(this, ex.Message, "PCTP - Xác thực",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                _password.Clear(); _confirm.Clear(); _password.Focus();
+                _password.Text = string.Empty;
+                _confirm.Text = string.Empty;
+                _password.Focus();
             }
         }
     }
