@@ -156,6 +156,7 @@ BEGIN TRY
  ('MES.PRODUCTION_EXECUTION','MES',N'Điều hành sản xuất',70),
  ('MES.COMPONENT_ISSUE','MES',N'Yêu cầu và xuất linh kiện PART → WIP',80),
  ('MES.FINISHED_GOODS_RECEIPT','MES',N'Nhập kho thành phẩm',90),
+ ('MES.BOM_VIEW','MES',N'Xem cấu trúc sản phẩm / BOM',95),
  ('LOT.SPLIT','LOT',N'Tách LOT và in tem',100),
  ('LOT.MERGE','LOT',N'Ghép LOT',110),
  ('SHIPPING.DISPATCH','SHIPPING',N'Giao hàng',120),
