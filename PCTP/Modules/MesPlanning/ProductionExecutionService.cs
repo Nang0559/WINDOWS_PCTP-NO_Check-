@@ -29,6 +29,7 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable CreateOrder(long planLineId, string orderNo, string actor)
         {
+            actor = AuthorizationGuard.ActorCode;
             DemandSite("MES.PRODUCTION_EXECUTION", "CREATE", _repository.GetPlanLineSiteCode(planLineId));
             if (planLineId <= 0 || string.IsNullOrWhiteSpace(orderNo) || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("PlanLine, OrderNo và người tạo là bắt buộc.");
@@ -38,6 +39,7 @@ namespace PCTP.Modules.MesPlanning
         public DataTable CreateLot(long orderId, DateTime producedAtUtc, decimal goodQty,
             decimal ngQty, bool finished, string actor)
         {
+            actor = AuthorizationGuard.ActorCode;
             DemandSite("MES.PRODUCTION_EXECUTION", "CREATE", _repository.GetOrderSiteCode(orderId));
             if (orderId <= 0 || goodQty <= 0 || ngQty < 0 || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("Thông tin tạo LOT sản xuất không hợp lệ.");
@@ -47,6 +49,7 @@ namespace PCTP.Modules.MesPlanning
         public DataTable CompleteOperation(long productionLotId, string operationNo, decimal inputQty,
             decimal goodQty, decimal ngQty, int? inputSlotId, int? outputSlotId, string actor)
         {
+            actor = AuthorizationGuard.ActorCode;
             DemandSite("MES.PRODUCTION_EXECUTION", "CONFIRM", _repository.GetLotSiteCode(productionLotId));
             if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) ||
                 inputQty <= 0 || goodQty < 0 || ngQty < 0 || goodQty + ngQty > inputQty ||
@@ -59,6 +62,7 @@ namespace PCTP.Modules.MesPlanning
         public DataTable ConsumeMaterial(long orderMaterialId, long productionLotId, long materialLotId,
             int fromSlotId, decimal quantity, string actor)
         {
+            actor = AuthorizationGuard.ActorCode;
             DemandSite("MES.PRODUCTION_EXECUTION", "CONFIRM", _repository.GetLotSiteCode(productionLotId));
             if (orderMaterialId <= 0 || productionLotId <= 0 || materialLotId <= 0 ||
                 fromSlotId <= 0 || quantity <= 0 || string.IsNullOrWhiteSpace(actor))
@@ -68,6 +72,7 @@ namespace PCTP.Modules.MesPlanning
         }
         public DataTable PrepareLabels(long productionLotId, string operationNo, int targetQty, string actor)
         {
+            actor = AuthorizationGuard.ActorCode;
             DemandSite("MES.PRODUCTION_EXECUTION", "CREATE", _repository.GetLotSiteCode(productionLotId));
             if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) ||
                 targetQty <= 0 || string.IsNullOrWhiteSpace(actor))
@@ -77,6 +82,7 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable PrintLabels(long productionLotId, string operationNo, string actor, bool isReprint)
         {
+            actor = AuthorizationGuard.ActorCode;
             DemandSite("MES.PRODUCTION_EXECUTION", "PRINT", _repository.GetLotSiteCode(productionLotId));
             if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("LOT, công đoạn và người in là bắt buộc.");
@@ -85,6 +91,7 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable ApplyLabel(string labelCode, string operationNo, string actor)
         {
+            actor = AuthorizationGuard.ActorCode;
             AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "CONFIRM");
             if (string.IsNullOrWhiteSpace(labelCode) || string.IsNullOrWhiteSpace(operationNo) ||
                 string.IsNullOrWhiteSpace(actor))
@@ -105,6 +112,7 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable VoidLabel(string labelCode, string actor, string reason)
         {
+            actor = AuthorizationGuard.ActorCode;
             AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "CANCEL");
             if (string.IsNullOrWhiteSpace(labelCode) || string.IsNullOrWhiteSpace(actor) ||
                 string.IsNullOrWhiteSpace(reason))
