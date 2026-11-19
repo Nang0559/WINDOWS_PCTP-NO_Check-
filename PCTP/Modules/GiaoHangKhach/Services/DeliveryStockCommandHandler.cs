@@ -2,6 +2,7 @@ using System;
 using PCTP.Modules.GiaoHangKhach.Contracts.Delivery;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Shared.Common;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.GiaoHangKhach.Services
 {
@@ -42,6 +43,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DeliveryStockCommandResult Execute(DeliveryStockCommand command)
         {
             if (command == null) throw new ArgumentNullException(nameof(command));
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
 
             // Fail closed before opening a transaction: no physical SlotLot -> not in this slice.
             foreach (var part in command.Parts)
