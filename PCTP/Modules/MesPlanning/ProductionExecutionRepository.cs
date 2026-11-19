@@ -22,6 +22,23 @@ namespace PCTP.Modules.MesPlanning
             return ScalarSite("SELECT SiteCode FROM MES.FVN_ProductionPlanLine WHERE ProductionPlanLineId=@Id", planLineId);
         }
 
+        public string GetPlanLineDepartmentCode(long planLineId)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"
+SELECT TOP(1) m.DepartmentCode
+FROM MES.FVN_ProductionPlanLine l
+JOIN MES.FVN_ProductionLotCodeMap m
+ ON m.SiteCode=l.SiteCode AND m.PlanProductionLineCode=l.ProductionLineCode AND m.IsActive=1
+WHERE l.ProductionPlanLineId=@Id;", cn))
+            {
+                cmd.Parameters.Add("@Id", SqlDbType.BigInt).Value = planLineId;
+                cn.Open();
+                var value = cmd.ExecuteScalar();
+                return value == null || value == DBNull.Value ? null : Convert.ToString(value);
+            }
+        }
+
         public string GetPlanLineStatus(long planLineId)
         {
             using (var cn = new SqlConnection(_connectionString))
@@ -43,9 +60,21 @@ WHERE l.ProductionPlanLineId=@Id;", cn))
             return ScalarSite("SELECT SiteCode FROM MES.FVN_ProductionOrder WHERE ProductionOrderId=@Id", orderId);
         }
 
+        public string GetOrderDepartmentCode(long orderId)
+        {
+            return ScalarSite("SELECT DepartmentCode FROM MES.FVN_ProductionOrder WHERE ProductionOrderId=@Id", orderId);
+        }
+
         public string GetLotSiteCode(long productionLotId)
         {
             return ScalarSite("SELECT SiteCode FROM MES.FVN_ProductionLot WHERE ProductionLotId=@Id", productionLotId);
+        }
+
+        public string GetLotDepartmentCode(long productionLotId)
+        {
+            return ScalarSite(@"SELECT o.DepartmentCode FROM MES.FVN_ProductionLot l
+                JOIN MES.FVN_ProductionOrder o ON o.ProductionOrderId=l.ProductionOrderId
+                WHERE l.ProductionLotId=@Id", productionLotId);
         }
 
         public string GetLabelSiteCode(string labelCode)
@@ -54,6 +83,22 @@ WHERE l.ProductionPlanLineId=@Id;", cn))
             using (var cmd = new SqlCommand(@"SELECT TOP(1) pl.SiteCode
                 FROM MES.FVN_ProductionLabel l
                 JOIN MES.FVN_ProductionLot pl ON pl.ProductionLotId=l.ProductionLotId
+                WHERE l.LabelCode=@LabelCode", cn))
+            {
+                cmd.Parameters.Add("@LabelCode", SqlDbType.VarChar, 16).Value = labelCode;
+                cn.Open();
+                var value = cmd.ExecuteScalar();
+                return value == null || value == DBNull.Value ? null : Convert.ToString(value);
+            }
+        }
+
+        public string GetLabelDepartmentCode(string labelCode)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"SELECT TOP(1) o.DepartmentCode
+                FROM MES.FVN_ProductionLabel l
+                JOIN MES.FVN_ProductionLot pl ON pl.ProductionLotId=l.ProductionLotId
+                JOIN MES.FVN_ProductionOrder o ON o.ProductionOrderId=pl.ProductionOrderId
                 WHERE l.LabelCode=@LabelCode", cn))
             {
                 cmd.Parameters.Add("@LabelCode", SqlDbType.VarChar, 16).Value = labelCode;
