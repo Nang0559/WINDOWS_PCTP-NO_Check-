@@ -59,7 +59,7 @@ BEGIN TRY
         THROW 53704, 'Cannot read IFS.usp_ApplySyncBatch definition.', 1;
 
     SET @Start = CHARINDEX(
-        N'IF NOT EXISTS(SELECT 1 FROM IFS.FVN_SyncStageRow WHERE SyncBatchId=@SyncBatchId AND EntityName=''PART_CATALOG'')',
+        N'IF NOT EXISTS(SELECT 1 FROM IFS.SyncStageRow WHERE SyncBatchId=@SyncBatchId AND EntityName=''PART_CATALOG'')',
         @Definition);
     SET @End = CHARINDEX(@EndToken, @Definition, @Start);
 
