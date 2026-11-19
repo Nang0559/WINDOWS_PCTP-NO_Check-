@@ -427,3 +427,31 @@ create an order from an imported/validated/nonexistent plan line.
 This trigger does not create orders, alter BOM snapshots or post inventory; it
 only rejects an insert that is not linked to a FIRM plan line. The existing
 `MES.usp_FVN_ProductionOrder_CreateFromPlan` remains the order creation path.
+
+
+## Migration 047 — MES Production Flow Control Tower
+
+Run `047_MES_ProductionFlowControlTower.sql` after 036, 038 and 046.
+It adds the read-only `MES.PRODUCTION_FLOW` permission catalog entry, the
+`MES.FVN_ProductionDepartmentRelation` configuration table and the
+`MES.usp_FVN_ProductionFlow_Dashboard` read model.
+
+The dashboard combines canonical plan, component-demand, production-order,
+production-LOT, operation-workflow and latest workflow-event facts. It does
+not update business status, issue inventory or execute transitions.
+
+Grant `MES.PRODUCTION_FLOW / VIEW` and data scope deliberately:
+- Site-level scope allows a site-wide read-only overview.
+- Department-level scope limits the owner departments visible to the user.
+- Related department visibility is expanded only through active rows in
+  `MES.FVN_ProductionDepartmentRelation`, optionally limited by ProductPartNo.
+- A related department row is marked as read-only context in the dashboard.
+The form's task-navigation buttons are independently enabled only when the
+user has the corresponding workflow VIEW permission; the destination service
+continues to enforce action permissions and data scope.
+
+Configure department/product dependencies using actual site, department and
+PartNo values from the plant. Do not copy the illustrative INSERT in the
+migration without replacing its sample values. After applying the migration,
+assign `MES.PRODUCTION_FLOW / VIEW` and Site/Department scopes in the existing
+security administration screen.
