@@ -1,3 +1,4 @@
+using PCTP.Infrastructure.Security;
 using OfficeOpenXml;
 using PCTP.Modules.MesPlanning;
 using System;
@@ -24,6 +25,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private List<ProductionPlanImportRow> _rows = new List<ProductionPlanImportRow>();
 
         public FormUploadKeHoachSanXuat() : this(new ProductionPlanService(new ProductionPlanRepository())) { }
+            AuthorizationGuard.Demand("MES.PLAN_UPLOAD", "VIEW");
         public FormUploadKeHoachSanXuat(IProductionPlanService service)
         {
             _service = service ?? throw new ArgumentNullException(nameof(service));
