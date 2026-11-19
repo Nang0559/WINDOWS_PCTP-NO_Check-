@@ -219,7 +219,7 @@ namespace PCTP.Modules.KhoVatLy.Repository
         OUTPUT INSERTED.WarehouseId
         VALUES (@site, @Name);";
 
-            object result = ExecuteScalar(sql,
+            object result = ExecuteScalar(sql, SiteParam(),
                 new SqlParameter("@Name", SqlDbType.NVarChar, 100) { Value = warehouseName.Trim() });
 
             int newId = DbValueHelper.ToInt(result);
