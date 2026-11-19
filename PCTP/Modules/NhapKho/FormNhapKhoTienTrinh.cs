@@ -1,4 +1,5 @@
 ﻿using DevExpress.XtraEditors;
+using PCTP.Infrastructure.Security;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Base;
 using DevExpress.XtraGrid.Views.Grid;
@@ -20,6 +21,7 @@ namespace PCTP.Modules.NhapKho
     // PCTP/VIEWSTOCK/ViewForm/FormNhapKhoTienTrinh.cs
     public partial class FormNhapKhoTienTrinh : XtraForm
     {
+            AuthorizationGuard.Demand("WAREHOUSE.RECEIPT", "VIEW");
         private readonly SQLPROVIDER _sql = new SQLPROVIDER();
         private readonly IWarehouseDashboardService _dashboardService;
         private readonly MainStockSV _mainStockForm;
