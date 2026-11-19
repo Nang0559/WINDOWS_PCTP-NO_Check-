@@ -84,7 +84,7 @@ namespace PCTP.Modules.MesPlanning.UI
             var header = new PanelControl { Dock = DockStyle.Fill, BorderStyle = BorderStyles.NoBorder };
             var filters = new FlowLayoutPanel
             {
-                Dock = DockStyle.Left, Width = 850, WrapContents = false,
+                Dock = DockStyle.Left, Width = 700, WrapContents = false,
                 FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(2, 10, 0, 0)
             };
             filters.Controls.Add(MakeCaption("SITE"));
@@ -104,7 +104,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
             var actionPanel = new FlowLayoutPanel
             {
-                Dock = DockStyle.Right, Width = 430, WrapContents = false,
+                Dock = DockStyle.Right, Width = 440, WrapContents = false,
                 FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(0, 12, 0, 0)
             };
             ConfigureAction(_openProduction, "TÁC VỤ SẢN XUẤT", UserSession.Current.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"));
