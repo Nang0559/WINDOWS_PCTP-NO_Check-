@@ -27,8 +27,7 @@ namespace PCTP.Modules.MesPlanning
             if (fromDate.HasValue && toDate.HasValue && fromDate.Value.Date > toDate.Value.Date)
                 throw new ArgumentException("Từ ngày không được lớn hơn đến ngày.");
 
-            var session = AuthorizationGuard.DemandScope(
-                "MES.PRODUCTION_FLOW", "SITE", siteCode, siteCode);
+            var session = AuthorizationGuard.Demand("MES.PRODUCTION_FLOW", "VIEW");
             string scopeXml = BuildDepartmentScope(session, siteCode);
             return _repository.GetDashboard(siteCode, fromDate, toDate, scopeXml);
         }
