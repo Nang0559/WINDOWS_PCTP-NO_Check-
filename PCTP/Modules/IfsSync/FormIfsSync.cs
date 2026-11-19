@@ -24,6 +24,8 @@ namespace PCTP.Modules.IfsSync
         private readonly TextBox _details = new TextBox();
         private readonly SimpleButton _checkButton = new SimpleButton();
         private readonly SimpleButton _syncButton = new SimpleButton();
+        private readonly SimpleButton _selectiveSyncButton = new SimpleButton();
+        private readonly CheckBox[] _entityChecks = new CheckBox[7];
         private readonly SimpleButton _refreshButton = new SimpleButton();
         private readonly IWaitFormService _waitForm;
         private bool _isRunning;
@@ -57,12 +59,13 @@ namespace PCTP.Modules.IfsSync
                 Dock = DockStyle.Fill,
                 Padding = new Padding(12),
                 ColumnCount = 1,
-                RowCount = 5
+                RowCount = 6
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 36));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 36));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 34));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 34));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 142));
             Controls.Add(root);
 
@@ -80,15 +83,36 @@ namespace PCTP.Modules.IfsSync
             heading.Controls.Add(_connectionInfo);
             root.Controls.Add(heading, 0, 0);
 
+            var selectionGroup = new GroupControl
+            {
+                Text = "Chọn nhóm dữ liệu cần đồng bộ (có thể chọn nhiều nhóm)",
+                Dock = DockStyle.Fill
+            };
+            var selectionPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(8, 4, 8, 2),
+                WrapContents = true,
+                AutoScroll = true
+            };
+            string[] entityNames = { "PART_CATALOG", "INVENTORY_PART", "BOM_HEADER", "BOM_ALTERNATIVE", "BOM_COMPONENT", "WAREHOUSE", "SUPPLIER" };
+            for (int i = 0; i < entityNames.Length; i++)
+            {
+                _entityChecks[i] = new CheckBox { Text = entityNames[i], AutoSize = true, Margin = new Padding(8, 6, 18, 4) };
+                selectionPanel.Controls.Add(_entityChecks[i]);
+            }
+            selectionGroup.Controls.Add(selectionPanel);
+            root.Controls.Add(selectionGroup, 0, 1);
+
             var commandPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
                 RowCount = 1,
-                Padding = new Padding(0, 8, 0, 8)
+                Padding = new Padding(0, 2, 0, 2)
             };
             commandPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            commandPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 440));
+            commandPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 590));
             _status.Dock = DockStyle.Fill;
             _status.AutoSize = false;
             _status.TextAlign = ContentAlignment.MiddleLeft;
@@ -107,7 +131,12 @@ namespace PCTP.Modules.IfsSync
             _syncButton.Text = "Đồng bộ toàn bộ";
             _syncButton.Width = 145;
             _syncButton.Height = 34;
-            _syncButton.Click += async (s, e) => await RunSyncAsync();
+            _syncButton.Click += async (s, e) => await RunSyncAsync(false);
+
+            _selectiveSyncButton.Text = "Đồng bộ mục đã chọn";
+            _selectiveSyncButton.Width = 155;
+            _selectiveSyncButton.Height = 34;
+            _selectiveSyncButton.Click += async (s, e) => await RunSyncAsync(true);
 
             _checkButton.Text = "Kiểm tra kết nối";
             _checkButton.Width = 125;
@@ -120,10 +149,11 @@ namespace PCTP.Modules.IfsSync
             _refreshButton.Click += (s, e) => RefreshHistory();
 
             buttons.Controls.Add(_syncButton);
+            buttons.Controls.Add(_selectiveSyncButton);
             buttons.Controls.Add(_checkButton);
             buttons.Controls.Add(_refreshButton);
             commandPanel.Controls.Add(buttons, 1, 0);
-            root.Controls.Add(commandPanel, 0, 1);
+            root.Controls.Add(commandPanel, 0, 2);
 
             var entityStatus = new GroupControl
             {
@@ -132,7 +162,7 @@ namespace PCTP.Modules.IfsSync
             };
             ConfigureEntityGrid();
             entityStatus.Controls.Add(_entities);
-            root.Controls.Add(entityStatus, 0, 2);
+            root.Controls.Add(entityStatus, 0, 3);
 
             var history = new GroupControl
             {
@@ -141,7 +171,7 @@ namespace PCTP.Modules.IfsSync
             };
             ConfigureBatchGrid();
             history.Controls.Add(_batches);
-            root.Controls.Add(history, 0, 3);
+            root.Controls.Add(history, 0, 4);
 
             var errorGroup = new GroupControl
             {
@@ -156,7 +186,7 @@ namespace PCTP.Modules.IfsSync
             _details.Font = new Font("Consolas", 9F);
             _details.Text = "Chọn một batch để xem lỗi ghi nhận (nếu có).";
             errorGroup.Controls.Add(_details);
-            root.Controls.Add(errorGroup, 0, 4);
+            root.Controls.Add(errorGroup, 0, 5);
         }
 
         private void ConfigureEntityGrid()
@@ -290,13 +320,27 @@ SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];", sql))
             }
         }
 
-        private async Task RunSyncAsync()
+        private async Task RunSyncAsync(bool selectedOnly)
         {
             if (_isRunning) return;
 
+            var selectedEntities = new System.Collections.Generic.List<string>();
+            if (selectedOnly)
+            {
+                foreach (CheckBox check in _entityChecks)
+                    if (check != null && check.Checked) selectedEntities.Add(check.Text);
+                if (selectedEntities.Count == 0)
+                {
+                    XtraMessageBox.Show(this, "Hãy chọn ít nhất một nhóm dữ liệu.", "Đồng bộ IFS", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+            }
+            string modeDescription = selectedOnly
+                ? "các nhóm đã chọn: " + string.Join(", ", selectedEntities)
+                : "toàn bộ 7 nhóm dữ liệu";
             var confirm = XtraMessageBox.Show(this,
-                "Chương trình sẽ đọc 7 IFS View/entity (bao gồm WAREHOUSE và SUPPLIER_INFO_GENERAL) và đồng bộ Full Snapshot vào FVN_PCTP.\r\n\r\n" +
-                "Dữ liệu không bị xóa chỉ vì không xuất hiện trong lần đọc này.\r\n" +
+                "Chương trình sẽ đọc " + modeDescription + " từ Oracle IFS và Apply vào FVN_PCTP.\r\n\r\n" +
+                "Chỉ các entity trong batch này được cập nhật; entity không chọn sẽ được giữ nguyên.\r\n" +
                 "Quá trình có thể mất nhiều thời gian. Bạn muốn tiếp tục?",
                 "Xác nhận đồng bộ IFS",
                 MessageBoxButtons.YesNo,
@@ -305,28 +349,25 @@ SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];", sql))
             if (confirm != DialogResult.Yes) return;
 
             SetBusy(true, "Đang đồng bộ. Không đóng ứng dụng cho đến khi hoàn tất...");
-            _details.Text = "Bắt đầu đồng bộ Full Snapshot. Đang đọc IFS và ghi staging theo từng nhóm.";
+            _details.Text = selectedOnly
+                ? "Bắt đầu đồng bộ chọn lọc: " + string.Join(", ", selectedEntities) + Environment.NewLine + "Đang đọc IFS và ghi staging."
+                : "Bắt đầu đồng bộ Full Snapshot. Đang đọc IFS và ghi staging theo từng nhóm.";
             try
             {
-                // Keep the standard PCTP WaitForm open for the whole operation.
-                // Phase captions are marshalled back to the UI thread before updating it.
+                // Keep the form visible: report progress inline instead of covering
+                // the connection summary with a modal WaitForm.
                 var uiContext = System.Threading.SynchronizationContext.Current;
-                _waitForm.Show("Giai đoạn 1/2: Đang đọc Oracle IFS và ghi dữ liệu vào staging...");
-                IfsSyncResult result;
-                try
+                Action<string> reportPhase = phase =>
                 {
-                    result = await Task.Run(() => new IfsSyncService().SyncAll(phase =>
-                    {
-                        if (uiContext == null)
-                            _waitForm.SetCaption(phase);
-                        else
-                            uiContext.Post(_ => _waitForm.SetCaption(phase), null);
-                    }));
-                }
-                finally
-                {
-                    _waitForm.Close();
-                }
+                    if (uiContext == null)
+                        _status.Text = phase;
+                    else
+                        uiContext.Post(_ => { if (!IsDisposed) _status.Text = phase; }, null);
+                };
+                IfsSyncService service = new IfsSyncService();
+                IfsSyncResult result = await Task.Run(() => selectedOnly
+                    ? service.SyncSelected(selectedEntities, reportPhase)
+                    : service.SyncAll(reportPhase));
                 _status.Text = "Đồng bộ thành công. Batch #" + result.SyncBatchId;
                 _details.Text =
                     "Trạng thái: " + result.Status + Environment.NewLine +
@@ -552,6 +593,9 @@ ORDER BY SyncErrorId DESC;", connection))
         {
             _isRunning = busy;
             _syncButton.Enabled = !busy;
+            _selectiveSyncButton.Enabled = !busy;
+            foreach (CheckBox check in _entityChecks)
+                if (check != null) check.Enabled = !busy;
             _checkButton.Enabled = !busy;
             _refreshButton.Enabled = !busy;
             UseWaitCursor = busy;
