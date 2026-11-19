@@ -42,6 +42,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (_stockMovement == null)
                 throw new InvalidOperationException("Chưa cấu hình IStockMovementService cho BulkStockAdjustService.");
             AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "WAREHOUSE",
+                BulkImportConfig.WarehouseName, _stockMovement.SiteCode);
             if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo)) return false;
 
             try
