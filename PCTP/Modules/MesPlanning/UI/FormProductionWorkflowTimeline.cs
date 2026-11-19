@@ -2,6 +2,7 @@ using System;
 using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -16,6 +17,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         public FormProductionWorkflowTimeline(IProductionWorkflowService service)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "VIEW");
             _service = service ?? throw new ArgumentNullException(nameof(service));
             Text = "MES - Lịch sử workflow sản xuất";
             StartPosition = FormStartPosition.CenterParent;
