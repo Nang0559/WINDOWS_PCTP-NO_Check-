@@ -8,19 +8,23 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using DevExpress.XtraEditors;
+using DevExpress.XtraGrid;
+using DevExpress.XtraGrid.Views.Grid;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
-    public sealed class FormUploadKeHoachSanXuat : Form
+    public sealed class FormUploadKeHoachSanXuat : XtraForm
     {
         private readonly IProductionPlanService _service;
-        private readonly TextBox _file = new TextBox();
-        private readonly ComboBox _sheet = new ComboBox();
-        private readonly DataGridView _grid = new DataGridView();
-        private readonly Label _status = new Label();
-        private readonly Button _choose = new Button();
-        private readonly Button _preview = new Button();
-        private readonly Button _upload = new Button();
+        private readonly TextEdit _file = new TextEdit();
+        private readonly ComboBoxEdit _sheet = new ComboBoxEdit();
+        private readonly GridControl _grid = new GridControl();
+        private readonly GridView _gridView = new GridView();
+        private readonly LabelControl _status = new LabelControl();
+        private readonly SimpleButton _choose = new SimpleButton();
+        private readonly SimpleButton _preview = new SimpleButton();
+        private readonly SimpleButton _upload = new SimpleButton();
         private string _filePath;
         private List<ProductionPlanImportRow> _rows = new List<ProductionPlanImportRow>();
 
@@ -44,19 +48,24 @@ namespace PCTP.Modules.MesPlanning.UI
             top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
             top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
             top.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
-            _file.ReadOnly = true; _file.Dock = DockStyle.Fill;
+            _file.Properties.ReadOnly = true; _file.Dock = DockStyle.Fill;
             _choose.Text = "Chọn Excel"; _choose.Dock = DockStyle.Fill; _choose.Click += ChooseClick;
-            _sheet.DropDownStyle = ComboBoxStyle.DropDownList; _sheet.Dock = DockStyle.Fill;
+            _sheet.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor; _sheet.Dock = DockStyle.Fill;
             _preview.Text = "Xem trước"; _preview.Dock = DockStyle.Fill; _preview.Click += PreviewClick;
             _upload.Text = "UPLOAD KẾ HOẠCH"; _upload.Dock = DockStyle.Fill; _upload.Click += UploadClick; _upload.Enabled = false;
             top.Controls.Add(_file,0,0); top.Controls.Add(_choose,1,0);
             top.Controls.Add(_sheet,2,0); top.Controls.Add(_preview,3,0);
             top.Controls.Add(_upload,3,1);
             _status.Text = "Cột Excel yêu cầu: SiteCode, PlanNo, PlanDate, LineNo, ShiftCode, ProductionLineCode, ProductPartNo, PlannedQty, UomCode; PlannedStart/PlannedEnd tùy chọn.";
-            _status.Dock = DockStyle.Fill; _status.ForeColor = Color.DarkSlateGray;
+            _status.Dock = DockStyle.Fill; _status.Appearance.ForeColor = Color.DarkSlateGray;
             top.Controls.Add(_status,0,1); top.SetColumnSpan(_status,3);
-            _grid.Dock = DockStyle.Fill; _grid.ReadOnly = true; _grid.AllowUserToAddRows = false;
-            _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+            _grid.Dock = DockStyle.Fill;
+            _grid.MainView = _gridView;
+            _gridView.OptionsBehavior.Editable = false;
+            _gridView.OptionsView.ShowGroupPanel = false;
+            _gridView.OptionsView.ColumnAutoWidth = false;
+            _gridView.OptionsSelection.MultiSelect = false;
+            _gridView.OptionsView.ShowIndicator = true;
             Controls.Add(_grid); Controls.Add(top);
         }
 
@@ -70,9 +79,9 @@ namespace PCTP.Modules.MesPlanning.UI
                 {
                     using (var package = new ExcelPackage(new FileInfo(_filePath)))
                     {
-                        _sheet.Items.Clear();
-                        foreach (var ws in package.Workbook.Worksheets) _sheet.Items.Add(ws.Name);
-                        if (_sheet.Items.Count > 0) _sheet.SelectedIndex = 0;
+                        _sheet.Properties.Items.Clear();
+                        foreach (var ws in package.Workbook.Worksheets) _sheet.Properties.Items.Add(ws.Name);
+                        if (_sheet.Properties.Items.Count > 0) _sheet.SelectedIndex = 0;
                     }
                     _status.Text = "Đã đọc danh sách Sheet. Chọn Sheet và bấm Xem trước.";
                 }
@@ -82,16 +91,17 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void PreviewClick(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(_filePath) || _sheet.SelectedItem == null) return;
+            if (string.IsNullOrWhiteSpace(_filePath) || string.IsNullOrWhiteSpace(_sheet.Text)) return;
             try
             {
-                _rows = ReadRows(_filePath, _sheet.SelectedItem.ToString());
+                _rows = ReadRows(_filePath, _sheet.Text);
                 _grid.DataSource = _rows.Select(x => new {
                     x.SiteCode,x.PlanNo,PlanDate=x.PlanDate.ToString("yyyy-MM-dd"),x.LineNo,x.ShiftCode,
                     x.ProductionLineCode,x.ProductPartNo,x.PlannedQty,x.UomCode,
                     PlannedStart=x.PlannedStart?.ToString("yyyy-MM-dd HH:mm"),
                     PlannedEnd=x.PlannedEnd?.ToString("yyyy-MM-dd HH:mm")
                 }).ToList();
+                _gridView.BestFitColumns();
                 _upload.Enabled = _rows.Count > 0;
                 _status.Text = "Đọc được " + _rows.Count + " dòng. Upload sẽ chạy trong một transaction; nếu một dòng lỗi, toàn bộ batch rollback.";
             }
