@@ -134,9 +134,11 @@ BEGIN TRY
   IF EXISTS(SELECT 1 FROM SEC.UserRole ur JOIN SEC.Role r ON r.RoleId=ur.RoleId
     WHERE ur.UserId=@UserId AND r.RoleCode=''SYSTEM_ADMIN'')
    THROW 53831,''Cannot change direct data scopes of SYSTEM_ADMIN through this procedure.'',1;
+  BEGIN TRANSACTION;
   DELETE SEC.UserDataScope WHERE UserDataScopeId=@UserDataScopeId;
   INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId,BeforeJson)
    VALUES(@ActorUserId,''USER_DATA_SCOPE_REMOVED'',''USER'',CONVERT(nvarchar(100),@UserId),@Before);
+  COMMIT TRANSACTION;
  END');
 
  INSERT MES.FVN_SchemaMigration(MigrationVersion,MigrationName)
