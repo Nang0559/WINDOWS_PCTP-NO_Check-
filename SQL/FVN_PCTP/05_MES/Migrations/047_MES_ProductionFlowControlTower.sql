@@ -181,6 +181,7 @@ BEGIN TRY
    FROM MES.FVN_ComponentDemandHeader h
    LEFT JOIN MES.FVN_ComponentDemandLine l ON l.ComponentDemandId=h.ComponentDemandId
    WHERE h.ProductionPlanLineId=pf.ProductionPlanLineId
+    AND h.Status<>N''CANCELLED''
    GROUP BY h.ComponentDemandId,h.Status
   ) dem
   OUTER APPLY
