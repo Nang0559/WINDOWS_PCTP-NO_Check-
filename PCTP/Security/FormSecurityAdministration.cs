@@ -132,6 +132,7 @@ namespace PCTP.Security
             var roleId = SelectedRoleId();
             if (!roleId.HasValue) { _permissions.DataSource = null; return; }
             _permissions.DataSource = _repository.ListPermissions(roleId.Value);
+            _permissions.ReadOnly = !_session.HasPermission("ADMIN.ROLE_MANAGEMENT", "ADMIN");
             if (_permissions.Columns["IsAllowed"] != null)
                 _permissions.Columns["IsAllowed"].ReadOnly = false;
             foreach (DataGridViewColumn column in _permissions.Columns)
