@@ -281,9 +281,9 @@ BEGIN TRY
     WHERE ComponentLotId=@ComponentLotId;
    UPDATE MES.FVN_MaterialLot SET LotStatus=''AVAILABLE''
     WHERE MaterialLotId=@MaterialLotId AND LotStatus IN(''BLOCKED'',''RECEIVED'');
-   UPDATE l SET ReceivedQty=ReceivedQty+@Quantity
-    FROM MES.FVN_ComponentPurchaseOrderLine l
-    JOIN MES.FVN_ComponentLot c ON c.PurchaseOrderLineId=l.PurchaseOrderLineId
+   UPDATE l SET ReceivedQty=l.ReceivedQty+@Quantity
+    FROM MES.FVN_ComponentPurchaseOrderLine AS l
+    JOIN MES.FVN_ComponentLot AS c ON c.PurchaseOrderLineId=l.PurchaseOrderLineId
     WHERE c.ComponentLotId=@ComponentLotId;
    UPDATE h SET Status=CASE
       WHEN NOT EXISTS(SELECT 1 FROM MES.FVN_ComponentPurchaseOrderLine x
