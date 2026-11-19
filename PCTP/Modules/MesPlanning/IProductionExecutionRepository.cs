@@ -6,6 +6,7 @@ namespace PCTP.Modules.MesPlanning
     public interface IProductionExecutionRepository
     {
         string GetPlanLineSiteCode(long planLineId);
+        string GetPlanLineStatus(long planLineId);
         string GetOrderSiteCode(long orderId);
         string GetLotSiteCode(long productionLotId);
         string GetLabelSiteCode(string labelCode);
