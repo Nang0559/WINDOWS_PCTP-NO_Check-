@@ -12,6 +12,8 @@ using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.WorkingState;
 using PCTP.Modules.GiaoHangKhach.WorkingState;
 using PCTP.Shared.Common;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
+using PCTP.Infrastructure.Security;
 using PCTP.Shared.Enums;
 using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
@@ -39,6 +41,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private readonly IPhieuKhoService _khoService;
         private readonly IPhieuGiaoDbService _giaoDbService;
         private readonly IPhieuYmvnService _ymvnService;
+        private readonly IStockMovementService _stockMovement;
         private bool _isBanQR;
         private bool _isLoaiSP;
         // Phiếu đang hiển thị là Giao DB (nạp từ TMPPHIEUGIAOHANGDB). LoadPhieu() (giao thường) xoá cờ này.
@@ -46,7 +49,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private DataTable _ifsDataCache;
         private string _ifsLoadWarning;
 
-        public PhieuService(IPhieuRepository phieuRepo, IIFSRepository ifsRepo, IEventBus bus, IGioXuatRepository gioXuatRepo, string tenBan, CustomerConfig cfg, bool isMayBanQR, ITableOrderRepository tableOrderRepo, IPhieuGiaoDBRepository giaoDbRepo, IOrderSourceFactory orderSourceFactory, IRowCategoryFilter rowCategoryFilter, IDeliveryWorkingState workingState = null, IPhieuLoadService loadService = null, IPhieuKhoService khoService = null, IPhieuGiaoDbService giaoDbService = null, IPhieuYmvnService ymvnService = null)
+        public PhieuService(IPhieuRepository phieuRepo, IIFSRepository ifsRepo, IEventBus bus, IGioXuatRepository gioXuatRepo, string tenBan, CustomerConfig cfg, bool isMayBanQR, ITableOrderRepository tableOrderRepo, IPhieuGiaoDBRepository giaoDbRepo, IOrderSourceFactory orderSourceFactory, IRowCategoryFilter rowCategoryFilter, IDeliveryWorkingState workingState = null, IPhieuLoadService loadService = null, IPhieuKhoService khoService = null, IPhieuGiaoDbService giaoDbService = null, IPhieuYmvnService ymvnService = null, IStockMovementService stockMovement = null)
         {
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
             _ifsRepo = ifsRepo ?? throw new ArgumentNullException(nameof(ifsRepo));
@@ -54,15 +57,16 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _gioXuatRepo = gioXuatRepo ?? throw new ArgumentNullException(nameof(gioXuatRepo));
             _tenBan = tenBan;
             _cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
+            _stockMovement = stockMovement;
             _isMayBanQR = isMayBanQR;
             _tableOrderRepo = tableOrderRepo ?? throw new ArgumentNullException(nameof(tableOrderRepo));
             _orderSourceFactory = orderSourceFactory ?? throw new ArgumentNullException(nameof(orderSourceFactory));
             _rowCategoryFilter = rowCategoryFilter ?? throw new ArgumentNullException(nameof(rowCategoryFilter));
             _workingState = workingState ?? new DeliveryWorkingState(_phieuRepo, _phieuRepo);
             _loadService = loadService ?? new PhieuLoadService(_phieuRepo, _ifsRepo, _orderSourceFactory, _rowCategoryFilter, _workingState, _cfg, _tenBan);
-            _khoService = new PhieuKhoService(_phieuRepo, _bus, _cfg);
-            _giaoDbService = new PhieuGiaoDbService(_phieuRepo, giaoDbRepo ?? throw new ArgumentNullException(nameof(giaoDbRepo)), _orderSourceFactory, _cfg, () => _isLoaiSP);
-            _ymvnService = new PhieuYmvnService(_phieuRepo, _tableOrderRepo, _bus, _cfg);
+            _khoService = khoService ?? new PhieuKhoService(_phieuRepo, _bus, _cfg, stockMovement);
+            _giaoDbService = new PhieuGiaoDbService(_phieuRepo, giaoDbRepo ?? throw new ArgumentNullException(nameof(giaoDbRepo)), _orderSourceFactory, _cfg, () => _isLoaiSP, stockMovement);
+            _ymvnService = ymvnService ?? new PhieuYmvnService(_phieuRepo, _tableOrderRepo, _bus, _cfg, stockMovement);
         }
 
         public void SetTrangThaiBan(bool isBanQR, bool isLoaiSP) { _isBanQR = isBanQR; _isLoaiSP = isLoaiSP; }
@@ -72,6 +76,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void LoadPhieu(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios = null, bool isLoaiSP = false, long loadRequestId = 0)
         {
+            DemandShippingSite("VIEW");
             SetTrangThaiBan(isBanQR, isLoaiSP);
             _isGiaoDb = false;
             string ngayGiaoDate = string.IsNullOrEmpty(ngayGiao) ? string.Empty : (ngayGiao.Length >= 10 ? ngayGiao.Substring(0, 10) : ngayGiao);
@@ -104,6 +109,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm)
         {
+            DemandShippingSite("EDIT");
             if (!PCTP.Shared.Helpers.DateText.TryParseApp(ngayGiao, out DateTime dt) || dt.Year < 2000) return;
             bool isSP = _isLoaiSP;
             string ngayXuat = dt.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
@@ -123,20 +129,21 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _workingState.SaveFromSource(context, ifs, "Usp_Qrcode_LOAD_PHIEU_DOCQR2405");
         }
 
-        public bool KiemTraMaTrongPhieu(string maHang) => _phieuRepo.KiemTraMaTrongPhieu(maHang, GetTenBan());
+        public bool KiemTraMaTrongPhieu(string maHang) { DemandShippingSite("VIEW"); return _phieuRepo.KiemTraMaTrongPhieu(maHang, GetTenBan()); }
         public bool CheckCoLotChuaCNK(DataTable donHang) { foreach (DataRow row in donHang.Rows) { string lot = row["LOT"]?.ToString().Trim() ?? ""; string status = row["STATUS"]?.ToString().Trim() ?? ""; if (lot != "" && status != "OK") return true; } return false; }
         public bool CheckCanCapNhapKho(DataTable donHang) { foreach (DataRow row in donHang.Rows) if (row["LOT"]?.ToString().Trim() != "") return true; return false; }
-        public bool CheckCoMaNG() => _phieuRepo.CheckCoMaNG(GetTenBan());
-        public DataTable TinhLechIFS(DataTable donHangBangRieng, string ngayXuatIFS) { if (!_cfg.Delivery.LoadTuBangRieng || _ifsDataCache == null) return new DataTable(); return _phieuRepo.SoSanhLechIFS(donHangBangRieng, _ifsDataCache); }
-        public TrangThaiBan GetTrangThaiDangBan() => _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.MP });
-        public TrangThaiBan GetTrangThaiDangBanSP() { if (!_cfg.Delivery.CoConfigSP) return new TrangThaiBan { DangBan = false }; return _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.SP }); }
-        public bool XoaDocQRCode(bool isSP = false) { _phieuRepo.XoaDocQRCode(GetDocQrTableActive(isSP)); return true; }
-        public DataTable GetDonHangHienTai(string tenbang) => _phieuRepo.GetDonHangHienTai(tenbang);
-        public DataTable GetDonHangYmvnTuTmp() => _phieuRepo.LoadTmpOrderForGear(GetTenBan());
-        public DataTable GetDonHangChuaLot(bool isSP = false) => _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), GetDocQrTableActive(isSP));
+        public bool CheckCoMaNG() { DemandShippingSite("VIEW"); return _phieuRepo.CheckCoMaNG(GetTenBan()); }
+        public DataTable TinhLechIFS(DataTable donHangBangRieng, string ngayXuatIFS) { DemandShippingSite("VIEW"); if (!_cfg.Delivery.LoadTuBangRieng || _ifsDataCache == null) return new DataTable(); return _phieuRepo.SoSanhLechIFS(donHangBangRieng, _ifsDataCache); }
+        public TrangThaiBan GetTrangThaiDangBan() { DemandShippingSite("VIEW"); return _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.MP }); }
+        public TrangThaiBan GetTrangThaiDangBanSP() { DemandShippingSite("VIEW"); if (!_cfg.Delivery.CoConfigSP) return new TrangThaiBan { DangBan = false }; return _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.SP }); }
+        public bool XoaDocQRCode(bool isSP = false) { DemandShippingSite("DELETE"); _phieuRepo.XoaDocQRCode(GetDocQrTableActive(isSP)); return true; }
+        public DataTable GetDonHangHienTai(string tenbang) { DemandShippingSite("VIEW"); return _phieuRepo.GetDonHangHienTai(tenbang); }
+        public DataTable GetDonHangYmvnTuTmp() { DemandShippingSite("VIEW"); return _phieuRepo.LoadTmpOrderForGear(GetTenBan()); }
+        public DataTable GetDonHangChuaLot(bool isSP = false) { DemandShippingSite("VIEW"); return _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), GetDocQrTableActive(isSP)); }
 
         public DataTable LoadGhepLot()
         {
+            DemandShippingSite("VIEW");
             string tenBan = GetTenBan(_isLoaiSP);
             if (_cfg.Delivery.CoGear)
             {
@@ -168,7 +175,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             dt.Columns.Add("GearName", typeof(string));
             return dt;
         }
-        public void LayLaiLotNo(int stt, bool isSP = false) => _phieuRepo.LayLaiLotNo(stt, GetTenBan(isSP), GetDocQrTableActive(isSP));
+        public void LayLaiLotNo(int stt, bool isSP = false) { DemandShippingSite("EDIT"); _phieuRepo.LayLaiLotNo(stt, GetTenBan(isSP), GetDocQrTableActive(isSP)); }
         public DataTable GetDanhSachMaHangGiaoDB() => _giaoDbService.GetDanhSachMaHang();
         public int TaoPhieuVaChiTietGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet) => _giaoDbService.TaoPhieuVaChiTiet(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
         public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm) => _giaoDbService.LuuGiaoDB(donHang, gioXuat, addNm);
@@ -179,8 +186,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm) { _isGiaoDb = true; return _giaoDbService.LoadTmpPhieuGiaoDB(ngayGiao, addNm); }
         public void XuLySauUploadGiaoDB() => _giaoDbService.XuLySauUpload();
         public string CanhBaoLuoiRongGiaoDB(DateTime ngayGiao, int addNm) => _giaoDbService.CanhBaoLuoiRong(ngayGiao, addNm);
-        public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) => _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu);
-        public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu) => _phieuRepo.CapNhapTTPHIEU(nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu);
+        public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) { DemandShippingSite("CREATE"); return _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu); }
+        public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu) { DemandShippingSite("EDIT"); _phieuRepo.CapNhapTTPHIEU(nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu); }
         // Bảng TMP mà các luồng Cập Nhập Kho đang đọc: YMVN (CoGear) luôn dùng TmpTable;
         // các khách còn lại theo đúng cách PhieuKhoService.CapNhapKho chọn (SP / Giao DB).
         private string ResolveTmpTableForNote()
@@ -192,10 +199,16 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         }
 
         public void LuuGhiChuTuLuoi(DataTable donHang)
-            => _phieuRepo.LuuGhiChuVaoTmp(ResolveTmpTableForNote(), donHang);
+        {
+            DemandShippingSite("EDIT");
+            _phieuRepo.LuuGhiChuVaoTmp(ResolveTmpTableForNote(), donHang);
+        }
 
         public void LuuGhiChuMotDong(int stt, string note)
-            => _phieuRepo.LuuGhiChuVaoTmp(ResolveTmpTableForNote(), stt, note);
+        {
+            DemandShippingSite("EDIT");
+            _phieuRepo.LuuGhiChuVaoTmp(ResolveTmpTableForNote(), stt, note);
+        }
         public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "") => _khoService.CapNhapKho(gioGiaoFcc, nhaMay, gioMa, _isLoaiSP, _isGiaoDb);
         public void CapNhapKhoYMVN(string ngayGiao, string gioXuat, string nhaMay, DataTable donHang) => _ymvnService.CapNhapKho(ngayGiao, gioXuat, nhaMay, donHang);
         public void HoanThanhYMVN(bool isLoaiSP = false) => _ymvnService.HoanThanh(isLoaiSP);
@@ -203,6 +216,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public List<string> GetGioDaGiao(string nhaMay, string ngayGiao)
         {
+            DemandShippingSite("VIEW");
             DataTable history = _phieuRepo.LoadLuuPhieuCaNgay(nhaMay, ngayGiao);
             if (history == null || history.Rows.Count == 0) return new List<string>();
             return history.AsEnumerable()
@@ -250,8 +264,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         }
 
         public static int TinhSoHop(int soLuong, int qcDongGoi) { if (qcDongGoi <= 0) return 0; int hop = soLuong / qcDongGoi; if (soLuong % qcDongGoi > 0) hop++; return hop; }
-        public DataTable GetDanhSachLotTuKho(string maHang) => _phieuRepo.GetDanhSachLotTuKho(maHang);
-        public void NhapLotThuCong(int stt, string lotNo, string tenbang) => _phieuRepo.CapNhapLotTmpPhieu(stt, lotNo, GetTenBan());
+        public DataTable GetDanhSachLotTuKho(string maHang) { DemandShippingSite("VIEW"); return _phieuRepo.GetDanhSachLotTuKho(maHang); }
+        public void NhapLotThuCong(int stt, string lotNo, string tenbang) { DemandShippingSite("EDIT"); _phieuRepo.CapNhapLotTmpPhieu(stt, lotNo, GetTenBan()); }
 
         private OrderLoadContext CreateOrderLoadContext(DateTime ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios, bool isLoaiSP, long loadRequestId)
         {
@@ -273,5 +287,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 LoadRequestId = loadRequestId
             };
         }
+        private void DemandShippingSite(string action)
+        {
+            if (_stockMovement == null)
+                throw new InvalidOperationException("Thiếu IStockMovementService để xác định SiteCode và kiểm tra phạm vi giao hàng.");
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", action,
+                "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
+        }
+
     }
 }

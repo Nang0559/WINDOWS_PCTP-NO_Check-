@@ -4,6 +4,8 @@ using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Helpers;
+using PCTP.Infrastructure.Security;
+using PCTP.Modules.GiaoHangKhach;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -23,21 +25,49 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             _repository = repository
                 ?? throw new ArgumentNullException(nameof(repository));
         }
+
+        private string WarehouseForSlot(int slotId)
+        {
+            string warehouse = _repository.GetWarehouseNameBySlotId(slotId);
+            if (string.IsNullOrWhiteSpace(warehouse))
+                throw new UnauthorizedAccessException("Slot không tồn tại trong SiteCode hiện tại hoặc không xác định được kho.");
+            return warehouse;
+        }
+
+        private void DemandWarehouse(string functionCode, string actionCode, string warehouseName)
+        {
+            AuthorizationGuard.DemandActionAndScope(functionCode, actionCode, "WAREHOUSE", warehouseName, AppSettingsSiteContext.Default.SiteCode);
+        }
+
+        private List<SlotLotViewInfo> FilterScopedLots(IEnumerable<SlotLotViewInfo> rows)
+        {
+            var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
+            return (rows ?? Enumerable.Empty<SlotLotViewInfo>())
+                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.WarehouseName, AppSettingsSiteContext.Default.SiteCode)).ToList();
+        }
+
+        private List<Slot> FilterScopedSlots(IEnumerable<Slot> rows)
+        {
+            var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
+            return (rows ?? Enumerable.Empty<Slot>())
+                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.whname, AppSettingsSiteContext.Default.SiteCode)).ToList();
+        }
+
         public List<SlotChuaLotInfo> FindSlotsContainingLot(string lotNo)
         {
-            if (string.IsNullOrWhiteSpace(lotNo))
-                return new List<SlotChuaLotInfo>();
-
-            return _repository.GetSlotsChuaLot(lotNo);
+            if (string.IsNullOrWhiteSpace(lotNo)) return new List<SlotChuaLotInfo>();
+            var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
+            return (_repository.GetSlotsChuaLot(lotNo) ?? new List<SlotChuaLotInfo>())
+                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.WarehouseName, AppSettingsSiteContext.Default.SiteCode)).ToList();
         }
         public int GetSlotId(
             string warehouseName,
             string rackName,
             int slotNumber)
         {
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", warehouseName);
             if (string.IsNullOrWhiteSpace(warehouseName))
-                throw new ArgumentException(
-                    "Tên kho không được rỗng.");
+                throw new ArgumentException("Tên kho không được rỗng.");
 
             if (string.IsNullOrWhiteSpace(rackName))
                 throw new ArgumentException(
@@ -55,14 +85,15 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
         public int GetSlotIdFromString(string slotText)
         {
-            if (!SlotParser.TryParse(slotText, out string wh, out string rack, out int slotNo, out _))
-                return -1;
+            if (!SlotParser.TryParse(slotText, out string wh, out string rack, out int slotNo, out _)) return -1;
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", wh);
             return _repository.GetSlotId(wh, rack, slotNo);
         }
         public SlotInfo GetSlotInfoFromString(string slotText)
         {
             if (!SlotParser.TryParse(slotText, out string wh, out string rack, out int slotNo, out int capacity))
                 throw new ArgumentException($"Chuỗi Slot không hợp lệ: '{slotText}'");
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", wh);
 
             int slotId = _repository.GetSlotId(wh, rack, slotNo);
 
@@ -78,17 +109,18 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
         public int GetCapacity(int slotId)
         {
-            if (slotId <= 0)
-                return 0;
-
+            if (slotId <= 0) return 0;
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(slotId));
             return _repository.GetCapacity(slotId);
         }
         public int GetQuantityWithLock(int slotId)
         {
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(slotId));
             return _repository.GetQuantityWithLock(slotId);
         }
         public int GetQuantity(int slotId)
         {
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(slotId));
             return _repository.GetQuantity(slotId);
         }
         public bool UpdateSlotInfo(
@@ -97,6 +129,9 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             DateTime importDate,
             int quantity)
         {
+            if (!SlotParser.TryParse(selectedSlot, out string warehouse, out string rack, out int number, out _))
+                throw new ArgumentException("Chuỗi Slot không hợp lệ.");
+            DemandWarehouse("WAREHOUSE.STOCK_ADJUST", "CONFIRM", warehouse);
             int slotId =
                 GetSlotIdFromString(selectedSlot);
 
@@ -116,6 +151,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             DateTime importDate,
             int quantity)
         {
+            DemandWarehouse("WAREHOUSE.STOCK_ADJUST", "CONFIRM", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 return false;
 
@@ -147,6 +183,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
          int slotId,
          List<LotInfo> lots)
         {
+            DemandWarehouse("WAREHOUSE.RECEIPT", "CONFIRM", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException(
                     "SlotId không hợp lệ.",
@@ -174,11 +211,19 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
                 quantity);
         }
         // Kho/Services/SlotService.cs — implement
-        public SlotLotInfo GetLotsBySlotLotId(int slotLotId) => _repository.GetSlotLotById(slotLotId);
+        public SlotLotInfo GetLotsBySlotLotId(int slotLotId)
+        {
+            var row = _repository.GetSlotLotById(slotLotId);
+            if (row != null) DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(row.SlotVatLyId));
+            return row;
+        }
 
         // SlotService.DecreaseSlotLotQuantity — sửa lại, dùng UpdateHeader đã có
         public void DecreaseSlotLotQuantity(int slotLotId, int qty)
         {
+            var lotRow = _repository.GetSlotLotById(slotLotId);
+            if (lotRow == null) throw new InvalidOperationException("SlotLot không tồn tại.");
+            DemandWarehouse("QUALITY.RETURN", "CONFIRM", WarehouseForSlot(lotRow.SlotVatLyId));
             var current = _repository.GetSlotLotById(slotLotId);
             if (current == null)
                 throw new InvalidOperationException($"Không tìm thấy SlotLot Id={slotLotId}.");
@@ -224,6 +269,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             DateTime? importDate,
             byte phieuStatus = 0)
         {
+            DemandWarehouse("WAREHOUSE.RECEIPT", "CONFIRM", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException("SlotId không hợp lệ.", nameof(slotId));
 
@@ -236,6 +282,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
         public List<LotInfo> TakeLotFifo(int slotId, string lotNo, string itemCode, int quantity)
         {
+            DemandWarehouse("WAREHOUSE.STOCK_ADJUST", "CONFIRM", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException("SlotId không hợp lệ.", nameof(slotId));
 
@@ -246,6 +293,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
          int slotId,
          List<LotInfo> lots)
         {
+            DemandWarehouse("WAREHOUSE.STOCK_ADJUST", "ADMIN", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException(
                     "SlotId không hợp lệ.",
@@ -261,6 +309,8 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         string itemCode,
         DateTime? importDate)
         {
+            DemandWarehouse("WAREHOUSE.RECEIPT", "CONFIRM", WarehouseForSlot(slotId));
+            DemandWarehouse("WAREHOUSE.RECEIPT", "CONFIRM", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException(
                     "SlotId không hợp lệ.",
@@ -293,9 +343,8 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         }
         public List<LotInfo> GetLots(int slotId)
         {
-            if (slotId <= 0)
-                return new List<LotInfo>();
-
+            if (slotId <= 0) return new List<LotInfo>();
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(slotId));
             return _repository.GetLots(slotId);
         }
 
@@ -303,6 +352,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             int slotId,
             string lotNo)
         {
+            if (slotId > 0) DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(slotId));
             if (slotId <= 0 ||
                 string.IsNullOrWhiteSpace(lotNo))
                 return false;
@@ -312,15 +362,20 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
                 lotNo);
         }
         public List<SlotLotViewInfo> GetAllActiveSlotLots()
-       => _repository.GetAllActiveSlotLots();
+            => FilterScopedLots(_repository.GetAllActiveSlotLots());
 
         public bool SlotExists(int slotId)
-            => slotId > 0 && _repository.SlotExists(slotId);
+        {
+            if (slotId <= 0) return false;
+            DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(slotId));
+            return _repository.SlotExists(slotId);
+        }
 
         public List<Slot> GetAllSlots()
-            => _repository.GetAllSlots();
+            => FilterScopedSlots(_repository.GetAllSlots());
         public void ClearSlot(int slotId)
         {
+            DemandWarehouse("WAREHOUSE.STOCK_ADJUST", "DELETE", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 return;
 
@@ -376,6 +431,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         // SlotService — thêm
         public List<string> GetEmptySlots(string itemCode, int soLuongNhap)
         {
+            var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             if (string.IsNullOrWhiteSpace(itemCode) || soLuongNhap <= 0)
                 return new List<string>();
 
@@ -384,12 +440,11 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
             foreach (var slotText in candidates)
             {
-                // Không parse được thì giữ nguyên, tránh làm mất slot vì lỗi định dạng
+                // Không parse được thì loại bỏ: không thể xác thực warehouse scope.
                 if (!SlotParser.TryParse(slotText, out string wh, out string rack, out int slotNo, out int capacity))
-                {
-                    result.Add(slotText);
                     continue;
-                }
+                if (!session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", wh, AppSettingsSiteContext.Default.SiteCode))
+                    continue;
 
                 int slotId = _repository.GetSlotId(wh, rack, slotNo);
                 if (slotId <= 0) continue;
@@ -409,6 +464,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
         public string GetOrCreateVirtualSlotText(string warehouseName, string rackName, int capacity)
         {
+            DemandWarehouse("WAREHOUSE.STOCK_ADJUST", "ADMIN", warehouseName);
             if (string.IsNullOrWhiteSpace(warehouseName))
                 throw new ArgumentException("Tên kho không được rỗng.");
             if (string.IsNullOrWhiteSpace(rackName))
@@ -457,6 +513,8 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
         public void MoveLot(int fromSlotId, int toSlotId, string lotNo)
         {
+            DemandWarehouse("WAREHOUSE.MOVE", "CONFIRM", WarehouseForSlot(fromSlotId));
+            DemandWarehouse("WAREHOUSE.MOVE", "CONFIRM", WarehouseForSlot(toSlotId));
             if (fromSlotId <= 0)
                 throw new ArgumentException("SlotId nguồn không hợp lệ.", nameof(fromSlotId));
             if (toSlotId <= 0)
@@ -466,6 +524,19 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
             _repository.MoveLot(fromSlotId, toSlotId, lotNo);
         }
-        public DataTable GetOccupiedSlotsForLookup()=> _repository.GetOccupiedSlotsForLookup();
+        public DataTable GetOccupiedSlotsForLookup()
+        {
+            var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
+            var source = _repository.GetOccupiedSlotsForLookup();
+            if (source == null || !source.Columns.Contains("WhName")) return new DataTable();
+            var filtered = source.Clone();
+            foreach (DataRow row in source.Rows)
+            {
+                string warehouse = Convert.ToString(row["WhName"]);
+                if (session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", warehouse, AppSettingsSiteContext.Default.SiteCode))
+                    filtered.ImportRow(row);
+            }
+            return filtered;
+        }
     }
 }

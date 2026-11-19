@@ -2,6 +2,7 @@ using System;
 using PCTP.Modules.GiaoHangKhach.Contracts.Delivery;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Shared.Common;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.GiaoHangKhach.Services
 {
@@ -42,6 +43,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DeliveryStockCommandResult Execute(DeliveryStockCommand command)
         {
             if (command == null) throw new ArgumentNullException(nameof(command));
+            var session = AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _stock.SiteCode, _stock.SiteCode);
+            if (!string.Equals(command.PerformedBy, session.ActorCode, StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException("Người thực hiện trong lệnh giao hàng không khớp tài khoản đang đăng nhập.");
 
             // Fail closed before opening a transaction: no physical SlotLot -> not in this slice.
             foreach (var part in command.Parts)

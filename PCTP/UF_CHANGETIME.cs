@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PCTP.Infrastructure.Security;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -17,6 +18,7 @@ namespace PCTP
     {
         public UF_CHANGETIME()
         {
+            AuthorizationGuard.Demand("SYSTEM.TIME_CONFIG", "ADMIN");
             InitializeComponent();
 
         }

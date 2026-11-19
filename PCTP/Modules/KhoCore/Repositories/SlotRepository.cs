@@ -73,6 +73,20 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             return DbValueHelper.ToInt(result);
         }
 
+        public string GetWarehouseNameBySlotId(int slotId)
+        {
+            if (slotId <= 0) return null;
+            const string sql = @"
+SELECT TOP 1 w.Name
+FROM dbo.FVN_Slot s
+INNER JOIN dbo.FVN_Rack r ON r.SiteCode=s.SiteCode AND r.RackId=s.RackId
+INNER JOIN dbo.FVN_Warehouse w ON w.SiteCode=r.SiteCode AND w.WarehouseId=r.WarehouseId
+WHERE s.SiteCode=@site AND s.SlotId=@SlotId;";
+            object value = ExecuteScalar(sql, SiteParam(),
+                new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId });
+            return value == null || value == DBNull.Value ? null : Convert.ToString(value);
+        }
+
         // ============================================================
         // CAPACITY
         // ============================================================
@@ -972,6 +986,7 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
     FROM dbo.FVN_Slot s
     JOIN dbo.FVN_Rack r ON s.RackId = r.RackId
     JOIN dbo.FVN_Warehouse w ON r.WarehouseId = w.WarehouseId
-    WHERE s.IsOccupied = 1");
+    WHERE s.SiteCode=@site AND r.SiteCode=@site AND w.SiteCode=@site
+      AND s.IsOccupied = 1", SiteParam());
     }
 }

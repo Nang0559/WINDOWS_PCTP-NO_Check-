@@ -4,6 +4,8 @@ using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Models;
 using PCTP.YMN;
+using PCTP.Infrastructure.Security;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -21,17 +23,20 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private readonly ITableOrderRepository _tableOrderRepo;
         private readonly IEventBus _bus;
         private readonly CustomerConfig _cfg;
+        private readonly IStockMovementService _stockMovement;
 
         public PhieuYmvnService(
             IPhieuRepository phieuRepo,
             ITableOrderRepository tableOrderRepo,
             IEventBus bus,
-            CustomerConfig cfg)
+            CustomerConfig cfg,
+            IStockMovementService stockMovement = null)
         {
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
             _tableOrderRepo = tableOrderRepo ?? throw new ArgumentNullException(nameof(tableOrderRepo));
             _bus = bus ?? throw new ArgumentNullException(nameof(bus));
             _cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
+            _stockMovement = stockMovement;
         }
 
         public void CapNhapKho(
@@ -40,6 +45,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string nhaMay,
             DataTable donHang)
         {
+            DemandShippingSite("CONFIRM");
             if (donHang == null || donHang.Rows.Count == 0)
                 return;
 
@@ -122,6 +128,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void HoanThanh(bool isLoaiSP = false)
         {
+            DemandShippingSite("APPROVE");
             // MP and SP are distinct YMVN table families. Resolve both names
             // from the customer configuration; never silently fall back to MP.
             string tmpTable = isLoaiSP ? _cfg.Delivery.TmpTableSP : _cfg.Delivery.TmpTable;
@@ -158,16 +165,23 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         }
 
         public List<string> GetDanhSachGio(string ngayXuatMDY)
-            => _tableOrderRepo.GetDanhSachGioYMVN(ngayXuatMDY).ToList();
+        {
+            DemandShippingSite("VIEW");
+            return _tableOrderRepo.GetDanhSachGioYMVN(ngayXuatMDY).ToList();
+        }
 
         public void UploadMilkrunSP(DataTable donHang, string ngayGiao)
-            => _tableOrderRepo.UploadMilkrunSP(donHang, ngayGiao);
+        {
+            DemandShippingSite("CREATE");
+            _tableOrderRepo.UploadMilkrunSP(donHang, ngayGiao);
+        }
 
         public void SyncPhieuTuBangRiengChoDocQR(
             DataTable donHang,
             string ngayGiao,
             List<string> checkedGios = null)
         {
+            DemandShippingSite("EDIT");
             if (donHang == null || donHang.Rows.Count == 0)
                 return;
 
@@ -257,5 +271,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             return dt;
         }
+        private void DemandShippingSite(string action)
+        {
+            if (_stockMovement == null)
+                throw new InvalidOperationException("Thiếu IStockMovementService để xác định SiteCode và kiểm tra phạm vi giao hàng.");
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", action,
+                "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
+        }
+
     }
 }

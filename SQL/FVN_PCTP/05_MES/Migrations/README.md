@@ -39,7 +39,7 @@ Run one file at a time, in order:
 | 027 | 027_IFS_WarehouseSyncAndEntityStatus.sql | Add IFS WAREHOUSE staging/apply, 800-character description and warehouse batch counts |
 | 028 | 028_IFS_SupplierAndCanonicalComponentLot.sql | IFS supplier master sync, five-character canonical item identity allocation and component LOT builder |
 | 029 | 029_FVN_InternalItemAndSupplierIdentity.sql | FVN-owned ItemId5 and SupplierId5 identity masters with internal IDENTITY keys and stable base-36 tokens |
-| 030 | 030_CanonicalItemIdentityInIfsApply.sql | Makes MES.FVN_ItemIdentity the only ItemId5 allocator used by IFS apply; dbo.FVN_PartIdentity remains compatibility-only |
+| 030 | 030_CanonicalItemIdentityInIfsApply.sql | Makes MES.FVN_ItemIdentity the only ItemId5 allocator used by IFS apply; dbo.FVN_PartIdentity remains compatibility-only |\n| 031 | 031_MES_ComponentPurchaseOrderReleaseAndLabels.sql | MES-owned component PO and component LOT release |\n| 032 | 032_MES_ComponentLotCanonicalReceiptPosting.sql | Component LOT receipt through canonical MES stock ledger |\n| 033 | 033_MES_ShiftPlanningBomDemandAndPartToWip.sql | Shift production plan, IFS BOM demand and PART-to-WIP issue |\n| 034 | 034_MES_ProductionExecutionRoutingAndComponentTrace.sql | Routing, production LOT execution, direct/WIP transfer and actual component genealogy |\n| 035 | 035_MES_PerUnitProcessLabels.sql | Unique per-product labels reserved and printed at each operation |\n| 036 | 036_MES_ProductionLifecycleWorkflow.sql | Shared workflow transitions for plan/order/operation, state projection, guards, audit and timeline |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -189,3 +189,182 @@ The compatibility procedure `dbo.usp_FVN_PartIdentity_AllocateItemId5` delegates
 ## Migration 030 — Canonical ItemId5 allocation
 
 Run `030_CanonicalItemIdentityInIfsApply.sql` after migration 029. Migration 028 originally embedded a second allocator in the IFS apply procedure and wrote new item tokens directly into `dbo.FVN_PartIdentity`. Migration 029 introduced the authoritative `MES.FVN_ItemIdentity` master, but the old IFS apply block must also be replaced to prevent two allocation authorities. Migration 030 patches `IFS.usp_ApplySyncBatch` so it delegates missing item tokens to `MES.usp_FVN_AllocateItemId5`. The old `dbo.FVN_PartIdentity` remains only as a compatibility projection for legacy readers; its trigger rejects changes to already-issued tokens. No IDENTITY columns are added to every IFS, BOM, inventory, or transaction table: the internal identity keys live only in the two dedicated identity masters.
+
+
+## Migration 031 — MES-owned component purchase orders and LOT release
+
+Run `031_MES_ComponentPurchaseOrderReleaseAndLabels.sql` after migration 030. Component purchase orders and their statuses are owned entirely by MES_PCTP; no IFS purchase-order status is read or required. IFS is referenced only as the read-only Site/Part/Supplier master source. Excel import creates/updates MES-owned DRAFT orders; validation moves an order to VALIDATED. Only the MES release procedure issues a stable component LOT per order line and a persistent `FVN1|<LOTNO>` QR payload. Releasing an already released order is idempotent. Reprinting records an audit row and returns the exact original LOT and QR payload; it never allocates a new LOT. Receipt processing must consume this issued LOT and post stock through the established MES stock-movement contract; this migration does not directly update inventory balance or claim to implement the WinForms Excel/scan UI.
+
+
+## Migration 032 — Component LOT receiving
+
+Run `032_MES_ComponentLotCanonicalReceiptPosting.sql` after 031. It links each MES-issued component QR LOT to `MES.FVN_MaterialLot` at release time (initially BLOCKED), then posts every accepted receiving quantity through `dbo.usp_FVN_PCTP_PostStockMovement`. Partial receipts are supported across multiple receipt documents; the receipt-line idempotency key prevents duplicate posting. The procedure requires an active `dbo.FVN_SlotMesLocation` mapping for the selected Site/Slot. It does not write inventory balances directly. Use `MES.usp_FVN_ComponentReceipt_Post` for the receiving transaction.
+
+
+## Migration 033 — Production shifts, BOM demand and PART-to-WIP issue
+
+Run `033_MES_ShiftPlanningBomDemandAndPartToWip.sql` after migration 032. Configure each active Site's shift codes in `MES.FVN_ProductionShift` and map physical Slots to exactly one inventory area using `dbo.FVN_InventoryAreaSlot` (`PART` or `WIP`). Upload rows carry Site, PlanNo, production date, shift, line, product, quantity and UOM; each upload batch is committed atomically. Demand generation reads the synchronized IFS BOM header/alternative/component snapshots, rejects missing or ambiguous effective alternatives, and calculates net requirements against unreserved PART-area on-hand. It does not use unverified cost-bucket staging. Component issue posts a single MES `MOVE` transaction from PART/AVAILABLE to WIP/WIP through the existing PCTP stock adapter; the stock ledger and balances remain the sole quantity authority.
+
+
+## Production shift setup
+
+Migration 033 intentionally does not assume a universal shift calendar. Configure the real Site-specific shifts before importing a plan, for example:
+
+```sql
+INSERT MES.FVN_ProductionShift(SiteCode,ShiftCode,ShiftName,StartTime,EndTime,CrossesMidnight)
+VALUES(N'<SITE>',N'<SHIFT_CODE>',N'<SHIFT_NAME>','07:00','15:00',0);
+```
+
+Use the actual times and codes approved by production; overnight shifts set `CrossesMidnight=1`. Map each physical slot to exactly one inventory area after checking its MES location mapping:
+
+```sql
+INSERT dbo.FVN_InventoryAreaSlot(SiteCode,SlotId,AreaCode,CreatedBy)
+VALUES(N'<SITE>',<SLOT_ID>,'PART',N'<USER>');
+-- Configure a separate destination slot as WIP:
+INSERT dbo.FVN_InventoryAreaSlot(SiteCode,SlotId,AreaCode,CreatedBy)
+VALUES(N'<SITE>',<WIP_SLOT_ID>,'WIP',N'<USER>');
+```
+
+Do not assign one slot to both areas. Shift setup and PART/WIP area assignment are explicit configuration, not inferred from slot or warehouse names.
+
+
+## Migration 034 — production execution and component genealogy
+
+Run `034_MES_ProductionExecutionRoutingAndComponentTrace.sql` after 033.
+It extends the existing MES production-order/material and genealogy structures;
+it does not create a second stock ledger. Production output LOTs are canonical
+`MES.FVN_MaterialLot` records created through
+`MES.usp_FVN_BuildProductionLotNo`.
+
+Before releasing production orders, configure:
+- `MES.FVN_ProductionPartPolicy`: each internally produced (SiteCode, PartNo)
+  must be explicitly classified as `WIP` (manufactured subassembly) or `FG`
+  (finished product). A component with this policy is `MAKE`; a component
+  without it is treated as purchased `BUY`. MAKE demand reads available stock
+  from the configured WIP/FG area and is never issued from PART.
+  The policy is checked when a production LOT is created.
+- `MES.FVN_ProductionLotCodeMap`: map the plan's production line code to the
+  three-character LOT line code and four-character department code.
+- `MES.FVN_ProductionRouting` and `MES.FVN_ProductionRoutingStep`: configure
+  the effective operation sequence and `DIRECT` / `VIA_WIP` transfer mode.
+  Exactly one final step must have `IsFinalOutput=1`; all earlier steps must
+  have `IsFinalOutput=0`. The selected routing revision is snapshotted on
+  the production order so later route edits do not rewrite an active order.
+- Map WIP/FG physical Slots in `dbo.FVN_InventoryAreaSlot` and
+  `dbo.FVN_SlotMesLocation`. Migration 034 adds the `FG` area.
+
+`DIRECT` records the same production LOT handoff without a stock posting.
+`VIA_WIP` posts output into the WIP Slot and issues that same LOT when the next
+operation starts. Actual component consumption posts an ISSUE to the canonical
+MES ledger and inserts the matching `MES.FVN_FinishedLotGenealogy` edge.
+This supports multi-level trace because a manufactured subassembly LOT is
+itself the finished LOT of its own production order and the component LOT of
+its parent order.
+
+The 20-character LOT builder has no order sequence component. Therefore only
+one production order can exist for the same Site + Part + ProductionDate +
+Shift + mapped Line + Department identity. The create procedure and filtered
+unique index reject a second order with the same LOT identity; combine the
+plan quantity into one plan line/order for that identity.
+
+The PCTP production receipt lookup is switched to
+`dbo.vFVN_MES_ProductionReceiptWorklist`; the production repository no longer
+reads Bravo `vNhapTP`. The existing PCTP receipt service still performs the
+physical receipt through the canonical stock movement service, posting
+`PROD_RECEIPT` with reference type `NHAP_TP` into MES AVAILABLE stock. The
+worklist derives received quantity from those MES ledger transactions and
+current balance. The worklist exposes only completed FG production orders;
+finished product is not pre-received into WIP, preventing double stock when
+PCTP receives it.
+
+Trace report: `MES.usp_FVN_ComponentLot_Trace` supports `UPSTREAM` (produced
+LOT to its component LOTs, recursively) and `DOWNSTREAM` (component LOT to
+all produced LOTs using it, recursively). Quantities shown are actual
+genealogy allocations, not BOM planned quantities.
+
+Important: migration 034 does not configure site-specific routes, part output
+policies, line/department mappings, or WIP/FG slots automatically. These are
+master-data decisions and must be configured before production execution.
+
+
+### Multi-level manufactured components
+
+The demand generator is level-aware for the immediate BOM: a child with an
+active `FVN_ProductionPartPolicy` is identified as MAKE and its availability
+is read from WIP/FG, while an unclassified child is BUY and reads PART.
+MAKE lines cannot be posted through PART → WIP; actual use must be recorded
+with `usp_FVN_ProductionMaterial_Consume`, which issues the exact child LOT
+and writes the parent-to-child genealogy edge.
+
+BOM demand generation remains one direct IFS Structure level per plan line.
+A plan line is released only when exactly one effective routing revision and
+one final operation are configured. The 20-character LOT format has no order
+sequence; a second order with the same product/date/shift/line/department key
+is rejected.
+A manufactured child must have its own plan line/order and its own operation
+execution before its LOT can be consumed by the parent. Automatic recursive
+subassembly order scheduling is not inferred because each child may require a
+different production line, shift, route and effective schedule. The genealogy
+report itself traverses all recorded levels recursively.
+
+## Migration 035 — per-product labels prepared at each process
+
+Run `035_MES_PerUnitProcessLabels.sql` after migration 034. Each physical
+product receives a unique MES `LabelCode`; the label references, but never
+replaces, the existing 20-character production LOT. Labels are reserved for
+the selected routing operation when production prepares that process. The
+target quantity is the cumulative number of labels required for that LOT and
+operation; increasing it creates only the additional labels.
+
+Use `MES.usp_FVN_ProductionLabel_Prepare` before printing,
+`MES.usp_FVN_ProductionLabel_Print` to authorize initial print/reprint,
+`MES.usp_FVN_ProductionLabel_Apply` after scanning the label at the process,
+and `MES.usp_FVN_ProductionLabel_Void` to cancel an unused label with a
+mandatory reason. Applied labels cannot be voided. Reprints return the same
+LabelCode and QR payload; they do not allocate another product identity.
+Label reservations and print/apply/void events are audited independently of
+actual production quantities and genealogy.
+
+The WinForms print surface generates a real QR Code from the exact `QrPayload`
+using the project's DevExpress barcode controls and prints one 75x50 mm label
+per product. The process scan accepts either the scanned LabelCode or the full
+`FVN2|LabelCode|LOT|OperationNo` QR payload.
+
+
+## Migration 036 — production lifecycle workflow
+
+Run `036_MES_ProductionLifecycleWorkflow.sql` after 035. It reuses
+`dbo.FVN_sys_WorkflowTransitions` and the existing
+`IWorkflowTransitionService`; it does not create a second workflow engine.
+The three process codes are:
+
+- `MES_PRODUCTION_PLAN`: 0 IMPORTED → 10 VALIDATED → 20 FIRM; cancellation = 900.
+- `MES_PRODUCTION_ORDER`: 0 CREATED → 10 RELEASED → 20 RUNNING ↔ 30 PAUSED
+  → 40 COMPLETED → 50 CLOSED; cancellation = 900.
+- `MES_PRODUCTION_OPERATION`: 0 WAITING → 10 PREPARING → 20 READY
+  → 30 IN_PROGRESS ↔ 40 PAUSED → 50 COMPLETED; cancellation before execution = 900.
+
+The plan/order projections are kept aligned with existing legacy status writers.
+Each production LOT gets an independent state row for every active routing step;
+therefore one order may have different operations in different states. The
+migration adds immutable transition history in
+`MES.FVN_ProductionWorkflowEvent` and process execution evidence in
+`MES.FVN_ProductionOperationEvent`. Query a plan/order/operation history with
+`MES.usp_FVN_ProductionWorkflow_Timeline`.
+
+The application boundary is:
+`IProductionWorkflowService` → `IWorkflowTransitionService` →
+`IProductionWorkflowRepository` → `MES.usp_FVN_ProductionWorkflow_Transition`.
+The SQL procedure rechecks configured transitions and business guards inside
+the state/audit transaction. Plan FIRM is blocked until every plan line has
+component demand. Order completion is blocked while any LOT has unfinished
+routing operations; close is blocked while reserved/printed labels remain.
+Operation READY requires prior operations complete and labels prepared.
+Actual operation execution remains the source of production quantities and
+automatically updates the operation workflow projection.
+
+This migration is additive and does not post stock, consume material, issue
+labels or receive finished goods. Those facts remain owned by the existing MES
+production, label and canonical inventory procedures. Apply in a test database
+first, then configure/verify the shared transition rows and exercise all three
+workflow levels before production use.

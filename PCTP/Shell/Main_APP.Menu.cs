@@ -17,8 +17,11 @@ using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Modules.KhoCore.UI;
 using PCTP.Modules.NhapKho.Repository;
+using PCTP.Modules.NhapKho.UI;
+using PCTP.Modules.MesPlanning.UI;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
+using PCTP.Security;
 
 namespace PCTP
 {
@@ -73,6 +76,10 @@ namespace PCTP
             _menuKho.Elements.Add(cmdRackControl);
 
             _menuKhoTonTP = CreateMenuItem("menuKhoTonTP", "Tồn kho thành phẩm", OpenTonKhoThanhPham);
+            _menuKho.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Nhận linh kiện về kho (QR)", OpenNhanLinhKien));
+            _menuKho.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
+            _menuKho.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
+            _menuKho.Elements.Add(CreateMenuItem("menuYeuCauXuatLinhKien", "Yêu cầu / Xuất linh kiện PART → WIP", OpenYeuCauXuatLinhKien));
             _menuKho.Elements.Add(_menuKhoTonTP);
 
             _menuKho.Elements.Add(CreateMenuItem(
@@ -91,6 +98,18 @@ namespace PCTP
                 "menuIfsMasterDataSync",
                 "Đồng bộ dữ liệu IFS → FVN_PCTP",
                 OpenIfsMasterDataSync));
+            accordionControlElement20.Elements.Add(CreateMenuItem(
+                "menuSecurityAdmin",
+                "Quản trị tài khoản & phân quyền",
+                OpenSecurityAdministration));
+            accordionControlElement20.Elements.Add(CreateMenuItem(
+                "menuChangePassword",
+                "Đổi mật khẩu đăng nhập",
+                OpenChangePassword));
+            accordionControlElement20.Elements.Add(CreateMenuItem(
+                "menuSignOut",
+                "Đăng xuất",
+                OpenSignOut));
 
             // ── 3. Xử lý LOT ───────────────────────────────────────────
             // Tách LOT là luồng nghiệp vụ; form tự chọn mẫu in Ghép LOT theo CustomerCode.
@@ -118,6 +137,10 @@ namespace PCTP
                 "menuBcTruyXuat",
                 "Truy xuất giao hàng (QR / LOT)",
                 (s, e) => OpenFromMenu(() => BaoCaoNavigator.OpenTraceability(this, null), "Truy xuất giao hàng")));
+            accordionControlElement28.Elements.Add(CreateMenuItem(
+                "menuBcTruyXuatLinhKien",
+                "Truy xuất linh kiện / LOT sản xuất",
+                OpenBaoCaoTruyXuatLinhKien));
             _menuBcLichSuKho = CreateMenuItem("menuBcLichSuKho", "Lịch sử kho / Tồn hiện tại", OpenBaoCaoLichSuKho);
             _menuBcLichSuQC = CreateMenuItem("menuBcLichSuQC", "Lịch sử QC / Inspection", OpenBaoCaoLichSuQC);
             accordionControlElement28.Elements.Add(_menuBcLichSuKho);
@@ -135,16 +158,157 @@ namespace PCTP
             mainAccordionGroup.Elements.Add(accordionControlElement20);   // Công Cụ
         }
 
-        private static AccordionControlElement CreateMenuItem(string name, string text, EventHandler onClick)
-        {
-            var item = new AccordionControlElement(ElementStyle.Item)
+        private static readonly Dictionary<string, string> MenuFunctionMap =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                Name = name,
-                Text = text
+                ["menuChuyenHangNoiBo"] = "WAREHOUSE.MOVE",
+                ["menuThuHoiHangNoiBo"] = "WAREHOUSE.MOVE",
+                ["menuKhoTonTP"] = "WAREHOUSE.STOCK_VIEW",
+                ["menuNhanLinhKien"] = "WAREHOUSE.RECEIPT",
+                ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
+                ["menuDieuHanhSanXuat"] = "MES.PRODUCTION_EXECUTION",
+                ["menuYeuCauXuatLinhKien"] = "MES.COMPONENT_ISSUE",
+                ["menuDieuChinhTonKhoLot"] = "WAREHOUSE.STOCK_ADJUST",
+                ["menuHangChoGiao"] = "SHIPPING.DISPATCH",
+                ["menuIfsMasterDataSync"] = "MASTERDATA.IFS_SYNC",
+                ["menuTachLot"] = "LOT.SPLIT",
+                ["menuGhepLotThuCong"] = "LOT.MERGE",
+                ["menuBcTruyXuat"] = "REPORT.TRACEABILITY",
+                ["menuBcTruyXuatLinhKien"] = "REPORT.TRACEABILITY",
+                ["menuBcLichSuKho"] = "REPORT.STOCK_HISTORY",
+                ["menuBcLichSuQC"] = "REPORT.QUALITY_HISTORY",
+                ["menuMesBomGraphic"] = "MES.BOM_VIEW",
+                ["E_NhapTP"] = "WAREHOUSE.RECEIPT",
+                ["accordionControlElement_QCDinhHuong"] = "QUALITY.RETURN",
+                ["accordionControlElement_QCXacNhanCuoi"] = "QUALITY.RETURN",
+                ["trahangngPD"] = "QUALITY.RETURN",
+                ["trahangndHVN"] = "QUALITY.RETURN",
+                ["accordionControlElement21"] = "SYSTEM.TIME_CONFIG",
+                ["accordionControlElement19"] = "LOT.MERGE",
+                ["accordionControlElement24"] = "SYSTEM.QR_READER_ADMIN",
+                ["accordionControlElement29"] = "SYSTEM.COMPARE_PART",
+                ["acrImageControl"] = "SYSTEM.IMAGE_CONTROL",
+                ["cmdRackControl"] = "WAREHOUSE.STOCK_VIEW",
+                ["accordionControlElement38"] = "SYSTEM.FIFO_CONFIG",
+                ["E_GHHVN_MP"] = "SHIPPING.DISPATCH",
+                ["E_GHHVN_SP"] = "SHIPPING.DISPATCH",
+                ["HTDelever"] = "SHIPPING.DISPATCH",
+                ["accordionControlElement36"] = "WAREHOUSE.STOCK_VIEW",
+                ["accordionControlElement37"] = "QUALITY.RETURN",
+                ["E_Tracuulotno"] = "REPORT.TRACEABILITY",
+                ["E_TKTK"] = "REPORT.STOCK_HISTORY"
             };
 
-            item.Click += onClick;
+        private AccordionControlElement CreateMenuItem(string name, string text, EventHandler onClick)
+        {
+            var item = new AccordionControlElement(ElementStyle.Item) { Name = name, Text = text };
+            string functionCode;
+            if (string.Equals(name, "menuSecurityAdmin", StringComparison.OrdinalIgnoreCase))
+            {
+                item.Visible = CanOpenSecurityAdministration();
+                item.Click += (s, e) =>
+                {
+                    if (!CanOpenSecurityAdministration())
+                    {
+                        XtraMessageBox.Show(this, "Bạn không có quyền quản trị tài khoản, vai trò hoặc nhật ký.",
+                            "PCTP - Phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    onClick?.Invoke(s, e);
+                };
+            }
+            else if (MenuFunctionMap.TryGetValue(name, out functionCode))
+            {
+                item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
+                item.Click += (s, e) =>
+                {
+                    var session = UserSession.Current;
+                    if (session == null || !session.HasPermission(functionCode, "VIEW"))
+                    {
+                        XtraMessageBox.Show(this, "Bạn không có quyền truy cập chức năng này.",
+                            "PCTP - Phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    onClick?.Invoke(s, e);
+                };
+            }
+            else item.Click += onClick;
             return item;
+        }
+
+        private void ApplyAuthorizationToNavigation()
+        {
+            foreach (AccordionControlElement root in accordionControl.Elements)
+                ApplyAuthorizationElement(root);
+        }
+
+        private void ApplyAuthorizationElement(AccordionControlElement item)
+        {
+            string functionCode;
+            if (string.Equals(item.Name, "menuSecurityAdmin", StringComparison.OrdinalIgnoreCase))
+                item.Visible = CanOpenSecurityAdministration();
+            else if (MenuFunctionMap.TryGetValue(item.Name ?? string.Empty, out functionCode))
+                item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
+
+            if (item.Elements.Count > 0)
+            {
+                foreach (AccordionControlElement child in item.Elements)
+                    ApplyAuthorizationElement(child);
+                if (string.Equals(item.Name, "menuMesBomGroup", StringComparison.OrdinalIgnoreCase))
+                    item.Visible = item.Elements.Cast<AccordionControlElement>().Any(child => child.Visible);
+            }
+        }
+
+        private bool CanOpenSecurityAdministration()
+        {
+            var session = UserSession.Current;
+            return session != null &&
+                (session.HasPermission("ADMIN.USER_MANAGEMENT", "VIEW") ||
+                 session.HasPermission("ADMIN.ROLE_MANAGEMENT", "VIEW") ||
+                 session.HasPermission("ADMIN.AUDIT", "VIEW"));
+        }
+
+        private void OpenSecurityAdministration(object sender, EventArgs e)
+        {
+            if (!CanOpenSecurityAdministration())
+            {
+                XtraMessageBox.Show(this, "Bạn không có quyền mở màn hình quản trị.",
+                    "PCTP - Phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this,
+                () => new FormSecurityAdministration()), "Quản trị tài khoản & phân quyền");
+        }
+
+        private void OpenChangePassword(object sender, EventArgs e)
+        {
+            using (var dialog = new ChangePasswordDialog(false))
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                try
+                {
+                    var auth = new AuthenticationService(new AuthenticationRepository());
+                    var current = UserSession.Current;
+                    auth.ChangePassword(current, dialog.CurrentPassword, dialog.NewPassword);
+                    UserSession.SignIn(auth.Authenticate(current.UserName, dialog.NewPassword));
+                    XtraMessageBox.Show(this, "Đã cập nhật mật khẩu.", "PCTP",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show(this, ex.Message, "Đổi mật khẩu",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+        }
+
+        private void OpenSignOut(object sender, EventArgs e)
+        {
+            if (XtraMessageBox.Show(this, "Bạn muốn đăng xuất khỏi PCTP?", "Đăng xuất",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            UserSession.SignOut();
+            Application.Restart();
+            Close();
         }
 
         /// <summary>Mở 1 màn hình từ menu; lỗi hiển thị thông báo thay vì làm sập Shell.</summary>
@@ -152,6 +316,10 @@ namespace PCTP
         {
             try
             {
+                string functionCode = ResolveFunctionCodeFromTitle(title);
+                if (!string.IsNullOrWhiteSpace(functionCode))
+                    (UserSession.Current ?? throw new UnauthorizedAccessException("Chưa đăng nhập."))
+                        .DemandPermission(functionCode, "VIEW");
                 open();
             }
             catch (Exception ex)
@@ -162,6 +330,27 @@ namespace PCTP
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
+        }
+
+        private static string ResolveFunctionCodeFromTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return null;
+            if (title.IndexOf("Điều hành sản xuất", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PRODUCTION_EXECUTION";
+            if (title.IndexOf("Upload kế hoạch", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PLAN_UPLOAD";
+            if (title.IndexOf("Nhận linh kiện", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.RECEIPT";
+            if (title.IndexOf("linh kiện", StringComparison.OrdinalIgnoreCase) >= 0 && title.IndexOf("Truy xuất", StringComparison.OrdinalIgnoreCase) < 0) return "MES.COMPONENT_ISSUE";
+            if (title.IndexOf("Tách LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "LOT.SPLIT";
+            if (title.IndexOf("Ghép LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "LOT.MERGE";
+            if (title.IndexOf("Truy xuất", StringComparison.OrdinalIgnoreCase) >= 0 || title.IndexOf("Tra cứu LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "REPORT.TRACEABILITY";
+            if (title.IndexOf("Lịch sử kho", StringComparison.OrdinalIgnoreCase) >= 0) return "REPORT.STOCK_HISTORY";
+            if (title.IndexOf("Lịch sử QC", StringComparison.OrdinalIgnoreCase) >= 0) return "REPORT.QUALITY_HISTORY";
+            if (title.IndexOf("điều chuyển", StringComparison.OrdinalIgnoreCase) >= 0 || title.IndexOf("thu hồi hàng", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.MOVE";
+            if (title.IndexOf("Tồn kho", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.STOCK_VIEW";
+            if (title.IndexOf("Điều chỉnh tồn", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.STOCK_ADJUST";
+            if (title.IndexOf("IFS", StringComparison.OrdinalIgnoreCase) >= 0) return "MASTERDATA.IFS_SYNC";
+            if (title.IndexOf("Hàng chờ giao", StringComparison.OrdinalIgnoreCase) >= 0) return "SHIPPING.DISPATCH";
+            if (title.IndexOf("Nhập kho", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.RECEIPT";
+            return null;
         }
 
         // ── Handlers ────────────────────────────────────────────────────
@@ -189,6 +378,18 @@ namespace PCTP
         private void OpenBaoCaoTongHop()
         {
             OpenFromMenu(() => BaoCaoNavigator.OpenMain(this), "Thống kê / báo cáo");
+        }
+
+        private void OpenDieuHanhSanXuat(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this,
+                () => new FormDieuHanhSanXuat()), "Điều hành sản xuất MES");
+        }
+
+        private void OpenBaoCaoTruyXuatLinhKien(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this,
+                () => new FormTruyXuatLinhKien()), "Truy xuất linh kiện / LOT sản xuất");
         }
 
         private void OpenBaoCaoLichSuKho(object sender, EventArgs e)

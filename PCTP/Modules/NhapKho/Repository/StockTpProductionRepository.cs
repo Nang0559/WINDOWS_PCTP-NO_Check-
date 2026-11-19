@@ -23,6 +23,18 @@ namespace PCTP.Modules.NhapKho.Repository
         {
         }
 
+        public bool IsFinishedGoodsSlot(string siteCode, int slotId)
+        {
+            if (string.IsNullOrWhiteSpace(siteCode) || slotId <= 0) return false;
+            DataTable dt = LoadData(@"
+SELECT COUNT(1) AS SlotCount
+FROM dbo.FVN_InventoryAreaSlot
+WHERE SiteCode=@SiteCode AND SlotId=@SlotId AND AreaCode='FG' AND IsActive=1;",
+                new SqlParameter("@SiteCode", SqlDbType.NVarChar, 30) { Value = siteCode.Trim() },
+                new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId });
+            return dt != null && dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["SlotCount"]) == 1;
+        }
+
         // ============================================================
         // PHIẾU SẢN XUẤT
         // ============================================================
@@ -48,8 +60,9 @@ SELECT
     SL_DA_TRA,
     LY_DO_TRA,
     TON_KHO_TP,
-    KET_THUC_LOT
-FROM vNhapTP
+    KET_THUC_LOT,
+    SiteCode
+FROM dbo.vFVN_MES_ProductionReceiptWorklist
 WHERE FIND = @Find;";
 
             DataTable dt = LoadData(
@@ -90,8 +103,9 @@ SELECT
     SL_DA_TRA,
     LY_DO_TRA,
     TON_KHO_TP,
-    KET_THUC_LOT
-FROM vNhapTP
+    KET_THUC_LOT,
+    SiteCode
+FROM dbo.vFVN_MES_ProductionReceiptWorklist
 ORDER BY NGAY_SAN_XUAT DESC;";
 
             DataTable dt = LoadData(sql);
@@ -131,8 +145,9 @@ SELECT
     SL_DA_TRA,
     LY_DO_TRA,
     TON_KHO_TP,
-    KET_THUC_LOT
-FROM vNhapTP
+    KET_THUC_LOT,
+    SiteCode
+FROM dbo.vFVN_MES_ProductionReceiptWorklist
 WHERE NGAY_SAN_XUAT >=
       DATEADD(
           DAY,
@@ -174,8 +189,8 @@ ORDER BY
 SELECT
     STT, FIND, LOT_NO, MODEL, TEN_SAN_PHAM, MA_SAN_PHAM, CA_SAN_XUAT,
     NGAY_SAN_XUAT, SL_DA_SAN_XUAT, SL_DA_NHAP, SL_DA_TRA, LY_DO_TRA,
-    TON_KHO_TP, KET_THUC_LOT
-FROM vNhapTP" + ReceivingWorklistFilter.WhereClause + @"
+    TON_KHO_TP, KET_THUC_LOT, SiteCode
+FROM dbo.vFVN_MES_ProductionReceiptWorklist" + ReceivingWorklistFilter.WhereClause + @"
 ORDER BY NGAY_SAN_XUAT DESC, STT DESC;";
 
             DataTable dt = LoadData(sql);
@@ -341,8 +356,9 @@ SELECT
     SL_DA_TRA,
     LY_DO_TRA,
     TON_KHO_TP,
-    KET_THUC_LOT
-FROM vNhapTP
+    KET_THUC_LOT,
+    SiteCode
+FROM dbo.vFVN_MES_ProductionReceiptWorklist
 WHERE LOT_NO LIKE @Prefix + '%'
   AND MA_SAN_PHAM = @MaHang;";
 
@@ -402,6 +418,7 @@ WHERE LOT_NO LIKE @Prefix + '%'
             return new PhieuNhapInfo
             {
                 Stt = DbValueHelper.SafeInt(r["STT"]),
+                SiteCode = DbValueHelper.SafeString(r["SiteCode"]),
 
                 Find = DbValueHelper.SafeString(
                     r["FIND"]),

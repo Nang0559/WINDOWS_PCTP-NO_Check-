@@ -7,3 +7,26 @@ All physical tables use the `FVN_` prefix after migration 013. IFS master and so
 `IFS` schema by migration 012 and are physically named `IFS.FVN_*`. The physical tables `MES.FVN_BomRevision` and
 `MES.FVN_BomComponent` remain the controlled, operational BOM/approval model;
 they are not overwritten by raw IFS synchronization.
+
+## Migration 035 — per-product labels prepared at each process
+
+Run `035_MES_PerUnitProcessLabels.sql` after migration 034. Each physical
+product receives a unique MES `LabelCode`; the label references, but never
+replaces, the existing 20-character production LOT. Labels are reserved for
+the selected routing operation when production prepares that process. The
+target quantity is the cumulative number of labels required for that LOT and
+operation; increasing it creates only the additional labels.
+
+Use `MES.usp_FVN_ProductionLabel_Prepare` before printing,
+`MES.usp_FVN_ProductionLabel_Print` to authorize initial print/reprint,
+`MES.usp_FVN_ProductionLabel_Apply` after scanning the label at the process,
+and `MES.usp_FVN_ProductionLabel_Void` to cancel an unused label with a
+mandatory reason. Applied labels cannot be voided. Reprints return the same
+LabelCode and QR payload; they do not allocate another product identity.
+Label reservations and print/apply/void events are audited independently of
+actual production quantities and genealogy.
+
+The WinForms print surface generates a real QR Code from the exact `QrPayload`
+using the project's DevExpress barcode controls and prints one 75x50 mm label
+per product. The process scan accepts either the scanned LabelCode or the full
+`FVN2|LabelCode|LOT|OperationNo` QR payload.

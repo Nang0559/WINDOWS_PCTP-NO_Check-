@@ -1,6 +1,7 @@
 ﻿
 using System;
 using System.Windows.Forms;
+using PCTP.Security;
 
 using PCTP.Shell.Help;
 
@@ -38,7 +39,15 @@ namespace PCTP
             //Application.Run(new MENU_AUTO_QRCODE());
             //Application.Run(new PGH_XK());
             //Application.Run(new MainStock());
+            var authentication = new AuthenticationService(new AuthenticationRepository());
+            using (var login = new LoginForm(authentication))
+            {
+                if (login.ShowDialog() != DialogResult.OK)
+                    return;
+            }
+
             Application.Run(new Main_APP());
+            UserSession.SignOut();
             // Application.Run(new UF_QRCodeERR());
             //Application.Run(new QRCODE_HVN.ComaprePart.ComaparePart());
             //Application.Run(new IFS_PUR_OR.FRM_PURCHASE_ODERScs());

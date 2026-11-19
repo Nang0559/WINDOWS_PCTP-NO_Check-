@@ -3,6 +3,8 @@ using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
+using PCTP.Infrastructure.Security;
+using PCTP.Modules.GiaoHangKhach;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,16 +15,20 @@ namespace PCTP.Modules.KhoCore.Services
     public sealed class InspectionService : IInspectionService
     {
         private readonly IInspectionLogRepository _logRepo;
+        private readonly ISiteContext _site;
 
-        public InspectionService(IInspectionLogRepository logRepo)
-            => _logRepo = logRepo
-                ?? throw new ArgumentNullException(nameof(logRepo));
+        public InspectionService(IInspectionLogRepository logRepo, ISiteContext site = null)
+        {
+            _logRepo = logRepo ?? throw new ArgumentNullException(nameof(logRepo));
+            _site = site ?? AppSettingsSiteContext.Default;
+        }
 
         public InspectionResult Inspect(
             QRCodeInfo temTong,
             InspectionConfig config,
             IReadOnlyList<string> rawBoxScans)
         {
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "VIEW", "SITE", _site.SiteCode, _site.SiteCode);
             var details = new List<BoxScanResult>();
 
             foreach (string raw in rawBoxScans)
@@ -90,11 +96,13 @@ namespace PCTP.Modules.KhoCore.Services
             IReadOnlyList<BoxScanResult> results,
             string finalResult)
         {
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _site.SiteCode, _site.SiteCode);
             foreach (var box in results)
             {
                 _logRepo.SaveLog(new InspectionLogEntry
                 {
                     InspectionCode = inspectionCode,
+                    SiteCode = _site.SiteCode,
                     ItemCode = temTong.ItemCode,
                     TemCodeTong = temTong.LotNo,
                     LotNoTong = temTong.LotNo,

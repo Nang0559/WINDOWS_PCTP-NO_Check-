@@ -16,6 +16,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 {
     public interface IQTChungService
     {
+        string SiteCode { get; }
         /// <summary>
         /// Tạo phiếu xử lý bất thường cho MỘT dòng phiếu trả (mọi nguồn).
         /// Nguon/Slot/Lot/Mã hàng/Số lượng/Bộ phận được lấy từ dòng + header phiếu trả.

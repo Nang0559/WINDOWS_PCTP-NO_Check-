@@ -2,6 +2,7 @@ using System;
 using PCTP.Common;
 using PCTP.Shared.Common;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.KhoCore.Application.Services
 {
@@ -17,6 +18,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
         private readonly IStockSlotRepository _slots;
         private readonly IStockReceivingRepository _receiving;
         private readonly IUnitOfWork _uow;
+
+        public string SiteCode => _balance.SiteCode;
 
         public StockMovementService(IStockBalanceRepository balance, IStockSlotRepository slots)
             : this(balance, slots, null, null) { }
@@ -41,16 +44,22 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
         public StockMovementResult Receive(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
+            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.RECEIPT", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             return AddToSlot(request, true);
         }
 
         public StockMovementResult Reserve(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
+            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_VIEW", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             return StockMovementResult.Fail("Reserve chưa được triển khai cho storage hiện tại.");
         }
 
         public StockMovementResult Pick(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             if (request != null &&
                 request.SlotId.HasValue &&
                 request.SlotId.Value > 0 &&
@@ -84,11 +93,15 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
         public StockMovementResult Export(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             return RemoveFromSlot(request, true);
         }
 
         public StockMovementResult Move(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
+            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.MOVE", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             if (request == null)
                 return StockMovementResult.Fail("Stock movement request không được null.");
             if (!request.SlotLotId.HasValue || request.SlotLotId.Value <= 0)
@@ -189,11 +202,15 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
         public StockMovementResult ReturnFromRework(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             return AddToSlot(request, true);
         }
 
         public StockMovementResult Correct(StockMovementRequest request)
         {
+            if (request != null) request.PerformedBy = AuthorizationGuard.ActorCode;
+            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_ADJUST", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             if (request == null)
                 return StockMovementResult.Fail("Stock movement request không được null.");
             if (string.IsNullOrWhiteSpace(request.LotNo))
@@ -264,6 +281,7 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
         public StockMovementResult RestorePicked(int slotId, StockSlotLot lot)
         {
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CANCEL", "SITE", _balance.SiteCode, _balance.SiteCode);
             if (slotId <= 0) return StockMovementResult.Fail("SlotId không hợp lệ khi hoàn hàng chờ giao.");
             if (lot == null || lot.Quantity <= 0 || string.IsNullOrWhiteSpace(lot.LotNo) || string.IsNullOrWhiteSpace(lot.ItemCode))
                 return StockMovementResult.Fail("Chi tiết LOT hoàn trả không hợp lệ.");

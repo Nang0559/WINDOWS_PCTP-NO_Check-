@@ -10,6 +10,7 @@ using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using PCTP.Shared.Lookup;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.MesBom
 {
@@ -47,6 +48,7 @@ namespace PCTP.Modules.MesBom
 
         public FormProductStructureGraphic()
         {
+            AuthorizationGuard.Demand("MES.BOM_VIEW", "VIEW");
             _connectionString = ConfigurationManager.ConnectionStrings["FVN_PCTP"]?.ConnectionString;
             Text = "Product Structure Graphic - MES / FVN_PCTP";
             WindowState = FormWindowState.Maximized;
@@ -355,6 +357,7 @@ ORDER BY c.LineSequence,c.LineItemNo;";
         private void ExportBom(bool currentOnly)
         {
             string site = _partSiteLookup.SelectedSiteCode;
+            AuthorizationGuard.DemandActionAndScope("MES.BOM_VIEW", "EXPORT", "SITE", site, site);
             if (string.IsNullOrWhiteSpace(_connectionString))
             {
                 MessageBox.Show("Thiếu connection string FVN_PCTP.", "Export BOM", MessageBoxButtons.OK, MessageBoxIcon.Warning);

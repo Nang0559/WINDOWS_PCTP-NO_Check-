@@ -98,7 +98,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
                 var phieuSvc = new PhieuService(
                     phieuRepo, ifsRepo, bus, gioRepo, tenBan, cfg, isMayBanQR,
-                    tableOrderRepo, phieugiaDBRepo, orderSourceFactory, rowCategoryFilter);
+                    tableOrderRepo, phieugiaDBRepo, orderSourceFactory, rowCategoryFilter,
+                    stockMovement: stockMovement);
 
                 var lotSvc = new PhieuLotService(phieuRepo, phieuRepo, bus);
                 var hangThieuCaNgaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb, orderSourceFactory);

@@ -8,6 +8,7 @@ namespace PCTP.Modules.XuatKho.Interfaces
 {
     public interface IStockExportService
     {
+        string SiteCode { get; }
         /// <summary>
         /// TRƯỜNG HỢP 1 — BƯỚC 1: hàng có Slot riêng → pick vào "chờ giao".
         /// Trừ Slot/SlotLot, ghi StockHistory=CHO_GIAO, tạo dòng HangChoGiao.

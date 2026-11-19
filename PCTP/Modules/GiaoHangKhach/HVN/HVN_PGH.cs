@@ -1,3 +1,4 @@
+using PCTP.Infrastructure.Security;
 using DevExpress.XtraBars.Docking2010;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
@@ -21,6 +22,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 {
     public partial class HVN_PGH : XtraForm, IHVNView
     {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
         public int SttDangSuaSl => _sttSuaSl;
         private readonly HVN_Presenter _presenter;
         private DataTable _addressTable = new DataTable();

@@ -11,6 +11,7 @@ using PCTP.Shared.Common;
 using PCTP.Shared.Enums;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
+using PCTP.Infrastructure.Security;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +27,8 @@ namespace PCTP.Modules.XuatKho.Services
         private readonly IStockExportValidationService _validationService;
         private readonly IStockMovementService _stockMovement;
         private readonly IStockExportHistoryRepository _exportHistoryRepo;
+
+        public string SiteCode => _stockMovement == null ? null : _stockMovement.SiteCode;
 
         public StockExportService(
             IUnitOfWork uow,
@@ -47,6 +50,8 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult PickToChoGiao(StockExportRequest request)
         {
+            if (request != null) request.NguoiThucHien = AuthorizationGuard.ActorCode;
+            DemandShippingSite("CONFIRM");
             // ItemCode thiếu: lấy từ chính SlotLot của LOT cần pick (nguồn sự thật), không bắt người dùng/caller đoán.
             if (request != null && string.IsNullOrWhiteSpace(request.ItemCode) &&
                 request.SlotId.HasValue && request.SlotId.Value > 0 && !string.IsNullOrWhiteSpace(request.LotNo))
@@ -164,11 +169,14 @@ namespace PCTP.Modules.XuatKho.Services
 
         public List<HangChoGiao> GetPendingChoGiao()
         {
+            DemandShippingSite("VIEW");
             return _choGiaoRepo.GetPending();
         }
 
         public StockExportResult CancelChoGiao(int hangChoGiaoId, string nguoiThucHien)
         {
+            nguoiThucHien = AuthorizationGuard.ActorCode;
+            DemandShippingSite("CANCEL");
             if (_stockMovement == null)
                 return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
 
@@ -238,6 +246,8 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult ConfirmGiaoHangTuChoGiao(int hangChoGiaoId, string nguoiGiao)
         {
+            nguoiGiao = AuthorizationGuard.ActorCode;
+            DemandShippingSite("CONFIRM");
             if (_stockMovement == null)
                 return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
 
@@ -319,6 +329,8 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult XuatTrucTiep(StockExportRequest request)
         {
+            if (request != null) request.NguoiThucHien = AuthorizationGuard.ActorCode;
+            DemandShippingSite("CONFIRM");
             var validation = _validationService.ValidateXuatTrucTiep(request);
             if (!validation.IsValid)
                 return MapFail(validation);
@@ -444,6 +456,7 @@ namespace PCTP.Modules.XuatKho.Services
             string itemCode = null,
             string actionType = "EXPORT")
         {
+            DemandShippingSite("CONFIRM");
             if (_stockMovement == null)
                 throw new InvalidOperationException("Chưa cấu hình IStockMovementService cho XuatKho.");
             if (string.IsNullOrWhiteSpace(itemCode))
@@ -512,5 +525,13 @@ namespace PCTP.Modules.XuatKho.Services
                 default: return StockExportResult.Fail(v.Message);
             }
         }
+        private void DemandShippingSite(string action)
+        {
+            if (_stockMovement == null)
+                throw new InvalidOperationException("Thiếu IStockMovementService để xác định SiteCode và kiểm tra phạm vi giao hàng.");
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", action,
+                "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
+        }
+
     }
 }

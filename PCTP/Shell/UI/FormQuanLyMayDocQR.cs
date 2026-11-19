@@ -1,3 +1,4 @@
+using PCTP.Infrastructure.Security;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
@@ -32,6 +33,7 @@ namespace PCTP.Shell.UI
 
         public FormQuanLyMayDocQR()
         {
+            AuthorizationGuard.Demand("SYSTEM.QR_READER_ADMIN", "VIEW");
             var sql = new SQLPROVIDER();
             _locks = new CustomerQrLockService(sql);
             _machines = new QrReaderMachineService(sql);
@@ -206,6 +208,7 @@ namespace PCTP.Shell.UI
 
         private void TakeOver()
         {
+            AuthorizationGuard.Demand("SYSTEM.QR_READER_ADMIN", "CONFIRM");
             DataRow row = FocusedLock();
             if (row == null) return;
             string customerNo = Convert.ToString(row["CustomerNo"]);
@@ -247,6 +250,7 @@ namespace PCTP.Shell.UI
 
         private void ForceRelease()
         {
+            AuthorizationGuard.Demand("SYSTEM.QR_READER_ADMIN", "ADMIN");
             DataRow row = FocusedLock();
             if (row == null) return;
             string customerNo = Convert.ToString(row["CustomerNo"]);
@@ -277,6 +281,7 @@ namespace PCTP.Shell.UI
 
         private void AddRegistration(bool thisMachine)
         {
+            AuthorizationGuard.Demand("SYSTEM.QR_READER_ADMIN", "ADMIN");
             string ip = string.Empty;
             if (thisMachine)
             {
@@ -313,6 +318,7 @@ namespace PCTP.Shell.UI
 
         private void ToggleRegistration()
         {
+            AuthorizationGuard.Demand("SYSTEM.QR_READER_ADMIN", "ADMIN");
             DataRow row = FocusedReg();
             if (row == null) return;
             bool active = Convert.ToBoolean(row["IsActive"]);
@@ -331,6 +337,7 @@ namespace PCTP.Shell.UI
 
         private void RemoveRegistration()
         {
+            AuthorizationGuard.Demand("SYSTEM.QR_READER_ADMIN", "ADMIN");
             DataRow row = FocusedReg();
             if (row == null) return;
             string scope = Convert.ToString(row["CustomerNo"]);

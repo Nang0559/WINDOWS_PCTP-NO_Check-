@@ -4,6 +4,7 @@ using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
+using PCTP.Infrastructure.Security;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,9 +39,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// </summary>
         public bool TruKhoAoTheoLot(string lotNo, int slXuat, bool manageTransaction = true)
         {
-            if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo)) return false;
             if (_stockMovement == null)
                 throw new InvalidOperationException("Chưa cấu hình IStockMovementService cho BulkStockAdjustService.");
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
+            if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo)) return false;
 
             try
             {

@@ -3,6 +3,9 @@ using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoVatLy.Repository;
 using PCTP.Shared.Common;
+using PCTP.Infrastructure.Security;
+using PCTP.Modules.GiaoHangKhach;
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -29,6 +32,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         string warehouseName, string rackName,
         int rowCount, int columnCount, int slotCapacity)
         {
+            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_ADJUST", "ADMIN", "WAREHOUSE", warehouseName, AppSettingsSiteContext.Default.SiteCode);
             if (string.IsNullOrWhiteSpace(warehouseName))
                 throw new ArgumentException("Tên kho không được rỗng.");
             if (string.IsNullOrWhiteSpace(rackName))
@@ -61,23 +65,33 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         }
         public List<Warehouse> GetAll()
         {
-            return _repository.GetAllWarehouses();
+            var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
+            return (_repository.GetAllWarehouses() ?? new List<Warehouse>())
+                .Where(w => w != null && session.HasDataScope(
+                    "WAREHOUSE.STOCK_VIEW", "WAREHOUSE", w.Name, AppSettingsSiteContext.Default.SiteCode)).ToList();
         }
         public bool Exists(string warehouseName)
         {
+            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_VIEW", "VIEW", "WAREHOUSE", warehouseName, null);
             if (string.IsNullOrWhiteSpace(warehouseName)) return false;
             return _repository.Exists(warehouseName);
         }
         public List<string> GetRackNames(string warehouseName)
         {
+            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_VIEW", "VIEW", "WAREHOUSE", warehouseName, null);
             if (string.IsNullOrWhiteSpace(warehouseName))
                 return new List<string>();
             return _repository.GetRackNames(warehouseName);
         }
-        public DataTable GetActiveItemList() => _repository.GetActiveItemList();
+        public DataTable GetActiveItemList()
+        {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
+            return _repository.GetActiveItemList();
+        }
 
         public string GetProductName(string itemCode)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             if (string.IsNullOrWhiteSpace(itemCode))
                 return string.Empty;
 
@@ -85,6 +99,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         }
         public InspectionConfig GetInspectionConfig(string itemCode)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             if (string.IsNullOrWhiteSpace(itemCode)) return null;
             return _repository.GetInspectionConfig(itemCode);
         }

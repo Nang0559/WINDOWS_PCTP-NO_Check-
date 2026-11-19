@@ -3,6 +3,8 @@ using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Models;
+using PCTP.Infrastructure.Security;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -14,16 +16,22 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private readonly IPhieuRepository _phieuRepo;
         private readonly IEventBus _bus;
         private readonly CustomerConfig _cfg;
+        private readonly IStockMovementService _stockMovement;
 
-        public PhieuKhoService(IPhieuRepository phieuRepo, IEventBus bus, CustomerConfig cfg)
+        public PhieuKhoService(IPhieuRepository phieuRepo, IEventBus bus, CustomerConfig cfg, IStockMovementService stockMovement = null)
         {
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
             _bus = bus ?? throw new ArgumentNullException(nameof(bus));
             _cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
+            _stockMovement = stockMovement;
         }
 
         public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa, bool isSP, bool isGiaoDb = false)
         {
+            if (_stockMovement == null)
+                throw new InvalidOperationException("Thiếu IStockMovementService để xác định SiteCode và kiểm tra phạm vi giao hàng.");
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM",
+                "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
             // Giao DB có bộ bảng riêng (TMPPHIEUGIAOHANGDB + DOCQRCODE_DB) và đi nhánh
             // MP (không phải SP). Không có config Giao DB -> giữ nguyên bảng MP/SP.
             bool useGiaoDbTables = isGiaoDb && _cfg.Delivery.CoConfigGiaoDB;

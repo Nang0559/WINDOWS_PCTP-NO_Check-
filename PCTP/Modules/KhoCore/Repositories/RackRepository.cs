@@ -15,11 +15,37 @@ namespace PCTP.Modules.KhoVatLy.Repositories
     public sealed class RackRepository
       : SqlRepositoryBase, IRackRepository
     {
+        private readonly ISiteContext _site;
+
         public RackRepository(
             PhieuSqlExecutor db,
-            IUnitOfWork uow)
+            IUnitOfWork uow,
+            ISiteContext site = null)
             : base(db, uow)
         {
+            _site = site ?? AppSettingsSiteContext.Default;
+        }
+
+        private SqlParameter SiteParam()
+            => new SqlParameter("@site", SqlDbType.NVarChar, 30) { Value = _site.SiteCode };
+
+        public string GetWarehouseNameById(int warehouseId)
+        {
+            object value = ExecuteScalar(
+                "SELECT TOP 1 Name FROM dbo.FVN_Warehouse WHERE SiteCode=@site AND WarehouseId=@Id;",
+                SiteParam(), new SqlParameter("@Id", SqlDbType.Int) { Value = warehouseId });
+            return value == null || value == DBNull.Value ? null : Convert.ToString(value);
+        }
+
+        public string GetWarehouseNameByRackId(int rackId)
+        {
+            object value = ExecuteScalar(@"
+SELECT TOP 1 w.Name
+FROM dbo.FVN_Rack r
+JOIN dbo.FVN_Warehouse w ON w.SiteCode=r.SiteCode AND w.WarehouseId=r.WarehouseId
+WHERE r.SiteCode=@site AND r.RackId=@Id;",
+                SiteParam(), new SqlParameter("@Id", SqlDbType.Int) { Value = rackId });
+            return value == null || value == DBNull.Value ? null : Convert.ToString(value);
         }
         public int Create(int warehouseId, string rackName, int rowCount, int columnCount)
         {
@@ -29,11 +55,12 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 throw new ArgumentException("Tên Rack không được rỗng.", nameof(rackName));
 
             const string sql = @"
-        INSERT INTO dbo.FVN_Rack (WarehouseId, RackName, RackRowCount, ColumnCount)
+        INSERT INTO dbo.FVN_Rack (SiteCode, WarehouseId, RackName, RackRowCount, ColumnCount)
         OUTPUT INSERTED.RackId
-        VALUES (@WarehouseId, @RackName, @RowCount, @ColumnCount);";
+        VALUES (@site, @WarehouseId, @RackName, @RowCount, @ColumnCount);";
 
             object result = ExecuteScalar(sql,
+                SiteParam(),
                 new SqlParameter("@WarehouseId", SqlDbType.Int) { Value = warehouseId },
                 new SqlParameter("@RackName", SqlDbType.NVarChar, 100) { Value = rackName.Trim() },
                 new SqlParameter("@RowCount", SqlDbType.Int) { Value = rowCount },
@@ -62,10 +89,11 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 RackRowCount,
                 ColumnCount
             FROM dbo.FVN_Rack
-            WHERE RackId = @RackId;";
+            WHERE SiteCode=@site AND RackId = @RackId;";
 
             DataTable dt = LoadData(
                 sql,
+                SiteParam(),
                 new SqlParameter("@RackId", SqlDbType.Int)
                 {
                     Value = rackId
@@ -94,11 +122,12 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 RackRowCount,
                 ColumnCount
             FROM dbo.FVN_Rack
-            WHERE WarehouseId = @WarehouseId
+            WHERE SiteCode=@site AND WarehouseId = @WarehouseId
             ORDER BY RackId;";
 
             DataTable dt = LoadData(
                 sql,
+                SiteParam(),
                 new SqlParameter("@WarehouseId", SqlDbType.Int)
                 {
                     Value = warehouseId
@@ -137,6 +166,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             const string sql = @"
             INSERT INTO dbo.FVN_Rack
             (
+                SiteCode,
                 WarehouseId,
                 RackName,
                 RackRowCount,
@@ -145,6 +175,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             OUTPUT INSERTED.RackId
             VALUES
             (
+                @site,
                 @WarehouseId,
                 @RackName,
                 @RackRowCount,
@@ -153,6 +184,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
 
             object result = ExecuteScalar(
                 sql,
+                SiteParam(),
                 new SqlParameter("@WarehouseId", SqlDbType.Int)
                 {
                     Value = warehouseId
@@ -199,10 +231,11 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 RackName = @RackName,
                 RackRowCount = @RackRowCount,
                 ColumnCount = @ColumnCount
-            WHERE RackId = @RackId;";
+            WHERE SiteCode=@site AND RackId = @RackId;";
 
             int affected = ExecuteNonQuery(
                 sql,
+                SiteParam(),
                 new SqlParameter("@RackId", SqlDbType.Int)
                 {
                     Value = rack.RackId
@@ -242,10 +275,11 @@ namespace PCTP.Modules.KhoVatLy.Repositories
 
             const string sql = @"
             DELETE FROM dbo.FVN_Rack
-            WHERE RackId = @RackId;";
+            WHERE SiteCode=@site AND RackId = @RackId;";
 
             ExecuteNonQuery(
                 sql,
+                SiteParam(),
                 new SqlParameter("@RackId", SqlDbType.Int)
                 {
                     Value = rackId
@@ -267,11 +301,12 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             const string sql = @"
             SELECT COUNT(1)
             FROM dbo.FVN_Rack
-            WHERE WarehouseId = @WarehouseId
+            WHERE SiteCode=@site AND WarehouseId = @WarehouseId
               AND RackName = @RackName;";
 
             object result = ExecuteScalar(
                 sql,
+                SiteParam(),
                 new SqlParameter("@WarehouseId", SqlDbType.Int)
                 {
                     Value = warehouseId
@@ -302,12 +337,13 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             SELECT TOP (1)
                 RackId
             FROM dbo.FVN_Rack
-            WHERE WarehouseId = @WarehouseId
+            WHERE SiteCode=@site AND WarehouseId = @WarehouseId
               AND RackName = @RackName
             ORDER BY RackId;";
 
             object result = ExecuteScalar(
                 sql,
+                SiteParam(),
                 new SqlParameter("@WarehouseId", SqlDbType.Int)
                 {
                     Value = warehouseId
@@ -349,10 +385,11 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             SET
                 RackRowCount = @RackRowCount,
                 ColumnCount = @ColumnCount
-            WHERE RackId = @RackId;";
+            WHERE SiteCode=@site AND RackId = @RackId;";
 
             ExecuteNonQuery(
                 sql,
+                SiteParam(),
                 new SqlParameter("@RackId", SqlDbType.Int)
                 {
                     Value = rackId
@@ -372,10 +409,11 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 throw new ArgumentException("RackId không hợp lệ.", nameof(rackId));
 
             const string sql = @"
-        INSERT INTO dbo.FVN_Slot (RackId, SlotNumber, IsOccupied, Capacity, Quantity)
-        VALUES (@RackId, @SlotNumber, 0, @Capacity, 0);";
+        INSERT INTO dbo.FVN_Slot (SiteCode, RackId, SlotNumber, IsOccupied, Capacity, Quantity)
+        VALUES (@site, @RackId, @SlotNumber, 0, @Capacity, 0);";
 
             ExecuteNonQuery(sql,
+                SiteParam(),
                 new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId },
                 new SqlParameter("@SlotNumber", SqlDbType.Int) { Value = slotNumber },
                 new SqlParameter("@Capacity", SqlDbType.Int) { Value = capacity });
@@ -392,12 +430,13 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             sl.TemCode AS LotTemCode, sl.QrData, sl.ImportDate AS LotImportDate,
             sl.NgaySX, sl.SoPhieuTong, sl.MaPhieu
         FROM dbo.FVN_Warehouse w
-        INNER JOIN dbo.FVN_Rack r ON r.WarehouseId = w.WarehouseId
-        LEFT JOIN dbo.FVN_Slot s ON s.RackId = r.RackId
-        LEFT JOIN dbo.FVN_SlotLot sl ON sl.SlotId = s.SlotId AND sl.PhieuStatus <> 3
+        INNER JOIN dbo.FVN_Rack r ON r.SiteCode=w.SiteCode AND r.WarehouseId = w.WarehouseId
+        LEFT JOIN dbo.FVN_Slot s ON s.SiteCode=r.SiteCode AND s.RackId = r.RackId
+        LEFT JOIN dbo.FVN_SlotLot sl ON sl.SiteCode=s.SiteCode AND sl.SlotId = s.SlotId AND sl.PhieuStatus <> 3
+        WHERE w.SiteCode=@site AND r.SiteCode=@site
         ORDER BY w.Name, r.RackName, s.SlotNumber, sl.LotNo";
 
-            DataTable dt = LoadData(sql);
+            DataTable dt = LoadData(sql, SiteParam());
 
             var rackDict = new Dictionary<string, RackRenderInfo>();
             var slotDict = new Dictionary<int, Slot>();
@@ -492,10 +531,10 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             // Xoá Slot rồi Rack phải atomic: không để lại Rack mất Slot (hoặc ngược lại).
             InTransaction(() =>
             {
-                ExecuteNonQuery("DELETE FROM dbo.FVN_Slot WHERE RackId = @RackId",
-                    new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
-                ExecuteNonQuery("DELETE FROM dbo.FVN_Rack WHERE RackId = @RackId",
-                    new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
+                ExecuteNonQuery("DELETE FROM dbo.FVN_Slot WHERE SiteCode=@site AND RackId = @RackId",
+                    SiteParam(), new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
+                ExecuteNonQuery("DELETE FROM dbo.FVN_Rack WHERE SiteCode=@site AND RackId = @RackId",
+                    SiteParam(), new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
             });
         }
         // ============================================================
