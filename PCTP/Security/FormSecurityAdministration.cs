@@ -96,16 +96,18 @@ namespace PCTP.Security
 
         private void RefreshAll()
         {
-            bool userAdmin = _session.HasPermission("ADMIN.USER_MANAGEMENT", "ADMIN");
-            bool roleAdmin = _session.HasPermission("ADMIN.ROLE_MANAGEMENT", "ADMIN");
+            bool userView = _session.HasPermission("ADMIN.USER_MANAGEMENT", "VIEW");
+            bool roleView = _session.HasPermission("ADMIN.ROLE_MANAGEMENT", "VIEW");
             bool auditView = _session.HasPermission("ADMIN.AUDIT", "VIEW");
-            _tabs.TabPages[0].Enabled = userAdmin;
-            _tabs.TabPages[1].Enabled = roleAdmin;
+            _tabs.TabPages[0].Enabled = userView;
+            _tabs.TabPages[1].Enabled = roleView;
             _tabs.TabPages[2].Enabled = auditView;
-            if (!userAdmin) _tabs.TabPages[0].Text += " (không có quyền)";
-            if (!roleAdmin) _tabs.TabPages[1].Text += " (không có quyền)";
+            if (!userView) _tabs.TabPages[0].Text += " (không có quyền)";
+            if (!roleView) _tabs.TabPages[1].Text += " (không có quyền)";
             if (!auditView) _tabs.TabPages[2].Text += " (không có quyền)";
-            LoadUsers(); LoadRoles(); LoadAudit();
+            if (userView) LoadUsers();
+            if (roleView) LoadRoles();
+            if (auditView) LoadAudit();
         }
 
         private void LoadUsers() { _users.DataSource = _repository.ListUsers(); }
