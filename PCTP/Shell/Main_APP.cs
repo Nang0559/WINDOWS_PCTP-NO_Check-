@@ -341,7 +341,7 @@ namespace PCTP
             {
                 if (!allowed)
                     throw new UnauthorizedAccessException("Tài khoản không có quyền mở chức năng " + caption + ".");
-                FormWindowManager.ShowSingle(this, createForm);
+                FormWindowManager.ShowSingle(this, createForm, name);
             };
             group.Elements.Add(item);
         }
