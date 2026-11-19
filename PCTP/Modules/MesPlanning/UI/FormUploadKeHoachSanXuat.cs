@@ -20,7 +20,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly TextEdit _file = new TextEdit();
         private readonly ComboBoxEdit _sheet = new ComboBoxEdit();
         private readonly GridControl _grid = new GridControl();
-        private readonly GridView _gridView = new GridView(_grid);
+        private readonly GridView _gridView;
         private readonly LabelControl _status = new LabelControl();
         private readonly SimpleButton _choose = new SimpleButton();
         private readonly SimpleButton _preview = new SimpleButton();
@@ -34,6 +34,7 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             AuthorizationGuard.Demand("MES.PLAN_UPLOAD", "VIEW");
             _service = service ?? throw new ArgumentNullException(nameof(service));
+            _gridView = new GridView(_grid);
             Text = "Upload kế hoạch sản xuất theo ca";
             StartPosition = FormStartPosition.CenterParent;
             Size = new Size(1180, 720);
