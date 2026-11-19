@@ -15,6 +15,8 @@ namespace PCTP.Security
         private readonly DataGridView _permissions = Grid();
         private readonly DataGridView _scopes = Grid();
         private readonly DataGridView _audit = Grid();
+        private readonly DataGridView _userOverrides = Grid();
+        private readonly DataGridView _userScopes = Grid();
 
         public FormSecurityAdministration()
         {
@@ -47,7 +49,9 @@ namespace PCTP.Security
             var userTab = new TabPage("Tài khoản");
             var roleTab = new TabPage("Vai trò và quyền");
             var auditTab = new TabPage("Nhật ký bảo mật");
-            _tabs.TabPages.Add(userTab); _tabs.TabPages.Add(roleTab); _tabs.TabPages.Add(auditTab);
+            var accountAccessTab = new TabPage("Quyền riêng tài khoản");
+            _tabs.TabPages.Add(userTab); _tabs.TabPages.Add(roleTab);
+            _tabs.TabPages.Add(accountAccessTab); _tabs.TabPages.Add(auditTab);
             Controls.Add(_tabs);
 
             var userPanel = new Panel { Dock = DockStyle.Fill };
@@ -77,15 +81,43 @@ namespace PCTP.Security
             rolePanel.Panel1.Controls.Add(roleTop); rolePanel.Panel2.Controls.Add(roleDetails);
             roleTab.Controls.Add(rolePanel);
 
+            var accountAccessPanel = new Panel { Dock = DockStyle.Fill };
+            var accountAccessTabs = new TabControl { Dock = DockStyle.Fill };
+            var accountPermissionTab = new TabPage("Quyền chức năng riêng");
+            var accountScopeTab = new TabPage("Phạm vi dữ liệu riêng");
+            var accountPermissionPanel = new Panel { Dock = DockStyle.Fill };
+            var accountPermissionButtons = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 38 };
+            AddButton(accountPermissionButtons, "Làm mới", (s,e) => LoadUserOverrides());
+            accountPermissionPanel.Controls.Add(_userOverrides);
+            accountPermissionPanel.Controls.Add(accountPermissionButtons);
+            var accountScopePanel = new Panel { Dock = DockStyle.Fill };
+            var accountScopeButtons = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 38 };
+            AddButton(accountScopeButtons, "Thêm phạm vi", AddUserScope);
+            AddButton(accountScopeButtons, "Xóa phạm vi", DeleteUserScope);
+            AddButton(accountScopeButtons, "Làm mới", (s,e) => LoadUserScopes());
+            accountScopePanel.Controls.Add(_userScopes);
+            accountScopePanel.Controls.Add(accountScopeButtons);
+            accountPermissionTab.Controls.Add(accountPermissionPanel);
+            accountScopeTab.Controls.Add(accountScopePanel);
+            accountAccessTabs.TabPages.Add(accountPermissionTab);
+            accountAccessTabs.TabPages.Add(accountScopeTab);
+            accountAccessPanel.Controls.Add(accountAccessTabs);
+            accountAccessTab.Controls.Add(accountAccessPanel);
+
             var auditButtons = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40 };
             AddButton(auditButtons, "Làm mới nhật ký", (s,e) => LoadAudit());
             auditTab.Controls.Add(_audit); auditTab.Controls.Add(auditButtons);
 
             _roles.SelectionChanged += (s,e) => { LoadPermissions(); LoadScopes(); };
+            _users.SelectionChanged += (s,e) => { LoadUserOverrides(); LoadUserScopes(); };
             _permissions.CurrentCellDirtyStateChanged += (s,e) => {
                 if (_permissions.IsCurrentCellDirty) _permissions.CommitEdit(DataGridViewDataErrorContexts.Commit);
             };
             _permissions.CellValueChanged += PermissionChanged;
+            _userOverrides.CurrentCellDirtyStateChanged += (s,e) => {
+                if (_userOverrides.IsCurrentCellDirty) _userOverrides.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            };
+            _userOverrides.CellValueChanged += UserOverrideChanged;
         }
 
         private static void AddButton(Control parent, string text, EventHandler handler)
@@ -101,11 +133,13 @@ namespace PCTP.Security
             bool auditView = _session.HasPermission("ADMIN.AUDIT", "VIEW");
             _tabs.TabPages[0].Enabled = userView;
             _tabs.TabPages[1].Enabled = roleView;
-            _tabs.TabPages[2].Enabled = auditView;
+            _tabs.TabPages[2].Enabled = userView;
+            _tabs.TabPages[3].Enabled = auditView;
             if (!userView) _tabs.TabPages[0].Text += " (không có quyền)";
             if (!roleView) _tabs.TabPages[1].Text += " (không có quyền)";
-            if (!auditView) _tabs.TabPages[2].Text += " (không có quyền)";
-            if (userView) LoadUsers();
+            if (!userView) _tabs.TabPages[2].Text += " (không có quyền)";
+            if (!auditView) _tabs.TabPages[3].Text += " (không có quyền)";
+            if (userView) { LoadUsers(); LoadUserOverrides(); LoadUserScopes(); }
             if (roleView) LoadRoles();
             if (auditView) LoadAudit();
         }
@@ -144,6 +178,96 @@ namespace PCTP.Security
             _scopes.DataSource = roleId.HasValue ? _repository.ListRoleScopes(roleId.Value) : null;
         }
         private void LoadAudit() { _audit.DataSource = _repository.ListAudit(); }
+
+        private void LoadUserOverrides()
+        {
+            var userId = SelectedUserId();
+            if (!userId.HasValue) { _userOverrides.DataSource = null; return; }
+            var table = _repository.ListUserOverrides(userId.Value);
+            if (!table.Columns.Contains("OverrideChoice")) table.Columns.Add("OverrideChoice", typeof(string));
+            foreach (DataRow row in table.Rows)
+                row["OverrideChoice"] = row["Effect"] == DBNull.Value ? "INHERIT" : Convert.ToString(row["Effect"]);
+            _userOverrides.DataSource = table;
+            if (_userOverrides.Columns["Effect"] != null) _userOverrides.Columns["Effect"].Visible = false;
+            if (_userOverrides.Columns["OverrideChoice"] != null)
+            {
+                var column = new DataGridViewComboBoxColumn {
+                    Name = "OverrideChoice", HeaderText = "Quyền riêng (kế thừa / cho phép / từ chối)",
+                    DataPropertyName = "OverrideChoice", DataSource = new[] { "INHERIT", "ALLOW", "DENY" },
+                    FlatStyle = FlatStyle.Flat, Width = 220
+                };
+                int index = _userOverrides.Columns["OverrideChoice"].Index;
+                _userOverrides.Columns.Remove("OverrideChoice");
+                _userOverrides.Columns.Insert(index, column);
+            }
+            foreach (DataGridViewColumn column in _userOverrides.Columns)
+                column.ReadOnly = column.Name != "OverrideChoice" ||
+                    !_session.HasPermission("ADMIN.USER_MANAGEMENT", "ADMIN");
+        }
+
+        private void LoadUserScopes()
+        {
+            var userId = SelectedUserId();
+            _userScopes.DataSource = userId.HasValue ? _repository.ListUserScopes(userId.Value) : null;
+            _userScopes.ReadOnly = true;
+        }
+
+        private void UserOverrideChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0 ||
+                _userOverrides.Columns[e.ColumnIndex].Name != "OverrideChoice") return;
+            var userId = SelectedUserId();
+            if (!userId.HasValue) return;
+            var row = _userOverrides.Rows[e.RowIndex];
+            try
+            {
+                string choice = Convert.ToString(row.Cells["OverrideChoice"].Value);
+                string effect = choice == "INHERIT" ? null : choice;
+                _repository.SaveUserOverride(userId.Value,
+                    Convert.ToString(row.Cells["FunctionCode"].Value),
+                    Convert.ToString(row.Cells["ActionCode"].Value), effect, _session.UserId);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                LoadUserOverrides();
+            }
+        }
+
+        private void AddUserScope(object sender, EventArgs e)
+        {
+            var userId = SelectedUserId();
+            if (!userId.HasValue || !_session.HasPermission("ADMIN.USER_MANAGEMENT", "ADMIN")) return;
+            using (var dialog = new RoleScopeDialog())
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                try
+                {
+                    _repository.SaveUserScope(userId.Value, dialog.FunctionCode, dialog.ScopeType,
+                        dialog.ScopeValue, dialog.SiteCode, dialog.IsAllowed, _session.UserId);
+                    LoadUserScopes();
+                }
+                catch (Exception ex) { MessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            }
+        }
+
+        private void DeleteUserScope(object sender, EventArgs e)
+        {
+            var userId = SelectedUserId();
+            if (!userId.HasValue || _userScopes.CurrentRow == null ||
+                !_session.HasPermission("ADMIN.USER_MANAGEMENT", "ADMIN")) return;
+            if (MessageBox.Show(this, "Xóa phạm vi dữ liệu riêng đang chọn?", Text,
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            try
+            {
+                long scopeId = Convert.ToInt64(_userScopes.CurrentRow.Cells["UserDataScopeId"].Value);
+                _repository.DeleteUserScope(scopeId, _session.UserId);
+                LoadUserScopes();
+            }
+            catch (Exception ex) { MessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        }
+
+
 
         private void PermissionChanged(object sender, DataGridViewCellEventArgs e)
         {
