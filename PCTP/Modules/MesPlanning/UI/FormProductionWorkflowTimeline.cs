@@ -29,7 +29,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void BuildUi()
         {
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12), ColumnCount = 1, RowCount = 3 };
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12), ColumnCount = 1, RowCount = 2 };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
