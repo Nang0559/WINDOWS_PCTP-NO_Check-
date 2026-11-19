@@ -29,6 +29,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         /// trong một transaction. Trả về danh sách Id phiếu xử lý vừa tạo.
         /// </summary>
         List<int> TaoPhieuXuLyTuPhieuTra(int phieuTraHangId, string model, string phanLoaiXuLy, string nguoiThucHien);
+
         ScanResult QCDinhHuong(int phieuXuLyId, HuongXuLyBatThuong huong, string nguoiThucHien);
         AffectedLotTraceResult TruyVetLOT(int phieuXuLyId, string nguoiThucHien);
         List<LotInfo> GetLotsCanRework(int phieuXuLyId);

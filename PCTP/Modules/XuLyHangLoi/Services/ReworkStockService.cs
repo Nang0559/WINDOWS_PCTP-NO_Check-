@@ -161,7 +161,34 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 throw new InvalidOperationException(
                     string.Format("Phiếu xử lý Id={0} chưa có MaSanPham.", phieuXuLyId));
 
-            return GetLotsCanRework(phieu.MaSanPham, phieu.SoLoLoi);
+            // Phiếu header + detail: gộp các LOT có trong dòng detail (một phiếu có thể nhiều LOT).
+            // Phiếu cũ chưa có detail dùng LOT ở header.
+            var lotsTrongPhieu = (phieu.Items ?? new List<PhieuXuLyBatThuongCT>())
+                .Where(x => x != null && !string.IsNullOrWhiteSpace(x.LotNguon))
+                .Select(x => x.LotNguon.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (lotsTrongPhieu.Count <= 1)
+                return GetLotsCanRework(phieu.MaSanPham, lotsTrongPhieu.Count == 1 ? lotsTrongPhieu[0] : phieu.SoLoLoi);
+
+            var gop = new List<LotInfo>();
+            var daCo = new HashSet<int>();
+            foreach (var lot in lotsTrongPhieu)
+            {
+                foreach (var info in GetLotsCanRework(phieu.MaSanPham, lot) ?? new List<LotInfo>())
+                {
+                    if (info != null && daCo.Add(info.SlotId))
+                        gop.Add(info);
+                }
+            }
+
+            return gop
+                .OrderBy(x => x.WarehouseName)
+                .ThenBy(x => x.RackName)
+                .ThenBy(x => x.SlotNumber)
+                .ThenBy(x => x.LotNo)
+                .ToList();
         }
 
         public ScanResult XuatKhoRework(

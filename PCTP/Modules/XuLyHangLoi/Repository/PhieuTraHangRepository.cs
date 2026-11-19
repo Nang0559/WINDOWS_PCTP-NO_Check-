@@ -671,7 +671,8 @@ SELECT h.Id AS PhieuTraHangId, h.SoPhieu, h.Nguon,
        px.Id AS PhieuXuLyId
 FROM FVN_PhieuTraHangCT ct
 JOIN FVN_PhieuTraHang h ON h.Id = ct.PhieuTraHangId
-LEFT JOIN FVN_PhieuXuLyBatThuong px ON px.PhieuTraHangCTId = ct.Id
+LEFT JOIN FVN_PhieuXuLyBatThuongCT pxct ON pxct.PhieuTraHangCTId = ct.Id
+LEFT JOIN FVN_PhieuXuLyBatThuong px ON px.Id = pxct.PhieuXuLyBatThuongId
 WHERE LTRIM(RTRIM(ct.MaHang)) = @MaHang
   AND LTRIM(RTRIM(ct.LotNo)) = @LotNo
   AND h.Status NOT IN (@TraHoanTat, @TraLoi)
@@ -765,8 +766,8 @@ WHERE ct.PhieuTraHangId = @PhieuTraHangId
   AND NOT EXISTS
   (
       SELECT 1
-      FROM FVN_PhieuXuLyBatThuong p
-      WHERE p.PhieuTraHangCTId = ct.Id
+      FROM FVN_PhieuXuLyBatThuongCT d
+      WHERE d.PhieuTraHangCTId = ct.Id
   )
 ORDER BY ct.Id;";
 

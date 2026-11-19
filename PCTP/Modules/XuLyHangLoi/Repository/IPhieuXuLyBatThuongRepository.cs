@@ -75,6 +75,17 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
             int phieuTraHangCTId,
             PhieuXuLyBatThuong p);
 
+        /// <summary>
+        /// Tạo MỘT phiếu xử lý bất thường (header) cùng các dòng detail (Slot/LOT) trong
+        /// cùng transaction và liên kết từng PhieuTraHangCT với phiếu vừa tạo.
+        /// </summary>
+        int InsertWithItems(
+            PhieuXuLyBatThuong p,
+            IList<PhieuXuLyBatThuongCT> items);
+
+        /// <summary>Các dòng detail (Slot/LOT) của một phiếu xử lý bất thường.</summary>
+        List<PhieuXuLyBatThuongCT> GetItems(int phieuXuLyId);
+
 
         // ============================================================
         // TRA CỨU

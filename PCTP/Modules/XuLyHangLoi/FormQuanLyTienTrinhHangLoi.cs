@@ -478,7 +478,13 @@ namespace PCTP.Modules.XuLyHangLoi
                 row.QTStatus = _phieuXuLyRepo.GetStatus(p.Id) ?? p.Status;
                 row.SoLuongLoi = p.SoLuongLoi;
                 row.MaSanPham = p.MaSanPham;
-                row.SoLo = p.SoLo;
+                // Phiếu nhiều LOT: header để trống SoLo → lấy danh sách LOT từ dòng detail.
+                row.SoLo = !string.IsNullOrWhiteSpace(p.SoLo)
+                    ? p.SoLo
+                    : string.Join(", ", (_phieuXuLyRepo.GetItems(p.Id) ?? new List<PhieuXuLyBatThuongCT>())
+                        .Select(x => x.LotNguon)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase));
                 row.SoPhieuXuLy = p.SoPhieu;
                 row.BuocDaTinh = ResolveStep(p);
                 if (row.QTStatus == QTChungStatus.DaQCXacNhanCuoi || row.QTStatus == QTChungStatus.DaNhapLaiKho || row.QTStatus == QTChungStatus.HoanTat)

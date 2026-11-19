@@ -9,6 +9,7 @@ namespace PCTP.Modules.XuLyHangLoi
 {
     using DevExpress.XtraEditors;
     using PCTP.Modules.XuLyHangLoi.Enums;
+    using PCTP.Modules.XuLyHangLoi.Models;
     using PCTP.Modules.XuLyHangLoi.Services;
     using PCTP.Shared.Helpers;
     using System;
@@ -31,6 +32,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private LabelControl _lblSoLuong;
         private LabelControl _lblTrangThai;
 
+        private DataGridView _gridChiTiet;
         private ComboBoxEdit _cboHuongXuLy;
         private MemoEdit _txtGhiChu;
         private TextEdit _txtNguoiThucHien;
@@ -67,7 +69,7 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             Text = "QC định hướng xử lý hàng lỗi";
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(720, 520);
+            Size = new Size(720, 720);
             MinimizeBox = false;
             MaximizeBox = false;
 
@@ -75,7 +77,7 @@ namespace PCTP.Modules.XuLyHangLoi
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 9,
+                RowCount = 10,
                 Padding = new Padding(15)
             };
 
@@ -91,6 +93,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 main.RowStyles.Add(
                     new RowStyle(SizeType.Absolute, 42));
             }
+            // Hàng 8: danh sách Slot/LOT (detail) - chỉ xem, QC chỉ định hướng cho header.
+            main.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 190));
             main.RowStyles.Add(
                 new RowStyle(SizeType.Percent, 100));
 
@@ -124,7 +129,7 @@ namespace PCTP.Modules.XuLyHangLoi
             AddRow(main, 2, "Model:", _lblModel);
             AddRow(main, 3, "Mã hàng:", _lblMaHang);
             AddRow(main, 4, "Lot:", _lblLot);
-            AddRow(main, 5, "Số lượng lỗi:", _lblSoLuong);
+            AddRow(main, 5, "Tổng số lượng lỗi:", _lblSoLuong);
             AddRow(main, 6, "Trạng thái:", _lblTrangThai);
 
             // ========================================================
@@ -160,6 +165,31 @@ namespace PCTP.Modules.XuLyHangLoi
             _cboHuongXuLy.SelectedIndex = -1;
 
             main.Controls.Add(_cboHuongXuLy, 1, 7);
+
+            // ========================================================
+            // DETAIL: SLOT / LOT CỦA PHIẾU
+            // ========================================================
+            _gridChiTiet = new DataGridView
+            {
+                Name = "qcDirection_gridChiTiet",
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = SystemColors.Window
+            };
+            _gridChiTiet.Columns.Add("colSlot", "Slot");
+            _gridChiTiet.Columns.Add("colLot", "LOT");
+            _gridChiTiet.Columns.Add("colMaHang", "Mã hàng");
+            _gridChiTiet.Columns.Add("colSoLuong", "Số lượng");
+            _gridChiTiet.Columns["colSoLuong"].DefaultCellStyle.Alignment =
+                DataGridViewContentAlignment.MiddleRight;
+            main.Controls.Add(_gridChiTiet, 0, 8);
+            main.SetColumnSpan(_gridChiTiet, 2);
 
             // ========================================================
             // BOTTOM
@@ -254,7 +284,7 @@ namespace PCTP.Modules.XuLyHangLoi
             bottom.Controls.Add(_btnXacNhan, 1, 1);
             bottom.Controls.Add(_btnHuy, 2, 1);
 
-            main.Controls.Add(bottom, 0, 8);
+            main.Controls.Add(bottom, 0, 9);
             main.SetColumnSpan(bottom, 2);
 
             Controls.Add(main);
@@ -320,8 +350,26 @@ namespace PCTP.Modules.XuLyHangLoi
                 _lblSoPhieu.Text = p.SoPhieu;
                 _lblModel.Text = p.Model;
                 _lblMaHang.Text = p.MaSanPham;
-                _lblLot.Text = p.SoLo;
+                var chiTiet = p.Items ?? new List<PhieuXuLyBatThuongCT>();
+                int soLot = chiTiet
+                    .Where(x => !string.IsNullOrWhiteSpace(x.LotNguon))
+                    .Select(x => x.LotNguon.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count();
+                _lblLot.Text = soLot > 1
+                    ? soLot + " LOT (xem danh sách bên dưới)"
+                    : p.SoLo;
                 _lblSoLuong.Text = p.SoLuongLoi.ToString("n0");
+
+                _gridChiTiet.Rows.Clear();
+                foreach (var ct in chiTiet)
+                {
+                    _gridChiTiet.Rows.Add(
+                        ct.SlotIdNguon.HasValue ? "Slot " + ct.SlotIdNguon.Value : string.Empty,
+                        ct.LotNguon,
+                        ct.MaSanPham,
+                        ct.SoLuongLoi.ToString("n0"));
+                }
 
                 // ── ĐÃ SỬA ──────────────────────────────────────────────
                 // IQTChungService.GetTrangThai(int) đã bị bỏ khỏi
