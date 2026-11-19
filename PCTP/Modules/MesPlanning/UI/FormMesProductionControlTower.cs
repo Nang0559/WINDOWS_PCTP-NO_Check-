@@ -329,11 +329,13 @@ namespace PCTP.Modules.MesPlanning.UI
 
                 if (stage == "PLAN" && planStatus == "IMPORTED" &&
                     session.HasPermission("MES.PLAN_UPLOAD", "VIEW") &&
-                    session.HasPermission("MES.PLAN_UPLOAD", "CONFIRM"))
+                    session.HasPermission("MES.PLAN_UPLOAD", "CONFIRM") &&
+                    session.HasDataScope("MES.PLAN_UPLOAD", "SITE", site, site))
                     row["MyTask"] = "Kiểm tra kế hoạch";
                 else if (stage == "PLAN" && planStatus == "VALIDATED" &&
                     session.HasPermission("MES.PLAN_UPLOAD", "VIEW") &&
-                    session.HasPermission("MES.PLAN_UPLOAD", "APPROVE"))
+                    session.HasPermission("MES.PLAN_UPLOAD", "APPROVE") &&
+                    session.HasDataScope("MES.PLAN_UPLOAD", "SITE", site, site))
                     row["MyTask"] = "FIRM kế hoạch";
                 else if (stage == "COMPONENTS" &&
                     session.HasPermission("MES.COMPONENT_DEMAND", "VIEW") &&
