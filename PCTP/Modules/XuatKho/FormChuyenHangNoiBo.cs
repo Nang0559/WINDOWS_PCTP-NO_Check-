@@ -23,7 +23,7 @@ namespace PCTP.Modules.XuatKho
     /// <summary>Điều chuyển tồn từ Slot sang vị trí nội bộ không thuộc bản đồ Slot.</summary>
     public sealed class FormChuyenHangNoiBo : XtraForm
     {
-            AuthorizationGuard.Demand("WAREHOUSE.MOVE", "VIEW");
+    
         private readonly XuLyHangLoiModuleFactory.Module _module;
         private readonly SlotRepository _slotRepository;
         private readonly StockExportRepository _stockRepository;
@@ -47,6 +47,7 @@ namespace PCTP.Modules.XuatKho
 
         public FormChuyenHangNoiBo()
         {
+            AuthorizationGuard.Demand("WAREHOUSE.MOVE", "VIEW");
             Text = "Chuyển hàng sang vị trí nội bộ";
             Width = 1180;
             Height = 760;
