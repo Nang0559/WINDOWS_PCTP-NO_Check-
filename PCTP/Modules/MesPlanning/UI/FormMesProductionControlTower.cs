@@ -187,7 +187,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _onlyMyTasks.Dock = DockStyle.Left;
             _onlyMyTasks.Width = 130;
             _onlyMyTasks.CheckedChanged += (s, e) =>
-                _view.ActiveFilterString = _onlyMyTasks.Checked ? "[MyTask] <> 'Theo dõi'" : string.Empty;
+                _taskGrid.View.ActiveFilterString = _onlyMyTasks.Checked ? "[MyTask] <> 'Theo dõi'" : string.Empty;
             _status.Dock = DockStyle.Fill;
             _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _refreshStamp.Dock = DockStyle.Right;
