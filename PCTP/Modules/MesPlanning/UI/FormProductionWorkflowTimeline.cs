@@ -21,7 +21,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         public FormProductionWorkflowTimeline(IProductionWorkflowService service)
         {
-            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "VIEW");
+            // Entity-specific VIEW permission and Site scope are enforced by the workflow service at query time.
             _service = service ?? throw new ArgumentNullException(nameof(service));
             _view = new GridView(_events);
             Text = "MES - Lịch sử workflow sản xuất";
