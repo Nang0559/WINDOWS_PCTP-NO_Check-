@@ -196,14 +196,16 @@ namespace PCTP.Modules.XuLyHangLoi
             return chk;
         }
 
-        // Mặc định mỗi bước: chỉ phiếu MỚI TẠO. 'Đang xử lý' chỉ có ở bước 2 và 6-8; 'Đã hoàn tất' chỉ ở bước 8.
+        // Mặc định mỗi bước: phiếu MỚI TẠO; từ bước 6 trở đi tích thêm 'Đang xử lý' vì phiếu vừa được chuyển sang
+        // bước sau thường ở trạng thái đang xử lý (đã xuất Rework, đã giao SX → bước 7, chờ giao bù → bước 8) và
+        // phải hiện ngay không cần tìm. 'Đã hoàn tất' chỉ ở bước 8 và mặc định không tích.
         private void DatLocMacDinh()
         {
             _dangDatLoc = true;
             try
             {
                 _chkMoi.Checked = true;
-                _chkDang.Checked = false;
+                _chkDang.Checked = _activeStep >= 6;
                 _chkHoanTat.Checked = false;
                 _chkDang.Visible = _activeStep == 2 || _activeStep >= 6;
                 _chkHoanTat.Visible = _activeStep == 8;
