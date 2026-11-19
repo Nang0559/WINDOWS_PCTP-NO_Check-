@@ -14,12 +14,19 @@ namespace PCTP.Modules.KhoVatLy.Repository
     public sealed class WarehouseRepository
         : SqlRepositoryBase, IWarehouseRepository
     {
+        private readonly ISiteContext _site;
+
         public WarehouseRepository(
             PhieuSqlExecutor db,
-            IUnitOfWork uow)
+            IUnitOfWork uow,
+            ISiteContext site = null)
             : base(db, uow)
         {
+            _site = site ?? AppSettingsSiteContext.Default;
         }
+
+        private SqlParameter SiteParam()
+            => new SqlParameter("@site", SqlDbType.NVarChar, 30) { Value = _site.SiteCode };
 
         // ============================================================
         // PRODUCT
@@ -111,9 +118,9 @@ namespace PCTP.Modules.KhoVatLy.Repository
         {
             if (string.IsNullOrWhiteSpace(warehouseName)) return false;
 
-            const string sql = "SELECT COUNT(1) FROM dbo.FVN_Warehouse WHERE Name = @Name;";
+            const string sql = "SELECT COUNT(1) FROM dbo.FVN_Warehouse WHERE SiteCode=@site AND Name = @Name;";
 
-            object result = ExecuteScalar(sql,
+            object result = ExecuteScalar(sql, SiteParam(),
                 new SqlParameter("@Name", SqlDbType.NVarChar, 100) { Value = warehouseName.Trim() });
 
             return DbValueHelper.ToInt(result) > 0;
@@ -123,9 +130,9 @@ namespace PCTP.Modules.KhoVatLy.Repository
         {
             if (string.IsNullOrWhiteSpace(warehouseName)) return 0;
 
-            const string sql = "SELECT TOP (1) WarehouseId FROM dbo.FVN_Warehouse WHERE Name = @Name;";
+            const string sql = "SELECT TOP (1) WarehouseId FROM dbo.FVN_Warehouse WHERE SiteCode=@site AND Name = @Name;";
 
-            object result = ExecuteScalar(sql,
+            object result = ExecuteScalar(sql, SiteParam(),
                 new SqlParameter("@Name", SqlDbType.NVarChar, 100) { Value = warehouseName.Trim() });
 
             return DbValueHelper.ToInt(result);
@@ -139,11 +146,11 @@ namespace PCTP.Modules.KhoVatLy.Repository
             const string sql = @"
         SELECT r.RackName
         FROM dbo.FVN_Rack r
-        INNER JOIN dbo.FVN_Warehouse w ON w.WarehouseId = r.WarehouseId
-        WHERE w.Name = @Name
+        INNER JOIN dbo.FVN_Warehouse w ON w.SiteCode=r.SiteCode AND w.WarehouseId = r.WarehouseId
+        WHERE w.SiteCode=@site AND r.SiteCode=@site AND w.Name = @Name
         ORDER BY r.RackName;";
 
-            DataTable dt = LoadData(sql,
+            DataTable dt = LoadData(sql, SiteParam(),
                 new SqlParameter("@Name", SqlDbType.NVarChar, 100) { Value = warehouseName.Trim() });
 
             if (dt == null) return result;
@@ -166,9 +173,10 @@ namespace PCTP.Modules.KhoVatLy.Repository
                 WarehouseId,
                 Name
             FROM dbo.FVN_Warehouse
+            WHERE SiteCode=@site
             ORDER BY WarehouseId;";
 
-            DataTable dt = LoadData(sql);
+            DataTable dt = LoadData(sql, SiteParam());
 
             var warehouses = new List<Warehouse>();
 
@@ -207,9 +215,9 @@ namespace PCTP.Modules.KhoVatLy.Repository
                 throw new ArgumentException("Tên Warehouse không được rỗng.", nameof(warehouseName));
 
             const string sql = @"
-        INSERT INTO dbo.FVN_Warehouse (Name)
+        INSERT INTO dbo.FVN_Warehouse (SiteCode, Name)
         OUTPUT INSERTED.WarehouseId
-        VALUES (@Name);";
+        VALUES (@site, @Name);";
 
             object result = ExecuteScalar(sql,
                 new SqlParameter("@Name", SqlDbType.NVarChar, 100) { Value = warehouseName.Trim() });
