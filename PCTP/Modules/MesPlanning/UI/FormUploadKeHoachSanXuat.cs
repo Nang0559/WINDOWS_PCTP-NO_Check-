@@ -25,6 +25,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly SimpleButton _choose = new SimpleButton();
         private readonly SimpleButton _preview = new SimpleButton();
         private readonly SimpleButton _upload = new SimpleButton();
+        private readonly SimpleButton _managePlans = new SimpleButton();
         private string _filePath;
         private List<ProductionPlanImportRow> _rows = new List<ProductionPlanImportRow>();
 
@@ -54,12 +55,14 @@ namespace PCTP.Modules.MesPlanning.UI
             _sheet.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor; _sheet.Dock = DockStyle.Fill;
             _preview.Text = "Xem trước"; _preview.Dock = DockStyle.Fill; _preview.Click += PreviewClick;
             _upload.Text = "UPLOAD KẾ HOẠCH"; _upload.Dock = DockStyle.Fill; _upload.Click += UploadClick; _upload.Enabled = false;
+            _managePlans.Text = "QUẢN LÝ WORKFLOW"; _managePlans.Dock = DockStyle.Fill;
+            _managePlans.Click += (s, e) => { using (var form = new FormProductionPlanWorkflow()) form.ShowDialog(this); };
             top.Controls.Add(_file,0,0); top.Controls.Add(_choose,1,0);
             top.Controls.Add(_sheet,2,0); top.Controls.Add(_preview,3,0);
-            top.Controls.Add(_upload,3,1);
+            top.Controls.Add(_managePlans,2,1); top.Controls.Add(_upload,3,1);
             _status.Text = "Cột Excel yêu cầu: SiteCode, PlanNo, PlanDate, LineNo, ShiftCode, ProductionLineCode, ProductPartNo, PlannedQty, UomCode; PlannedStart/PlannedEnd tùy chọn.";
             _status.Dock = DockStyle.Fill; _status.Appearance.ForeColor = Color.DarkSlateGray;
-            top.Controls.Add(_status,0,1); top.SetColumnSpan(_status,3);
+            top.Controls.Add(_status,0,1); top.SetColumnSpan(_status,2);
             _grid.Dock = DockStyle.Fill;
             _grid.MainView = _gridView;
             _gridView.OptionsBehavior.Editable = false;
