@@ -457,3 +457,13 @@ PartNo values from the plant. Do not copy the illustrative INSERT in the
 migration without replacing its sample values. After applying the migration,
 assign `MES.PRODUCTION_FLOW / VIEW` and Site/Department scopes in the existing
 security administration screen.
+
+
+## Migration 048 — require fulfilled component demand before order creation
+
+Run `048_MES_ProductionOrderRequiresFulfilledComponents.sql` after 047.
+The production execution service gives an early validation message; the SQL
+trigger is the final guard and rejects an order insert if the FIRM plan line has
+no active component-demand header or any component line still has
+`NetRequiredQty > IssuedQty`. It does not post inventory or change the demand;
+the existing PART → WIP issue workflow must fulfill it first.
