@@ -110,7 +110,7 @@ namespace PCTP.Modules.MesPlanning.UI
             AddButton(operationPanel, "PAUSE", (s, e) => TransitionOperation(40));
             AddButton(operationPanel, "RESUME", (s, e) => TransitionOperation(30));
             AddButton(operationPanel, "TẢI ROUTING THEO LOT", LoadRoutingClick);
-            _routingSteps.Dock = DockStyle.Top; _routingSteps.Height = 160;
+            _routingSteps.Width = 980; _routingSteps.Height = 160;
             _routingSteps.MainView = _routingView; _routingSteps.ViewCollection.Add(_routingView);
             ConfigureGrid(_routingView);
             _routingView.FocusedRowChanged += (s, e) =>
@@ -131,7 +131,7 @@ namespace PCTP.Modules.MesPlanning.UI
             AddField(operationPanel, "Số sản phẩm cần chuẩn bị tem", _labelQty);
             AddButton(operationPanel, "1. CHUẨN BỊ / CẤP TEM", PrepareLabelsClick);
             AddButton(operationPanel, "2. IN TEM CÔNG ĐOẠN", PrintLabelsClick);
-            _labels.Dock = DockStyle.Top; _labels.Height = 190;
+            _labels.Width = 980; _labels.Height = 190;
             _labels.MainView = _labelView; _labels.ViewCollection.Add(_labelView);
             ConfigureGrid(_labelView);
             operationPanel.Controls.Add(_labels);
@@ -145,7 +145,7 @@ namespace PCTP.Modules.MesPlanning.UI
             var loadMaterials = new SimpleButton { Text = "TẢI LINH KIỆN THEO LỆNH", AutoSize = true, Height = 34 };
             loadMaterials.Click += LoadMaterialsClick;
             consumePanel.Controls.Add(loadMaterials);
-            _materials.Dock = DockStyle.Top; _materials.Height = 190;
+            _materials.Width = 980; _materials.Height = 190;
             _materials.MainView = _materialView; _materials.ViewCollection.Add(_materialView);
             ConfigureGrid(_materialView);
             _materialView.FocusedRowChanged += (s, e) =>
