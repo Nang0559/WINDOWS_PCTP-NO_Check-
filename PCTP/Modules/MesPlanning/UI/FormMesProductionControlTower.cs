@@ -290,10 +290,14 @@ namespace PCTP.Modules.MesPlanning.UI
             SetCaption("PlanStatus", "Trạng thái KH");
             SetCaption("DemandStatus", "Trạng thái linh kiện");
             SetCaption("ComponentCount", "Số mã LK");
+            SetCaption("RequiredComponentQty", "SL LK yêu cầu");
+            SetCaption("IssuedComponentQty", "SL LK đã cấp");
             SetCaption("OutstandingComponentQty", "SL LK còn thiếu");
             SetCaption("OrderNo", "Lệnh SX");
             SetCaption("OrderStatus", "Trạng thái lệnh");
+            SetCaption("OrderPlannedQty", "SL lệnh");
             SetCaption("CompletedQty", "SL hoàn thành");
+            SetCaption("ProductionLotCount", "Số LOT");
             SetCaption("ProducedQty", "SL LOT đã SX");
             SetCaption("OperationCount", "Số công đoạn");
             SetCaption("CompletedOperationCount", "CĐ hoàn thành");
