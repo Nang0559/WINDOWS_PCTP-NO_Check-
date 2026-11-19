@@ -28,7 +28,7 @@ namespace PCTP.Modules.NhapKho.UI
 
         public FormNhanLinhKien(IComponentReceivingService service, IComponentSlotLookupService slotLookup = null)
         {
-            AuthorizationGuard.Demand("WAREHOUSE.RECEIPT", "VIEW");
+            AuthorizationGuard.Demand("WAREHOUSE.COMPONENT_RECEIPT", "VIEW");
             _service = service ?? throw new ArgumentNullException(nameof(service));
             _slotLookup = slotLookup ?? new ComponentSlotLookupService(new ComponentSlotLookupRepository());
             Text = "Nhận linh kiện về kho";
