@@ -44,13 +44,13 @@ WHERE l.ProductionPlanLineId=@Id;", cn))
             using (var cn = new SqlConnection(_connectionString))
             using (var cmd = new SqlCommand(@"
 SELECT CASE WHEN NOT EXISTS
-    (SELECT 1 FROM MES.FVN_ComponentDemandHeader WHERE ProductionPlanLineId=@Id)
+    (SELECT 1 FROM MES.FVN_ComponentDemandHeader WHERE ProductionPlanLineId=@Id AND Status<>''CANCELLED'')
  THEN CAST(NULL AS decimal(19,6))
  ELSE ISNULL((
     SELECT SUM(CASE WHEN NetRequiredQty>IssuedQty THEN NetRequiredQty-IssuedQty ELSE 0 END)
     FROM MES.FVN_ComponentDemandLine l
     JOIN MES.FVN_ComponentDemandHeader h ON h.ComponentDemandId=l.ComponentDemandId
-    WHERE h.ProductionPlanLineId=@Id
+    WHERE h.ProductionPlanLineId=@Id AND h.Status<>''CANCELLED''
  ),0) END;", cn))
             {
                 cmd.Parameters.Add("@Id", SqlDbType.BigInt).Value = planLineId;
