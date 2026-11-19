@@ -10,6 +10,7 @@ namespace PCTP.Modules.MesPlanning
         string GetLotSiteCode(long productionLotId);
         string GetLabelSiteCode(string labelCode);
         DataTable GetOrderMaterials(long orderId);
+        DataTable GetRoutingSteps(long productionLotId);
         DataTable CreateOrder(long planLineId, string orderNo, string actor);
         DataTable CreateLot(long orderId, DateTime producedAtUtc, decimal goodQty, decimal ngQty, bool finished, string actor);
         DataTable CompleteOperation(long productionLotId, string operationNo, decimal inputQty,
