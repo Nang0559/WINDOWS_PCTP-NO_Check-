@@ -76,7 +76,7 @@ namespace PCTP
             _menuKho.Elements.Add(cmdRackControl);
 
             _menuKhoTonTP = CreateMenuItem("menuKhoTonTP", "Tồn kho thành phẩm", OpenTonKhoThanhPham);
-            _menuKho.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Nhận linh kiện về kho (QR)", OpenNhanLinhKien));
+            _menuKho.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Kiểm kê hàng về (QR)", OpenNhanLinhKien));
             _menuKho.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
             _menuKho.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
             _menuKho.Elements.Add(CreateMenuItem("menuYeuCauXuatLinhKien", "Yêu cầu / Xuất linh kiện PART → WIP", OpenYeuCauXuatLinhKien));
@@ -446,8 +446,8 @@ namespace PCTP
         {
             OpenFromMenu(() => FormWindowManager.ShowSingle(
                 this,
-                () => new PCTP.Modules.NhapKho.UI.FormNhanLinhKien()),
-                "Nhận linh kiện về kho");
+                () => new PCTP.Modules.NhapKho.UI.FormKiemKeHangVeList()),
+                "Kiểm kê hàng về");
         }
 
         private void OpenUploadKeHoachSanXuat(object sender, EventArgs e)

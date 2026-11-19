@@ -1088,7 +1088,9 @@
     <Compile Include="Modules\NhapKho\ComponentReceiving\ComponentReceivingRepository.cs" />
     <Compile Include="Modules\NhapKho\ComponentReceiving\IComponentReceivingService.cs" />
     <Compile Include="Modules\NhapKho\ComponentReceiving\ComponentReceivingService.cs" />
-    <Compile Include="Modules\NhapKho\UI\FormNhanLinhKien.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Modules\NhapKho\ComponentReceiving\ComponentReceivingQuery.cs" />
+    <Compile Include="Modules\NhapKho\UI\FormKiemKeHangVeList.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Modules\NhapKho\UI\FormKiemKeHangVeScan.cs"><SubType>Form</SubType></Compile>
     <Compile Include="Infrastructure\Repositories\PhieuTrackingRepository.cs" />
     <Compile Include="Modules\NhapKho\Repository\StockTPRepository.cs" />
     <Compile Include="Modules\KhoVatLy\Report\RpInNhapKho.cs">
