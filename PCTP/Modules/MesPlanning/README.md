@@ -88,7 +88,7 @@ The plan picker returns only a selected line whose header status is FIRM.
 
 ### 5.1 Order and LOT
 
-The execution form opens the FIRM plan worklist instead of requiring the operator to type an internal plan-line ID. `ProductionExecutionService.CreateOrder` also checks that the source plan is FIRM before calling the order creation procedure. The SQL procedure snapshots the effective BOM/routing, generates the order material requirements and assigns the order status.
+The execution form opens the FIRM plan worklist instead of requiring the operator to type an internal plan-line ID. `ProductionExecutionService.CreateOrder` also checks that the source plan is FIRM before calling the order creation procedure. The SQL procedure snapshots the effective BOM/routing, generates the order material requirements and assigns the order status. The application service rejects a non-FIRM source line, and migration 046 adds a database trigger to reject direct-SQL inserts that are not linked to a FIRM plan line.
 
 LOT creation calls `MES.usp_FVN_ProductionLot_Create`. The configured part policy decides whether the output is WIP or FG. LOT identity and numbering remain in the SQL MES domain; the form does not construct a LOT number.
 
