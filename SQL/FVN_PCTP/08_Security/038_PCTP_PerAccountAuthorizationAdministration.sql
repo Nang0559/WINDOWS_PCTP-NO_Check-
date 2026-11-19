@@ -18,11 +18,22 @@ BEGIN TRY
  AS
  BEGIN
   SET NOCOUNT ON;
+  ;WITH RoleGrant AS(
+   SELECT p.FunctionCode,p.ActionCode,MIN(CONVERT(int,p.IsAllowed)) IsAllowed
+   FROM SEC.UserRole ur JOIN SEC.Role r ON r.RoleId=ur.RoleId AND r.IsActive=1
+   JOIN SEC.RoleFunctionPermission p ON p.RoleId=r.RoleId
+   WHERE ur.UserId=@UserId GROUP BY p.FunctionCode,p.ActionCode
+  )
   SELECT f.FunctionCode,f.ModuleCode,f.FunctionName,a.ActionCode,a.ActionName,
    CAST(o.Effect AS varchar(5)) Effect,
    CASE WHEN o.Effect=''ALLOW'' THEN CAST(1 AS bit)
-        WHEN o.Effect=''DENY'' THEN CAST(0 AS bit) ELSE NULL END IsAllowed
+        WHEN o.Effect=''DENY'' THEN CAST(0 AS bit) ELSE NULL END IsAllowed,
+   CAST(ISNULL(r.IsAllowed,0) AS bit) RoleIsAllowed,
+   CASE WHEN o.Effect=''ALLOW'' THEN CAST(1 AS bit)
+        WHEN o.Effect=''DENY'' THEN CAST(0 AS bit)
+        ELSE CAST(ISNULL(r.IsAllowed,0) AS bit) END EffectiveIsAllowed
   FROM SEC.FunctionCatalog f CROSS JOIN SEC.ActionCatalog a
+  LEFT JOIN RoleGrant r ON r.FunctionCode=f.FunctionCode AND r.ActionCode=a.ActionCode
   LEFT JOIN SEC.UserFunctionOverride o
    ON o.UserId=@UserId AND o.FunctionCode=f.FunctionCode AND o.ActionCode=a.ActionCode
   WHERE f.IsActive=1
