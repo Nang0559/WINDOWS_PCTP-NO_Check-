@@ -1,4 +1,5 @@
 using System;
+using PCTP.Infrastructure.Security;
 using System.Data;
 
 namespace PCTP.Modules.MesPlanning
@@ -14,12 +15,14 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable GetOrderMaterials(long orderId)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "VIEW");
             if (orderId <= 0) throw new ArgumentException("ProductionOrderId không hợp lệ.");
             return _repository.GetOrderMaterials(orderId);
         }
 
         public DataTable CreateOrder(long planLineId, string orderNo, string actor)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "CREATE");
             if (planLineId <= 0 || string.IsNullOrWhiteSpace(orderNo) || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("PlanLine, OrderNo và người tạo là bắt buộc.");
             return _repository.CreateOrder(planLineId, orderNo.Trim(), actor.Trim());
@@ -55,6 +58,7 @@ namespace PCTP.Modules.MesPlanning
         }
         public DataTable PrepareLabels(long productionLotId, string operationNo, int targetQty, string actor)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "CREATE");
             if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) ||
                 targetQty <= 0 || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("LOT, công đoạn, số lượng tem và người thao tác là bắt buộc.");
@@ -63,6 +67,7 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable PrintLabels(long productionLotId, string operationNo, string actor, bool isReprint)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "PRINT");
             if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("LOT, công đoạn và người in là bắt buộc.");
             return _repository.PrintLabels(productionLotId, operationNo.Trim(), actor.Trim(), isReprint);
@@ -70,6 +75,7 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable ApplyLabel(string labelCode, string operationNo, string actor)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "CONFIRM");
             if (string.IsNullOrWhiteSpace(labelCode) || string.IsNullOrWhiteSpace(operationNo) ||
                 string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("Mã tem, công đoạn và người thao tác là bắt buộc.");
@@ -88,6 +94,7 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable VoidLabel(string labelCode, string actor, string reason)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "CANCEL");
             if (string.IsNullOrWhiteSpace(labelCode) || string.IsNullOrWhiteSpace(actor) ||
                 string.IsNullOrWhiteSpace(reason))
                 throw new ArgumentException("Mã tem, người thao tác và lý do hủy là bắt buộc.");
