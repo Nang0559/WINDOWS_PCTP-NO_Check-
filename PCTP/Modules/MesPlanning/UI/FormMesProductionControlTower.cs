@@ -29,6 +29,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly PCTP.Shared.MesControls.FvnKpiStageStripControl _stageStrip = new PCTP.Shared.MesControls.FvnKpiStageStripControl();
         private readonly PCTP.Shared.MesControls.FvnProgressSummaryControl _progressSummary = new PCTP.Shared.MesControls.FvnProgressSummaryControl();
         private readonly PCTP.Shared.MesControls.FvnScopeBadgeControl _scopeBadge = new PCTP.Shared.MesControls.FvnScopeBadgeControl();
+        private readonly PCTP.Shared.MesControls.FvnHoldAlertControl _holdAlert = new PCTP.Shared.MesControls.FvnHoldAlertControl();
         private readonly LabelControl _status = new LabelControl();
         private readonly LabelControl _refreshStamp = new LabelControl();
         private readonly SimpleButton _refresh = new SimpleButton();
@@ -167,9 +168,11 @@ namespace PCTP.Modules.MesPlanning.UI
                 Appearance = { Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = Color.FromArgb(45, 65, 88) }
             };
             _scopeBadge.Dock = DockStyle.Top;
+            _holdAlert.Dock = DockStyle.Top;
             _progressSummary.Dock = DockStyle.Bottom;
             detailPanel.Controls.Add(_details);
             detailPanel.Controls.Add(_progressSummary);
+            detailPanel.Controls.Add(_holdAlert);
             detailPanel.Controls.Add(_scopeBadge);
             detailPanel.Controls.Add(detailTitle);
             split.Panel1.Controls.Add(_grid);
@@ -405,6 +408,7 @@ namespace PCTP.Modules.MesPlanning.UI
             {
                 _progressSummary.SetProgress(0, 0);
                 _scopeBadge.SetRelated(false);
+                _holdAlert.SetDependency(string.Empty, string.Empty, false);
                 return;
             }
             decimal required = SafeDecimal(row["RequiredComponentQty"]);
@@ -417,6 +421,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _progressSummary.SetProgress(componentPercent, operationPercent);
             bool isRelated = Convert.ToBoolean(row["IsRelatedDepartment"]);
             _scopeBadge.SetRelated(isRelated);
+            _holdAlert.SetDependency(Convert.ToString(row["WaitingAt"]), Convert.ToString(row["WaitingReason"]), isRelated);
             string related = isRelated ? "BỘ PHẬN LIÊN QUAN (chỉ xem)" : "BỘ PHẬN TRONG PHẠM VI";
             _details.Text =
                 related + Environment.NewLine +
