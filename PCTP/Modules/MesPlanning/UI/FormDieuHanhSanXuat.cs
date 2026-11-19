@@ -283,7 +283,9 @@ namespace PCTP.Modules.MesPlanning.UI
                     DecimalValue(_inputQty, "InputQty", false), DecimalValue(_opGoodQty, "GoodQty", true),
                     DecimalValue(_opNgQty, "NgQty", true), OptionalSlot(_inputSlot), OptionalSlot(_outputSlot),
                     Environment.UserName);
-                return "Đã ghi nhận hoàn thành công đoạn và bàn giao theo cấu hình DIRECT/VIA_WIP.";
+                _routingSteps.DataSource = _service.GetRoutingSteps(LongValue(_operationLotId, "ProductionLotId"));
+                _routingView.BestFitColumns();
+                return "Đã ghi nhận hoàn thành công đoạn và bàn giao theo cấu hình DIRECT/VIA_WIP. Workflow đã được SQL đồng bộ.";
             });
         }
 
