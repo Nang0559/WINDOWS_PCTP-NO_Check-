@@ -1,6 +1,7 @@
 using System;
 using System.Data;
 using PCTP.Shared.UiMd;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.MesPlanning
 {
@@ -23,17 +24,20 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable TransitionPlan(long planId, int fromStatus, int toStatus, string actor, string reason = null)
         {
+            AuthorizationGuard.Demand("MES.PLAN_UPLOAD", toStatus == 20 ? "APPROVE" : (toStatus == 900 ? "CANCEL" : "CONFIRM"));
             return Transition("PLAN", "MES_PRODUCTION_PLAN", planId, null, fromStatus, toStatus, actor, reason);
         }
 
         public DataTable TransitionOrder(long orderId, int fromStatus, int toStatus, string actor, string reason = null)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", toStatus == 900 ? "CANCEL" : "CONFIRM");
             return Transition("ORDER", "MES_PRODUCTION_ORDER", orderId, null, fromStatus, toStatus, actor, reason);
         }
 
         public DataTable TransitionOperation(long productionLotId, long routingStepId, int fromStatus,
             int toStatus, string actor, string reason = null)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", toStatus == 900 ? "CANCEL" : "CONFIRM");
             if (routingStepId <= 0) throw new ArgumentException("RoutingStepId không hợp lệ.");
             return Transition("OPERATION", "MES_PRODUCTION_OPERATION", productionLotId,
                 routingStepId, fromStatus, toStatus, actor, reason);
@@ -41,6 +45,7 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable GetTimeline(string entityType, long entityId)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "VIEW");
             if (entityId <= 0) throw new ArgumentException("EntityId không hợp lệ.");
             ValidateEntityType(entityType);
             return _repository.GetTimeline(entityType, entityId);
