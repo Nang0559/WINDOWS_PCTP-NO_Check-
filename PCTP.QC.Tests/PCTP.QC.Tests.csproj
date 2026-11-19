@@ -17,6 +17,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../PCTP/Modules/MesPlanning/ProductionFlowTaskPolicy.cs" Link="ProductionFlowTaskPolicy.source.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Update="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
