@@ -3,6 +3,7 @@ using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Models;
+using PCTP.Infrastructure.Security;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -24,6 +25,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa, bool isSP, bool isGiaoDb = false)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
             // Giao DB có bộ bảng riêng (TMPPHIEUGIAOHANGDB + DOCQRCODE_DB) và đi nhánh
             // MP (không phải SP). Không có config Giao DB -> giữ nguyên bảng MP/SP.
             bool useGiaoDbTables = isGiaoDb && _cfg.Delivery.CoConfigGiaoDB;
