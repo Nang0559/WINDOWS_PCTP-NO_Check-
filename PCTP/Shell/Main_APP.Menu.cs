@@ -1,9 +1,5 @@
 using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraEditors;
-using DevExpress.XtraEditors.Controls;
-using DevExpress.XtraGrid;
-using DevExpress.XtraGrid.Views.Grid;
-using PCTP.Common;
 using PCTP.Modules.BaoCao.UI;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using System;
@@ -11,13 +7,9 @@ using System.Data;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Linq;
-using PCTP.ClassSQL;
-using PCTP.Modules.GiaoHangKhach;
-using PCTP.Modules.KhoVatLy.Repositories;
-using PCTP.Modules.KhoCore.Repositories;
+
 using PCTP.Modules.KhoCore.UI;
-using PCTP.Modules.NhapKho.Repository;
-using PCTP.Modules.NhapKho.UI;
+
 using PCTP.Modules.MesPlanning.UI;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
@@ -457,7 +449,7 @@ namespace PCTP
         {
             OpenFromMenu(() => FormWindowManager.ShowSingle(
                 this,
-                () => new PCTP.Modules.NhapKho.UI.FormKiemKeHangVeList()),
+                () => new PCTP.Modules.KhoLinhKien.UI.FormKiemKeHangVeList()),
                 "Kiểm kê hàng về");
         }
 
