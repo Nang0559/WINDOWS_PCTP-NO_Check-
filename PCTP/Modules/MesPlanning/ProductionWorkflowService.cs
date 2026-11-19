@@ -63,7 +63,8 @@ namespace PCTP.Modules.MesPlanning
                 if (string.IsNullOrWhiteSpace(site))
                     throw new UnauthorizedAccessException("Đối tượng workflow chưa có SiteCode.");
                 AuthorizationGuard.DemandActionAndScope(
-                    entityType == "PLAN" ? "MES.PLAN_UPLOAD" : "MES.PRODUCTION_EXECUTION",
+                    string.Equals(entityType, "PLAN", StringComparison.OrdinalIgnoreCase)
+                        ? "MES.PLAN_UPLOAD" : "MES.PRODUCTION_EXECUTION",
                     actionCode, "SITE", site, site);
             }
         }
