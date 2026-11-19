@@ -233,6 +233,23 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         public string GetItemCode(int slotLotId)
             => Convert.ToString(ExecuteScalar("SELECT ItemCode FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)));
 
+        public string GetWarehouseNameBySlotId(int slotId)
+        {
+            if (slotId <= 0) return null;
+
+            object value = ExecuteScalar(
+                @"SELECT w.Name
+                  FROM Slot s
+                  INNER JOIN Rack r ON r.RackId = s.RackId
+                  INNER JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+                  WHERE s.SlotId = @slotId",
+                new SqlParameter("@slotId", slotId));
+
+            return value == null || value == DBNull.Value
+                ? null
+                : Convert.ToString(value);
+        }
+
         public int? GetSlotId(int slotLotId)
         {
             object value = ExecuteScalar("SELECT SlotId FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId));
