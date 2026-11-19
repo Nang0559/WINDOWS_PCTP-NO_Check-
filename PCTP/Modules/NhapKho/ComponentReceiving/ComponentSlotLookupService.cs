@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using PCTP.Infrastructure.Security;
 namespace PCTP.Modules.NhapKho.ComponentReceiving
 {
     public sealed class ComponentSlotLookupService : IComponentSlotLookupService
@@ -10,7 +11,9 @@ namespace PCTP.Modules.NhapKho.ComponentReceiving
         public DataTable GetActiveSlots(string siteCode)
         {
             if (string.IsNullOrWhiteSpace(siteCode)) return new DataTable();
-            return _repository.GetActiveSlots(siteCode.Trim().ToUpperInvariant());
+            var site = siteCode.Trim().ToUpperInvariant();
+            AuthorizationGuard.DemandScope("WAREHOUSE.COMPONENT_RECEIPT", "SITE", site, site);
+            return _repository.GetActiveSlots(site);
         }
     }
 }
