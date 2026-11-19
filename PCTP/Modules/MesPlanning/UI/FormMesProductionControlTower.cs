@@ -271,6 +271,7 @@ namespace PCTP.Modules.MesPlanning.UI
             SetCaption("ProducedQty", "SL LOT đã SX");
             SetCaption("OperationCount", "Số công đoạn");
             SetCaption("CompletedOperationCount", "CĐ hoàn thành");
+            SetCaption("PausedOperationCount", "CĐ tạm dừng");
             SetCaption("FlowStage", "Giai đoạn");
             SetCaption("MyTask", "Việc thuộc quyền xử lý");
             SetCaption("WaitingAt", "Đang chờ tại");
@@ -427,7 +428,8 @@ namespace PCTP.Modules.MesPlanning.UI
                 "Linh kiện còn thiếu: " + Convert.ToString(row["OutstandingComponentQty"]) + Environment.NewLine +
                 "Lệnh: " + Convert.ToString(row["OrderNo"]) + " | " + Convert.ToString(row["OrderStatus"]) + Environment.NewLine +
                 "LOT: " + Convert.ToString(row["ProductionLotCount"]) + " | SL đã SX: " + Convert.ToString(row["ProducedQty"]) + Environment.NewLine +
-                "Công đoạn: " + Convert.ToString(row["CompletedOperationCount"]) + "/" + Convert.ToString(row["OperationCount"]) + Environment.NewLine +
+                "Công đoạn: " + Convert.ToString(row["CompletedOperationCount"]) + "/" + Convert.ToString(row["OperationCount"]) +
+                    " | Tạm dừng: " + Convert.ToString(row["PausedOperationCount"]) + Environment.NewLine +
                 "Việc thuộc quyền: " + Convert.ToString(row["MyTask"]) + Environment.NewLine +
                 "Đang chờ tại: " + Convert.ToString(row["WaitingAt"]) + Environment.NewLine +
                 "Lý do: " + Convert.ToString(row["WaitingReason"]) + Environment.NewLine +
