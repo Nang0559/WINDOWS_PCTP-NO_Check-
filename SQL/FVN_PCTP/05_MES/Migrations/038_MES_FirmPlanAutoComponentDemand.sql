@@ -46,40 +46,50 @@ BEGIN TRY
 
         DECLARE @DemandId bigint, @PlanStatus varchar(20), @WorkflowStatusCode int;
 
-        SELECT @PlanStatus = p.Status,
-               @WorkflowStatusCode = p.WorkflowStatusCode
-        FROM MES.FVN_ProductionPlanLine l WITH (UPDLOCK, HOLDLOCK)
-        JOIN MES.FVN_ProductionPlan p WITH (UPDLOCK, HOLDLOCK)
-          ON p.ProductionPlanId = l.ProductionPlanId
-        WHERE l.ProductionPlanLineId = @ProductionPlanLineId;
+        BEGIN TRY
+            BEGIN TRANSACTION;
 
-        IF @PlanStatus IS NULL
-            THROW 53812, ''Production plan line was not found.'', 1;
-        IF ISNULL(@WorkflowStatusCode, 0) <> 20 AND @PlanStatus <> ''FIRM''
-            THROW 53813, ''Component demand is generated only after the production plan becomes FIRM.'', 1;
+            SELECT @PlanStatus = p.Status,
+                   @WorkflowStatusCode = p.WorkflowStatusCode
+            FROM MES.FVN_ProductionPlanLine l WITH (UPDLOCK, HOLDLOCK)
+            JOIN MES.FVN_ProductionPlan p WITH (UPDLOCK, HOLDLOCK)
+              ON p.ProductionPlanId = l.ProductionPlanId
+            WHERE l.ProductionPlanLineId = @ProductionPlanLineId;
 
-        SELECT @DemandId = ComponentDemandId
-        FROM MES.FVN_ComponentDemandHeader WITH (UPDLOCK, HOLDLOCK)
-        WHERE ProductionPlanLineId = @ProductionPlanLineId;
-
-        IF @DemandId IS NULL
-        BEGIN
-            EXEC MES.usp_FVN_GenerateComponentDemand
-                @ProductionPlanLineId = @ProductionPlanLineId,
-                @CreatedBy = @CreatedBy;
+            IF @PlanStatus IS NULL
+                THROW 53812, ''Production plan line was not found.'', 1;
+            IF ISNULL(@WorkflowStatusCode, 0) <> 20 AND @PlanStatus <> ''FIRM''
+                THROW 53813, ''Component demand is generated only after the production plan becomes FIRM.'', 1;
 
             SELECT @DemandId = ComponentDemandId
-            FROM MES.FVN_ComponentDemandHeader
+            FROM MES.FVN_ComponentDemandHeader WITH (UPDLOCK, HOLDLOCK)
             WHERE ProductionPlanLineId = @ProductionPlanLineId;
-        END;
 
-        IF @DemandId IS NULL
-            THROW 53814, ''Component demand generator returned without creating a demand header.'', 1;
+            IF @DemandId IS NULL
+            BEGIN
+                EXEC MES.usp_FVN_GenerateComponentDemand
+                    @ProductionPlanLineId = @ProductionPlanLineId,
+                    @CreatedBy = @CreatedBy;
 
-        SELECT @DemandId AS ComponentDemandId,
-               COUNT(*) AS ComponentCount
-        FROM MES.FVN_ComponentDemandLine
-        WHERE ComponentDemandId = @DemandId;
+                SELECT @DemandId = ComponentDemandId
+                FROM MES.FVN_ComponentDemandHeader
+                WHERE ProductionPlanLineId = @ProductionPlanLineId;
+            END;
+
+            IF @DemandId IS NULL
+                THROW 53814, ''Component demand generator returned without creating a demand header.'', 1;
+
+            COMMIT TRANSACTION;
+
+            SELECT @DemandId AS ComponentDemandId,
+                   COUNT(*) AS ComponentCount
+            FROM MES.FVN_ComponentDemandLine
+            WHERE ComponentDemandId = @DemandId;
+        END TRY
+        BEGIN CATCH
+            IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH;
     END');
 
     /*
