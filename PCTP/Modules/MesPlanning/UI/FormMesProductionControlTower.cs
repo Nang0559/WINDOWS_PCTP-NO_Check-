@@ -327,13 +327,23 @@ namespace PCTP.Modules.MesPlanning.UI
                     session.HasDataScope("MES.COMPONENT_ISSUE", "SITE", site, site))
                     row["MyTask"] = "Cấp linh kiện";
                 else if (stage == "ORDER" && productionDepartmentScope &&
-                    session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW") &&
-                    session.HasPermission("MES.PRODUCTION_EXECUTION", "CREATE"))
-                    row["MyTask"] = "Tạo lệnh sản xuất";
+                    session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"))
+                {
+                    string orderStatus = Convert.ToString(row["OrderStatus"]);
+                    bool hasOrder = row["ProductionOrderId"] != DBNull.Value;
+                    bool noLot = SafeInt(row["ProductionLotCount"]) == 0;
+                    if (!hasOrder && session.HasPermission("MES.PRODUCTION_EXECUTION", "CREATE"))
+                        row["MyTask"] = "Tạo lệnh sản xuất";
+                    else if (orderStatus == "CREATED" && session.HasPermission("MES.PRODUCTION_EXECUTION", "APPROVE"))
+                        row["MyTask"] = "RELEASE lệnh";
+                    else if (orderStatus == "RELEASED" && noLot && session.HasPermission("MES.PRODUCTION_EXECUTION", "CREATE"))
+                        row["MyTask"] = "Tạo LOT sản xuất";
+                }
                 else if (stage == "PRODUCTION" && productionDepartmentScope &&
                     session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW") &&
                     session.HasPermission("MES.PRODUCTION_EXECUTION", "CONFIRM"))
-                    row["MyTask"] = "Thực hiện công đoạn";
+                    row["MyTask"] = Convert.ToString(row["OrderStatus"]) == "PAUSED"
+                        ? "RESUME lệnh" : "Thực hiện công đoạn";
             }
         }
 
@@ -434,7 +444,8 @@ namespace PCTP.Modules.MesPlanning.UI
                 OpenPlan();
             else if (task == "Cấp linh kiện")
                 OpenPart();
-            else if (task == "Tạo lệnh sản xuất" || task == "Thực hiện công đoạn")
+            else if (task == "Tạo lệnh sản xuất" || task == "Tạo LOT sản xuất" ||
+                task == "RELEASE lệnh" || task == "RESUME lệnh" || task == "Thực hiện công đoạn")
                 OpenProduction();
         }
 
