@@ -269,7 +269,9 @@ namespace PCTP.Modules.MesPlanning.UI
                     _lotId.Text = Convert.ToString(result.Rows[0]["ProductionLotId"]);
                     _operationLotId.Text = _lotId.Text;
                     _consumeProductionLotId.Text = _lotId.Text;
-                    return "Đã tạo LOT " + Convert.ToString(result.Rows[0]["LotNo"]) + ".";
+                    _routingSteps.DataSource = _service.GetRoutingSteps(LongValue(_operationLotId, "ProductionLotId"));
+                    _routingView.BestFitColumns();
+                    return "Đã tạo LOT " + Convert.ToString(result.Rows[0]["LotNo"]) + " và tải routing.";
                 }
                 return "Đã tạo LOT sản xuất.";
             });
