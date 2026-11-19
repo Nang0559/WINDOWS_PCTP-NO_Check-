@@ -182,6 +182,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
          int slotId,
          List<LotInfo> lots)
         {
+            DemandWarehouse("WAREHOUSE.RECEIPT", "CONFIRM", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException(
                     "SlotId không hợp lệ.",
@@ -212,7 +213,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         public SlotLotInfo GetLotsBySlotLotId(int slotLotId)
         {
             var row = _repository.GetSlotLotById(slotLotId);
-            if (row != null) DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(row.SlotId));
+            if (row != null) DemandWarehouse("WAREHOUSE.STOCK_VIEW", "VIEW", WarehouseForSlot(row.SlotVatLyId));
             return row;
         }
 
@@ -221,7 +222,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         {
             var lotRow = _repository.GetSlotLotById(slotLotId);
             if (lotRow == null) throw new InvalidOperationException("SlotLot không tồn tại.");
-            DemandWarehouse("QUALITY.RETURN", "CONFIRM", WarehouseForSlot(lotRow.SlotId));
+            DemandWarehouse("QUALITY.RETURN", "CONFIRM", WarehouseForSlot(lotRow.SlotVatLyId));
             var current = _repository.GetSlotLotById(slotLotId);
             if (current == null)
                 throw new InvalidOperationException($"Không tìm thấy SlotLot Id={slotLotId}.");
@@ -291,6 +292,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
          int slotId,
          List<LotInfo> lots)
         {
+            DemandWarehouse("WAREHOUSE.STOCK_ADJUST", "ADMIN", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException(
                     "SlotId không hợp lệ.",
@@ -306,6 +308,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         string itemCode,
         DateTime? importDate)
         {
+            DemandWarehouse("WAREHOUSE.RECEIPT", "CONFIRM", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException(
                     "SlotId không hợp lệ.",
