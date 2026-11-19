@@ -414,3 +414,16 @@ actual production read views and command procedures have been verified against
 the existing MES schema. It does not grant broad DML permissions; deployment
 must assign only the least-privilege administration and runtime permissions
 after reviewing the existing SEC/database-role model.
+
+
+## Migration 046 — production orders require a FIRM plan
+
+Run `046_MES_ProductionOrderRequiresFirmPlan.sql` after migrations 036 and 038.
+The production execution service checks the selected plan line is FIRM before
+creating an order. Migration 046 adds a SQL trigger on new production orders
+as a second enforcement boundary, so direct SQL or another client cannot
+create an order from an imported/validated/nonexistent plan line.
+
+This trigger does not create orders, alter BOM snapshots or post inventory; it
+only rejects an insert that is not linked to a FIRM plan line. The existing
+`MES.usp_FVN_ProductionOrder_CreateFromPlan` remains the order creation path.
