@@ -6,6 +6,7 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
     /// </summary>
     public interface IStockMovementService
     {
+        string SiteCode { get; }
         StockMovementResult Receive(StockMovementRequest request);
         StockMovementResult Reserve(StockMovementRequest request);
         StockMovementResult Pick(StockMovementRequest request);
