@@ -93,7 +93,8 @@ namespace PCTP.Security
             }
             return new UserSession(userId, Convert.ToString(credential["UserName"]),
                 Convert.ToString(credential["DisplayName"]),
-                credential["EmployeeCode"] == DBNull.Value ? null : Convert.ToString(credential["EmployeeCode"]),
+                credential.Table.Columns.Contains("EmployeeCode") && credential["EmployeeCode"] != DBNull.Value
+                    ? Convert.ToString(credential["EmployeeCode"]) : null,
                 Convert.ToBoolean(credential["MustChangePassword"]), permissions, scopes);
         }
 
