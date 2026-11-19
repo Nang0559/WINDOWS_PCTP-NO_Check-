@@ -26,13 +26,11 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly GridControl _grid = new GridControl();
         private readonly GridView _view;
         private readonly MemoEdit _details = new MemoEdit();
-        private readonly ProgressBarControl _componentProgress = new ProgressBarControl();
-        private readonly ProgressBarControl _operationProgress = new ProgressBarControl();
+        private readonly PCTP.Shared.MesControls.FvnKpiStageStripControl _stageStrip = new PCTP.Shared.MesControls.FvnKpiStageStripControl();
+        private readonly PCTP.Shared.MesControls.FvnProgressSummaryControl _progressSummary = new PCTP.Shared.MesControls.FvnProgressSummaryControl();
+        private readonly PCTP.Shared.MesControls.FvnScopeBadgeControl _scopeBadge = new PCTP.Shared.MesControls.FvnScopeBadgeControl();
         private readonly LabelControl _status = new LabelControl();
         private readonly LabelControl _refreshStamp = new LabelControl();
-        private readonly PanelControl[] _kpiCards = new PanelControl[5];
-        private readonly LabelControl[] _kpiValues = new LabelControl[5];
-        private readonly LabelControl[] _kpiCaptions = new LabelControl[5];
         private readonly SimpleButton _refresh = new SimpleButton();
         private readonly SimpleButton _openPlan = new SimpleButton();
         private readonly SimpleButton _openPart = new SimpleButton();
@@ -118,42 +116,7 @@ namespace PCTP.Modules.MesPlanning.UI
             actionPanel.Controls.Add(_openPlan);
             header.Controls.Add(actionPanel);
 
-            var kpis = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 5, RowCount = 1, Padding = new Padding(0, 4, 0, 4) };
-            for (int i = 0; i < 5; i++)
-            {
-                kpis.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
-                _kpiCards[i] = new PanelControl
-                {
-                    Dock = DockStyle.Fill, Margin = new Padding(4),
-                    BorderStyle = BorderStyles.Simple,
-                    Appearance = { BackColor = Color.White, Options = { UseBackColor = true } }
-                };
-                _kpiCaptions[i] = new LabelControl
-                {
-                    Dock = DockStyle.Top, Height = 26,
-                    Appearance = { ForeColor = Color.FromArgb(95, 107, 122), Font = new Font("Segoe UI", 8.5f, FontStyle.Bold) }
-                };
-                _kpiValues[i] = new LabelControl
-                {
-                    Dock = DockStyle.Fill,
-                    Appearance = { ForeColor = Color.FromArgb(28, 48, 73), Font = new Font("Segoe UI Semibold", 21f, FontStyle.Bold) }
-                };
-                _kpiCards[i].Controls.Add(_kpiValues[i]);
-                _kpiCards[i].Controls.Add(_kpiCaptions[i]);
-                kpis.Controls.Add(_kpiCards[i], i, 0);
-            }
-            SetKpiCaptions();
-            Color[] stageColors =
-            {
-                Color.FromArgb(239, 246, 255), Color.FromArgb(255, 248, 230),
-                Color.FromArgb(244, 246, 249), Color.FromArgb(235, 243, 255),
-                Color.FromArgb(232, 247, 238)
-            };
-            for (int i = 0; i < _kpiCards.Length; i++)
-            {
-                _kpiCards[i].Appearance.BackColor = stageColors[i];
-                _kpiCards[i].Appearance.Options.UseBackColor = true;
-            }
+            var kpis = _stageStrip;
 
             var split = new SplitContainerControl { Dock = DockStyle.Fill, Horizontal = false, SplitterPosition = 840 };
             _grid.Dock = DockStyle.Fill;
@@ -203,19 +166,11 @@ namespace PCTP.Modules.MesPlanning.UI
                 Dock = DockStyle.Top, Height = 28, Text = "CHI TIẾT DÒNG CHẢY / ĐIỂM CHỜ",
                 Appearance = { Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = Color.FromArgb(45, 65, 88) }
             };
-            var progressPanel = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Bottom, Height = 84, WrapContents = false,
-                FlowDirection = FlowDirection.TopDown, Padding = new Padding(2, 3, 2, 2)
-            };
-            ConfigureProgress(_componentProgress);
-            ConfigureProgress(_operationProgress);
-            progressPanel.Controls.Add(new LabelControl { Text = "CẤP LINH KIỆN", Width = 260, Height = 18 });
-            progressPanel.Controls.Add(_componentProgress);
-            progressPanel.Controls.Add(new LabelControl { Text = "CÔNG ĐOẠN", Width = 260, Height = 18 });
-            progressPanel.Controls.Add(_operationProgress);
+            _scopeBadge.Dock = DockStyle.Top;
+            _progressSummary.Dock = DockStyle.Bottom;
             detailPanel.Controls.Add(_details);
-            detailPanel.Controls.Add(progressPanel);
+            detailPanel.Controls.Add(_progressSummary);
+            detailPanel.Controls.Add(_scopeBadge);
             detailPanel.Controls.Add(detailTitle);
             split.Panel1.Controls.Add(_grid);
             split.Panel2.Controls.Add(detailPanel);
@@ -396,13 +351,7 @@ namespace PCTP.Modules.MesPlanning.UI
                     case "DONE": values[4]++; break;
                 }
             }
-            for (int i = 0; i < values.Length; i++) _kpiValues[i].Text = values[i].ToString("N0");
-        }
-
-        private void SetKpiCaptions()
-        {
-            string[] captions = { "01  KẾ HOẠCH  →", "02  CẤP LINH KIỆN  →", "03  LỆNH SẢN XUẤT  →", "04  SẢN XUẤT THỰC TẾ  →", "05  HOÀN THÀNH" };
-            for (int i = 0; i < captions.Length; i++) _kpiCaptions[i].Text = captions[i];
+            _stageStrip.SetValues(values[0], values[1], values[2], values[3], values[4]);
         }
 
         private void View_RowCellStyle(object sender, RowCellStyleEventArgs e)
@@ -438,23 +387,13 @@ namespace PCTP.Modules.MesPlanning.UI
             }
         }
 
-        private static void ConfigureProgress(ProgressBarControl progress)
-        {
-            progress.Width = 260;
-            progress.Height = 20;
-            progress.Properties.Minimum = 0;
-            progress.Properties.Maximum = 100;
-            progress.Properties.ShowTitle = true;
-            progress.Position = 0;
-        }
-
         private void ShowSelectedDetails()
         {
             var row = _view.GetFocusedDataRow();
             if (row == null)
             {
-                _componentProgress.Position = 0;
-                _operationProgress.Position = 0;
+                _progressSummary.SetProgress(0, 0);
+                _scopeBadge.SetRelated(false);
                 return;
             }
             decimal required = SafeDecimal(row["RequiredComponentQty"]);
@@ -462,11 +401,12 @@ namespace PCTP.Modules.MesPlanning.UI
             int componentPercent = required <= 0 ? 0 : (int)Math.Min(100m, Math.Max(0m, issued / required * 100m));
             int operationCount = SafeInt(row["OperationCount"]);
             int completedOperations = SafeInt(row["CompletedOperationCount"]);
-            _componentProgress.Position = componentPercent;
-            _operationProgress.Position = operationCount <= 0 ? 0 :
+            int operationPercent = operationCount <= 0 ? 0 :
                 (int)Math.Min(100m, Math.Max(0m, completedOperations * 100m / operationCount));
-            string related = Convert.ToBoolean(row["IsRelatedDepartment"])
-                ? "BỘ PHẬN LIÊN QUAN (chỉ xem)" : "BỘ PHẬN TRONG PHẠM VI";
+            _progressSummary.SetProgress(componentPercent, operationPercent);
+            bool isRelated = Convert.ToBoolean(row["IsRelatedDepartment"]);
+            _scopeBadge.SetRelated(isRelated);
+            string related = isRelated ? "BỘ PHẬN LIÊN QUAN (chỉ xem)" : "BỘ PHẬN TRONG PHẠM VI";
             _details.Text =
                 related + Environment.NewLine +
                 "Kế hoạch: " + Convert.ToString(row["PlanNo"]) + Environment.NewLine +
