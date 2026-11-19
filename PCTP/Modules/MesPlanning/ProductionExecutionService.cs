@@ -68,6 +68,21 @@ namespace PCTP.Modules.MesPlanning
                 goodQty, ngQty, inputSlotId, outputSlotId, actor.Trim(), Guid.NewGuid().ToString("N"));
         }
 
+        public DataTable ConsumeMaterialByQr(long orderMaterialId, long productionLotId, string qrRawValue,
+            int fromSlotId, decimal quantity, string actor)
+        {
+            actor = AuthorizationGuard.ActorCode;
+            DemandSite("MES.PRODUCTION_EXECUTION", "CONFIRM", _repository.GetLotSiteCode(productionLotId));
+            string qr = (qrRawValue ?? string.Empty).Trim();
+            if (orderMaterialId <= 0 || productionLotId <= 0 || fromSlotId <= 0 || quantity <= 0 ||
+                string.IsNullOrWhiteSpace(actor))
+                throw new ArgumentException("Thông tin tiêu hao LOT linh kiện không hợp lệ.");
+            if (!qr.StartsWith("FVN1|", StringComparison.OrdinalIgnoreCase) || qr.Length <= 5)
+                throw new ArgumentException("QR linh kiện phải có định dạng FVN1|LOT.");
+            return _repository.ConsumeMaterialByQr(orderMaterialId, productionLotId, qr,
+                fromSlotId, quantity, actor.Trim(), Guid.NewGuid().ToString("N"));
+        }
+
         public DataTable ConsumeMaterial(long orderMaterialId, long productionLotId, long materialLotId,
             int fromSlotId, decimal quantity, string actor)
         {
