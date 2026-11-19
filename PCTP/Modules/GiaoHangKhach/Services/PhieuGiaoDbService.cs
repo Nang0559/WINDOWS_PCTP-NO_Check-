@@ -4,6 +4,7 @@ using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
+using PCTP.Infrastructure.Security;
 using System;
 using System.Data;
 using System.Linq;
@@ -41,7 +42,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private string IfsTableGiaoDB => !string.IsNullOrWhiteSpace(_cfg.Delivery.IfsTableGiaoDB) ? _cfg.Delivery.IfsTableGiaoDB : "TMPPHIEUGIAOHANGDB_IFS";
         private string DocQrTableGiaoDB => _cfg.Delivery.CoConfigGiaoDB ? _cfg.Delivery.DocQRTableGiaoDB : "DOCQRCODE_DB";
 
-        public DataTable GetDanhSachMaHang() => _phieuRepo.GetDanhSachMaHang();
+        public DataTable GetDanhSachMaHang()
+        {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
+            return _phieuRepo.GetDanhSachMaHang();
+        }
 
         public int TaoPhieuVaChiTiet(
             string ten,
@@ -51,18 +56,35 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string note,
             DataTable chiTiet)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CREATE");
             return _phieuRepo.TaoPhieuVaChiTietGiaoDB(
                 ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
         }
 
-        public DataTable GetHeaderGiaoDB(DateTime ngayLap, int nhaMay) => _phieuRepo.GetHeaderGiaoDB(ngayLap, nhaMay);
-        public DataTable GetChiTietGiaoDB(DateTime ngayLap, int nhaMay) => _phieuRepo.GetChiTietGiaoDB(ngayLap, nhaMay);
+        public DataTable GetHeaderGiaoDB(DateTime ngayLap, int nhaMay)
+        {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
+            return _phieuRepo.GetHeaderGiaoDB(ngayLap, nhaMay);
+        }
+        public DataTable GetChiTietGiaoDB(DateTime ngayLap, int nhaMay)
+        {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
+            return _phieuRepo.GetChiTietGiaoDB(ngayLap, nhaMay);
+        }
         public int LuuPhieuGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet)
-            => _phieuRepo.LuuPhieuGiaoDB(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
-        public int XoaPhieuGiaoDB(DateTime ngayLap, int nhaMay) => _phieuRepo.XoaPhieuGiaoDB(ngayLap, nhaMay);
+        {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT");
+            return _phieuRepo.LuuPhieuGiaoDB(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
+        }
+        public int XoaPhieuGiaoDB(DateTime ngayLap, int nhaMay)
+        {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "DELETE");
+            return _phieuRepo.XoaPhieuGiaoDB(ngayLap, nhaMay);
+        }
 
         public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT");
             _giaoDbRepo.LuuGiaoDB(
                 donHang,
                 gioXuat.MoTa,
@@ -74,6 +96,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             var ctx = new OrderLoadContext
             {
                 Cfg = _cfg,
@@ -89,6 +112,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void XuLySauUpload()
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT");
             // Đơn chờ = mọi dòng STATUS='NG' của bảng nghiệp vụ FVN_Purchase_Order_DB_CT.
             DataTable donHang = _phieuRepo.BuildDonHangTuUpload();
             if (donHang == null)
@@ -113,6 +137,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public string CanhBaoLuoiRong(DateTime ngayGiao, int addNm)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             DataTable thongKe = _giaoDbRepo.ThongKeDonChoXuLy();
             if (thongKe == null || thongKe.Rows.Count == 0)
                 return null;
