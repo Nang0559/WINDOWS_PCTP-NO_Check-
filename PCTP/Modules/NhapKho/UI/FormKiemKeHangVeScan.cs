@@ -122,7 +122,9 @@ namespace PCTP.Modules.NhapKho.UI
             _slot.Properties.SearchMode = SearchMode.AutoComplete;
 
             _qty.Properties.Increment = 1;
-            _qty.Properties.DecimalPlaces = 3;
+            // RepositoryItemSpinEdit không có DecimalPlaces; cấu hình độ chính xác qua numeric mask.
+            _qty.Properties.Mask.EditMask = "n3";
+            _qty.Properties.Mask.UseMaskAsDisplayFormat = true;
             _qty.Properties.MinValue = 0;
             _qty.Properties.MaxValue = 1000000000;
             _qty.Value = 0;
