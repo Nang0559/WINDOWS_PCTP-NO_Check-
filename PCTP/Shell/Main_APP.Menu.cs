@@ -238,24 +238,24 @@ namespace PCTP
 
         private void ApplyAuthorizationToNavigation()
         {
-            ApplyAuthorizationRecursive(mainAccordionGroup);
+            foreach (AccordionControlElement root in accordionControl.Elements)
+                ApplyAuthorizationElement(root);
         }
 
-        private void ApplyAuthorizationRecursive(AccordionControlElement parent)
+        private void ApplyAuthorizationElement(AccordionControlElement item)
         {
-            foreach (AccordionControlElement item in parent.Elements)
+            string functionCode;
+            if (string.Equals(item.Name, "menuSecurityAdmin", StringComparison.OrdinalIgnoreCase))
+                item.Visible = CanOpenSecurityAdministration();
+            else if (MenuFunctionMap.TryGetValue(item.Name ?? string.Empty, out functionCode))
+                item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
+
+            if (item.Elements.Count > 0)
             {
-                string functionCode;
-                if (string.Equals(item.Name, "menuSecurityAdmin", StringComparison.OrdinalIgnoreCase))
-                    item.Visible = CanOpenSecurityAdministration();
-                else if (MenuFunctionMap.TryGetValue(item.Name ?? string.Empty, out functionCode))
-                    item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
-                if (item.Elements.Count > 0)
-                {
-                    ApplyAuthorizationRecursive(item);
-                    if (string.Equals(item.Name, "menuMesBomGroup", StringComparison.OrdinalIgnoreCase))
-                        item.Visible = item.Elements.Cast<AccordionControlElement>().Any(child => child.Visible);
-                }
+                foreach (AccordionControlElement child in item.Elements)
+                    ApplyAuthorizationElement(child);
+                if (string.Equals(item.Name, "menuMesBomGroup", StringComparison.OrdinalIgnoreCase))
+                    item.Visible = item.Elements.Cast<AccordionControlElement>().Any(child => child.Visible);
             }
         }
 
