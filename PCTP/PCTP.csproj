@@ -1012,6 +1012,9 @@
     </Compile>
     <Compile Include="Modules\KhoCore\Fuction\CheckInfor.cs" />
     <Compile Include="Shared\Helpers\LotNoHelper.cs" />
+    <Compile Include="Shared\MesControls\FvnKpiStageStripControl.cs" />
+    <Compile Include="Shared\MesControls\FvnProgressSummaryControl.cs" />
+    <Compile Include="Shared\MesControls\FvnScopeBadgeControl.cs" />
     <Compile Include="Shared\Lookup\FvnPartSiteLookupControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
