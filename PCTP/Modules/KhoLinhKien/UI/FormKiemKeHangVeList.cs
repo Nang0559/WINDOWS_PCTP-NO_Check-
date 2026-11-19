@@ -10,7 +10,7 @@ using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace PCTP.Modules.NhapKho.UI
+namespace PCTP.Modules.KhoLinhKien.UI
 {
     /// <summary>
     /// Màn hình tổng hợp các yêu cầu "Kiểm kê hàng về" (PO linh kiện đã phát hành).

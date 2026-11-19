@@ -13,7 +13,7 @@ using System.Drawing;
 using System.Media;
 using System.Windows.Forms;
 
-namespace PCTP.Modules.NhapKho.UI
+namespace PCTP.Modules.KhoLinhKien.UI
 {
     /// <summary>
     /// Màn hình "KIỂM KÊ HÀNG VỀ" của một yêu cầu: quét QR tem → nhận hàng vào Slot PART
