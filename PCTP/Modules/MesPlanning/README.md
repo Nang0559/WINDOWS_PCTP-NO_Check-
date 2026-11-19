@@ -208,7 +208,7 @@ administration workflow.
 
 ### Freshness and future assignment integration
 
-The Control Tower supports manual refresh and a 60-second polling refresh. It
+The Control Tower supports manual refresh and a 30-second polling refresh. It
 reads current canonical MES rows and workflow events; it does not copy them into
 a second operational database. The current "Việc thuộc quyền xử lý" is a
 permission-and-scope-derived work queue. If the plant later requires individual
