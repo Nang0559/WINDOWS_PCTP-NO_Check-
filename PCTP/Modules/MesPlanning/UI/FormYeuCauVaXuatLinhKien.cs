@@ -1,3 +1,4 @@
+using PCTP.Infrastructure.Security;
 using System;
 using System.Data;
 using System.Drawing;
@@ -14,6 +15,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly Label _status=new Label();
         private readonly Button _postButton=new Button();
         public FormYeuCauVaXuatLinhKien():this(new ComponentDemandService(new ComponentDemandRepository())){}
+            AuthorizationGuard.Demand("MES.COMPONENT_ISSUE", "VIEW");
         public FormYeuCauVaXuatLinhKien(IComponentDemandService service)
         {
             _service=service??throw new ArgumentNullException(nameof(service));
