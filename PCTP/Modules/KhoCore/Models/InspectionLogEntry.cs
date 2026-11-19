@@ -9,6 +9,7 @@ namespace PCTP.Modules.KhoCore.Models
     public sealed class InspectionLogEntry
     {
         public string InspectionCode { get; set; }
+        public string SiteCode { get; set; }
         public string ItemCode { get; set; }
         public string TemCodeTong { get; set; }
         public string LotNoTong { get; set; }
