@@ -1,3 +1,4 @@
+using PCTP.Infrastructure.Security;
 using System;
 using System.Data;
 using System.Linq;
@@ -18,6 +19,7 @@ namespace PCTP.Modules.XuatKho
     /// <summary>Thu hồi tồn từ vị trí nội bộ không thuộc Slot về Slot vật lý và STOCKTP.</summary>
     public sealed class FormThuHoiHangNoiBo : XtraForm
     {
+            AuthorizationGuard.Demand("WAREHOUSE.MOVE", "VIEW");
         private readonly XuLyHangLoiModuleFactory.Module _module;
         private readonly InternalTransferRepository _repository;
         private readonly TextEdit _txtLot = new TextEdit();
