@@ -42,23 +42,53 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
             int phieuTraHangCTId,
             PhieuXuLyBatThuong p)
         {
-            // INSERT phiếu + UPDATE FVN_PhieuTraHangCT phải atomic kể cả khi gọi Insert
-            // độc lập (không qua QTChungService đã tự Uow.Begin()).
-            return InTransaction(() => InsertCore(phieuTraHangCTId, p));
+            // Legacy 1-1: một dòng phiếu trả -> một phiếu, kèm đúng một dòng detail.
+            return InTransaction(() =>
+            {
+                if (p == null)
+                    throw new ArgumentNullException(nameof(p));
+                if (phieuTraHangCTId <= 0)
+                    throw new ArgumentOutOfRangeException(nameof(phieuTraHangCTId));
+
+                var items = new List<PhieuXuLyBatThuongCT>
+                {
+                    new PhieuXuLyBatThuongCT
+                    {
+                        PhieuTraHangCTId = phieuTraHangCTId,
+                        SlotIdNguon = p.SlotIdNguon,
+                        LotNguon = p.LotNguon ?? p.SoLoLoi,
+                        MaSanPham = p.MaSanPham,
+                        SoLuongLoi = p.SoLuongLoi
+                    }
+                };
+                return InsertCore(p, items, true);
+            });
+        }
+
+        public int InsertWithItems(
+            PhieuXuLyBatThuong p,
+            IList<PhieuXuLyBatThuongCT> items)
+        {
+            // INSERT header + INSERT detail + UPDATE FVN_PhieuTraHangCT phải atomic.
+            return InTransaction(() => InsertCore(p, items, false));
         }
 
         private int InsertCore(
-            int phieuTraHangCTId,
-            PhieuXuLyBatThuong p)
+            PhieuXuLyBatThuong p,
+            IList<PhieuXuLyBatThuongCT> items,
+            bool legacySingleLine)
         {
             if (p == null)
                 throw new ArgumentNullException(nameof(p));
 
-            if (phieuTraHangCTId <= 0)
-                throw new ArgumentOutOfRangeException(
-                    nameof(phieuTraHangCTId));
+            if (items == null || items.Count == 0)
+                throw new InvalidOperationException(
+                    "Phiếu xử lý bất thường phải có ít nhất một dòng chi tiết (Slot/LOT).");
 
-            ValidateForInsert(p);
+            ValidateForInsert(p, legacySingleLine);
+
+            // Cột legacy PhieuTraHangCTId của header: chỉ có giá trị với phiếu 1-1.
+            int phieuTraHangCTId = legacySingleLine ? items[0].PhieuTraHangCTId : 0;
 
             const string sql = @"
 INSERT INTO FVN_PhieuXuLyBatThuong
@@ -127,7 +157,9 @@ VALUES
 
                     new SqlParameter(
                         "@PhieuTraHangCTId",
-                        phieuTraHangCTId),
+                        phieuTraHangCTId > 0
+                            ? (object)phieuTraHangCTId
+                            : DBNull.Value),
 
                     new SqlParameter(
                         "@PhieuTraHangId",
@@ -209,50 +241,116 @@ VALUES
                 ));
 
             // ========================================================
-            // LIÊN KẾT DÒNG PHIẾU TRẢ HÀNG
+            // DETAIL + LIÊN KẾT DÒNG PHIẾU TRẢ HÀNG
             //
-            // Một PhieuTraHangCT chỉ được gắn một
-            // PhieuXuLyBatThuong.
-            //
-            // Interface Insert nhận phieuTraHangCTId chính là để
-            // thực hiện liên kết này.
+            // Mỗi PhieuTraHangCT chỉ thuộc một dòng detail của một phiếu.
             // ========================================================
+            InsertItems(phieuXuLyId, items);
+            return phieuXuLyId;
+        }
+
+        private void InsertItems(
+            int phieuXuLyId,
+            IList<PhieuXuLyBatThuongCT> items)
+        {
+            const string insertItemSql = @"
+INSERT INTO FVN_PhieuXuLyBatThuongCT
+(
+    PhieuXuLyBatThuongId, PhieuTraHangCTId, SlotIdNguon, SlotLotIdNguon,
+    LotNguon, MaSanPham, SoLuongLoi, LyDoNg, CreatedAt
+)
+VALUES
+(
+    @PhieuXuLyBatThuongId, @PhieuTraHangCTId, @SlotIdNguon, @SlotLotIdNguon,
+    @LotNguon, @MaSanPham, @SoLuongLoi, @LyDoNg, GETDATE()
+);";
 
             const string updateItemSql = @"
-                UPDATE FVN_PhieuTraHangCT
-                SET PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
-                WHERE Id = @PhieuTraHangCTId
-                  AND (
-                        PhieuXuLyBatThuongId IS NULL
-                        OR PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
-                      );";
+UPDATE FVN_PhieuTraHangCT
+SET PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
+WHERE Id = @PhieuTraHangCTId
+  AND (
+        PhieuXuLyBatThuongId IS NULL
+        OR PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
+      );";
 
-            // DB chưa chạy script thêm cột liên kết → bỏ qua, không làm hỏng việc tạo phiếu.
+            // DB chưa chạy script PHASE11 (cột liên kết ngược) → bỏ qua liên kết ngược.
             object colLen = ExecuteScalar(
                 "SELECT COL_LENGTH('dbo.FVN_PhieuTraHangCT', 'PhieuXuLyBatThuongId');");
+            bool coCotLienKet = colLen != null && colLen != DBNull.Value;
 
-            if (colLen == null || colLen == DBNull.Value)
-                return phieuXuLyId;
-
-            int affected = ExecuteNonQuery(
-                updateItemSql,
-
-                new SqlParameter(
-                    "@PhieuXuLyBatThuongId",
-                    phieuXuLyId),
-
-                new SqlParameter(
-                    "@PhieuTraHangCTId",
-                    phieuTraHangCTId));
-
-            if (affected == 0)
+            foreach (var it in items)
             {
-                throw new InvalidOperationException(
-                    $"Không thể liên kết PhieuTraHangCT.Id={phieuTraHangCTId} " +
-                    $"với PhieuXuLyBatThuong.Id={phieuXuLyId}.");
+                if (it.PhieuTraHangCTId <= 0)
+                    throw new InvalidOperationException(
+                        "Dòng detail thiếu PhieuTraHangCTId.");
+                if (it.SoLuongLoi <= 0)
+                    throw new InvalidOperationException(
+                        $"Dòng phiếu trả Id={it.PhieuTraHangCTId} có số lượng không hợp lệ.");
+
+                ExecuteNonQuery(
+                    insertItemSql,
+                    new SqlParameter("@PhieuXuLyBatThuongId", phieuXuLyId),
+                    new SqlParameter("@PhieuTraHangCTId", it.PhieuTraHangCTId),
+                    new SqlParameter("@SlotIdNguon", DbValueHelper.DbValue(it.SlotIdNguon)),
+                    new SqlParameter("@SlotLotIdNguon", DbValueHelper.DbValue(it.SlotLotIdNguon)),
+                    new SqlParameter("@LotNguon", DbValueHelper.DbValue(it.LotNguon)),
+                    new SqlParameter("@MaSanPham", DbValueHelper.DbValue(it.MaSanPham)),
+                    new SqlParameter("@SoLuongLoi", it.SoLuongLoi),
+                    new SqlParameter("@LyDoNg", DbValueHelper.DbValue(it.LyDoNg)));
+
+                if (!coCotLienKet)
+                    continue;
+
+                int affected = ExecuteNonQuery(
+                    updateItemSql,
+                    new SqlParameter("@PhieuXuLyBatThuongId", phieuXuLyId),
+                    new SqlParameter("@PhieuTraHangCTId", it.PhieuTraHangCTId));
+
+                if (affected == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Không thể liên kết PhieuTraHangCT.Id={it.PhieuTraHangCTId} " +
+                        $"với PhieuXuLyBatThuong.Id={phieuXuLyId}.");
+                }
+            }
+        }
+
+        public List<PhieuXuLyBatThuongCT> GetItems(int phieuXuLyId)
+        {
+            var list = new List<PhieuXuLyBatThuongCT>();
+            if (phieuXuLyId <= 0)
+                return list;
+
+            const string sql = @"
+SELECT Id, PhieuXuLyBatThuongId, PhieuTraHangCTId, SlotIdNguon, SlotLotIdNguon,
+       LotNguon, MaSanPham, SoLuongLoi, LyDoNg, CreatedAt
+FROM FVN_PhieuXuLyBatThuongCT
+WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
+ORDER BY Id;";
+
+            DataTable table = LoadData(
+                sql,
+                new SqlParameter("@PhieuXuLyBatThuongId", phieuXuLyId));
+
+            foreach (DataRow row in table.Rows)
+            {
+                list.Add(new PhieuXuLyBatThuongCT
+                {
+                    Id = DbValueHelper.ToInt(row["Id"]),
+                    PhieuXuLyBatThuongId = DbValueHelper.ToInt(row["PhieuXuLyBatThuongId"]),
+                    PhieuTraHangCTId = DbValueHelper.ToInt(row["PhieuTraHangCTId"]),
+                    SlotIdNguon = ToNullableInt(row["SlotIdNguon"]),
+                    SlotLotIdNguon = ToNullableInt(row["SlotLotIdNguon"]),
+                    LotNguon = DbValueHelper.ToString(row["LotNguon"]),
+                    MaSanPham = DbValueHelper.ToString(row["MaSanPham"]),
+                    SoLuongLoi = DbValueHelper.ToInt(row["SoLuongLoi"]),
+                    LyDoNg = DbValueHelper.ToString(row["LyDoNg"]),
+                    CreatedAt = DbValueHelper.ToDateTime(row["CreatedAt"]) ?? DateTime.MinValue
+                });
             }
 
-            return phieuXuLyId;
+            return list;
         }
 
 
@@ -303,7 +401,9 @@ WHERE Id = @Id;";
             if (table.Rows.Count == 0)
                 return null;
 
-            return Map(table.Rows[0]);
+            var phieu = Map(table.Rows[0]);
+            phieu.Items = GetItems(phieu.Id);
+            return phieu;
         }
 
 
@@ -585,7 +685,8 @@ WHERE Id = @Id;";
         // ============================================================
 
         private static void ValidateForInsert(
-            PhieuXuLyBatThuong p)
+            PhieuXuLyBatThuong p,
+            bool requireSourceSlotLot)
         {
             if (p.Nguon == NguonXuLyBatThuong.KhachTra)
             {
@@ -613,17 +714,21 @@ WHERE Id = @Id;";
                         "PhieuTraHangId bắt buộc khi Nguon = TraNoiBo.");
                 }
 
-                if (!p.SlotIdNguon.HasValue ||
-                    p.SlotIdNguon.Value <= 0)
+                // Phiếu header + detail: Slot/LOT nằm ở dòng detail (đã kiểm ở Service).
+                if (requireSourceSlotLot)
                 {
-                    throw new InvalidOperationException(
-                        "SlotIdNguon bắt buộc khi Nguon = TraNoiBo.");
-                }
+                    if (!p.SlotIdNguon.HasValue ||
+                        p.SlotIdNguon.Value <= 0)
+                    {
+                        throw new InvalidOperationException(
+                            "SlotIdNguon bắt buộc khi Nguon = TraNoiBo.");
+                    }
 
-                if (string.IsNullOrWhiteSpace(p.LotNguon))
-                {
-                    throw new InvalidOperationException(
-                        "LotNguon bắt buộc khi Nguon = TraNoiBo.");
+                    if (string.IsNullOrWhiteSpace(p.LotNguon))
+                    {
+                        throw new InvalidOperationException(
+                            "LotNguon bắt buộc khi Nguon = TraNoiBo.");
+                    }
                 }
             }
 

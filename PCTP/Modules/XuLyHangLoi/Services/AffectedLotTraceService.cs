@@ -38,6 +38,67 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         {
             if (phieu == null) throw new ArgumentNullException(nameof(phieu));
 
+            // Phiếu header + detail: truy vết từng (Mã hàng, LOT) có trong các dòng detail rồi gộp
+            // thành một snapshot cho cả phiếu. Phiếu cũ chưa có detail dùng đường truy vết legacy.
+            if (phieu.Items == null || phieu.Items.Count == 0)
+                return TraceLegacyHeader(phieu, nguoiThucHien);
+
+            var merged = new AffectedLotTraceResult
+            {
+                MaSanPham = phieu.MaSanPham,
+                LotNo = NormalizeLot(phieu.SoLoLoi),
+                IsComplete = true
+            };
+
+            var groups = phieu.Items
+                .Where(x => x != null)
+                .GroupBy(x => new
+                {
+                    Ma = (string.IsNullOrWhiteSpace(x.MaSanPham) ? phieu.MaSanPham : x.MaSanPham).Trim().ToUpperInvariant(),
+                    Lot = NormalizeLot(x.LotNguon).ToUpperInvariant()
+                });
+
+            foreach (var g in groups)
+            {
+                var first = g.First();
+                var ma = (string.IsNullOrWhiteSpace(first.MaSanPham) ? phieu.MaSanPham : first.MaSanPham).Trim();
+                var sub = Trace(ma, first.LotNguon, nguoiThucHien);
+
+                // Kho/WIP/khách trả không trả về số lượng: dùng đúng các dòng detail của (Mã hàng, LOT)
+                // này làm fallback; số lượng lấy từ dòng phiếu trả, không lấy từ dòng khác.
+                if (sub.TotalAffectedQuantity <= 0)
+                {
+                    foreach (var line in g.Where(x => x.SoLuongLoi > 0))
+                    {
+                        sub.Items.Add(new PhieuXuLyBatThuongAffectedLot
+                        {
+                            SourceType = phieu.Nguon == NguonXuLyBatThuong.TraNoiBo
+                                ? AffectedLotSourceType.Kho
+                                : AffectedLotSourceType.KhachTra,
+                            SourceReference = "PHIEU_TRA_HANG:" + (phieu.PhieuTraHangId ?? 0) + "/CT:" + line.PhieuTraHangCTId,
+                            SlotId = line.SlotIdNguon,
+                            LotNo = line.LotNguon,
+                            MaSanPham = ma,
+                            Model = phieu.Model,
+                            SoLuongAnhHuong = line.SoLuongLoi,
+                            SnapshotAt = DateTime.Now,
+                            SnapshotBy = nguoiThucHien.Trim()
+                        });
+                    }
+                }
+
+                merged.Items.AddRange(sub.Items);
+                merged.Warnings.AddRange(sub.Warnings);
+                if (!sub.IsComplete) merged.IsComplete = false;
+            }
+
+            return merged;
+        }
+
+        // Đường truy vết cho phiếu cũ (1 phiếu = 1 dòng phiếu trả, chưa có dòng detail).
+        private AffectedLotTraceResult TraceLegacyHeader(PhieuXuLyBatThuong phieu, string nguoiThucHien)
+        {
+
             // Ưu tiên truy vết qua các nguồn kho/WIP/khách trả như bình thường.
             // Với phiếu được sinh từ một dòng trả hàng cụ thể, nếu các nguồn này
             // không trả về số lượng (ví dụ hàng chưa có trong tồn kho rework hoặc

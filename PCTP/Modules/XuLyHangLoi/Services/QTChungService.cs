@@ -100,7 +100,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             {
                 _uow.Begin();
                 int stt = (_repo.GetAllByPhieuTraHangId(header.Id) ?? new List<PhieuXuLyBatThuong>()).Count + 1;
-                var id = TaoPhieuXuLyCore(header, ct, stt, model, phanLoaiXuLy, boPhanPhatHanh, nguoiThucHien);
+                var id = TaoPhieuXuLyCore(header, new List<PhieuTraHangCT> { ct }, stt, model, phanLoaiXuLy, boPhanPhatHanh, nguoiThucHien);
                 NangTrangThaiHeader(header.Id, PhieuTraHangStatus.DaTaoPhieuBatThuong, nguoiThucHien);
                 _uow.Commit();
                 return id;
@@ -133,8 +133,11 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
                 int stt = (_repo.GetAllByPhieuTraHangId(header.Id) ?? new List<PhieuXuLyBatThuong>()).Count;
 
-                foreach (var ct in items)
-                    ids.Add(TaoPhieuXuLyCore(header, ct, ++stt, model, phanLoaiXuLy, null, nguoiThucHien));
+                // Mỗi phiếu trả chỉ tạo MỘT phiếu xử lý bất thường (header); các Slot/LOT là dòng detail.
+                // Header chỉ có một MaSanPham nên phiếu trả có nhiều mã hàng khác nhau sẽ tách
+                // theo mã hàng (trường hợp thường gặp: một mã hàng → đúng một phiếu).
+                foreach (var nhom in items.GroupBy(x => (x.MaHang ?? string.Empty).Trim().ToUpperInvariant()))
+                    ids.Add(TaoPhieuXuLyCore(header, nhom.OrderBy(x => x.Id).ToList(), ++stt, model, phanLoaiXuLy, null, nguoiThucHien));
 
                 NangTrangThaiHeader(header.Id, PhieuTraHangStatus.DaTaoPhieuBatThuong, nguoiThucHien);
                 _uow.Commit();
@@ -144,23 +147,32 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         }
 
         // Không tự mở transaction: gọi trong _uow.Begin()/Commit() của hàm public.
-        private int TaoPhieuXuLyCore(PhieuTraHang header, PhieuTraHangCT ct, int stt, string model, string phanLoaiXuLy, string boPhanPhatHanh, string nguoiThucHien)
+        // Tạo MỘT phiếu (header) cho nhóm dòng phiếu trả cùng mã hàng; mỗi dòng → một dòng detail.
+        private int TaoPhieuXuLyCore(PhieuTraHang header, List<PhieuTraHangCT> cts, int stt, string model, string phanLoaiXuLy, string boPhanPhatHanh, string nguoiThucHien)
         {
-            if (string.IsNullOrWhiteSpace(ct.MaHang))
-                throw new InvalidOperationException($"Dòng phiếu trả Id={ct.Id} thiếu Mã hàng.");
-            if (ct.SoLuong <= 0)
-                throw new InvalidOperationException($"Dòng phiếu trả Id={ct.Id} ({ct.MaHang}) có số lượng không hợp lệ.");
+            if (cts == null || cts.Count == 0)
+                throw new InvalidOperationException("Phiếu xử lý bất thường phải có ít nhất một dòng phiếu trả.");
 
-            if (header.Nguon == NguonXuLyBatThuong.TraNoiBo)
+            foreach (var ct in cts)
             {
-                if (!ct.SlotIdNguon.HasValue || ct.SlotIdNguon.Value <= 0)
-                    throw new InvalidOperationException($"Dòng {ct.MaHang} của phiếu nội bộ chưa có Slot nguồn.");
-                if (string.IsNullOrWhiteSpace(ct.LotNo))
-                    throw new InvalidOperationException($"Dòng {ct.MaHang} của phiếu nội bộ chưa có LOT.");
+                if (string.IsNullOrWhiteSpace(ct.MaHang))
+                    throw new InvalidOperationException($"Dòng phiếu trả Id={ct.Id} thiếu Mã hàng.");
+                if (ct.SoLuong <= 0)
+                    throw new InvalidOperationException($"Dòng phiếu trả Id={ct.Id} ({ct.MaHang}) có số lượng không hợp lệ.");
+
+                if (header.Nguon == NguonXuLyBatThuong.TraNoiBo)
+                {
+                    if (!ct.SlotIdNguon.HasValue || ct.SlotIdNguon.Value <= 0)
+                        throw new InvalidOperationException($"Dòng {ct.MaHang} của phiếu nội bộ chưa có Slot nguồn.");
+                    if (string.IsNullOrWhiteSpace(ct.LotNo))
+                        throw new InvalidOperationException($"Dòng {ct.MaHang} của phiếu nội bộ chưa có LOT.");
+                }
             }
 
-            // Model không bắt buộc nhập: mặc định theo mã hàng của dòng.
-            string modelValue = string.IsNullOrWhiteSpace(model) ? ct.MaHang.Trim() : model.Trim();
+            string maHang = cts[0].MaHang.Trim();
+
+            // Model không bắt buộc nhập: mặc định theo mã hàng.
+            string modelValue = string.IsNullOrWhiteSpace(model) ? maHang : model.Trim();
 
             string phanLoai = string.IsNullOrWhiteSpace(phanLoaiXuLy) ? "Hàng lỗi" : phanLoaiXuLy.Trim();
 
@@ -171,8 +183,38 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 : "Chưa xác định";
 
             string noiDung = header.LyDo;
-            if (!string.IsNullOrWhiteSpace(ct.LyDoNg))
-                noiDung = string.IsNullOrWhiteSpace(noiDung) ? ct.LyDoNg : noiDung + " | " + ct.LyDoNg;
+            foreach (var lyDo in cts.Select(x => (x.LyDoNg ?? string.Empty).Trim())
+                                    .Where(x => x.Length > 0)
+                                    .Distinct(StringComparer.OrdinalIgnoreCase))
+                noiDung = string.IsNullOrWhiteSpace(noiDung) ? lyDo : noiDung + " | " + lyDo;
+            if (noiDung != null && noiDung.Length > 500)
+                noiDung = noiDung.Substring(0, 500);
+
+            bool traNoiBo = header.Nguon == NguonXuLyBatThuong.TraNoiBo;
+
+            var items = cts.Select(ct => new PhieuXuLyBatThuongCT
+            {
+                PhieuTraHangCTId = ct.Id,
+                SlotIdNguon = traNoiBo ? ct.SlotIdNguon : null,
+                SlotLotIdNguon = traNoiBo ? ct.SlotLotIdNguon : null,
+                LotNguon = string.IsNullOrWhiteSpace(ct.LotNo) ? null : ct.LotNo.Trim(),
+                MaSanPham = ct.MaHang.Trim(),
+                SoLuongLoi = ct.SoLuong,
+                LyDoNg = ct.LyDoNg
+            }).ToList();
+
+            // Header chỉ giữ Slot/LOT khi cả phiếu chỉ có đúng một Slot/LOT;
+            // nhiều Slot/LOT thì các cột này để trống và đọc từ detail.
+            var lots = items.Where(x => x.LotNguon != null)
+                            .Select(x => x.LotNguon)
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+            var slots = items.Where(x => x.SlotIdNguon.HasValue)
+                             .Select(x => x.SlotIdNguon.Value)
+                             .Distinct()
+                             .ToList();
+            string lotHeader = lots.Count == 1 ? lots[0] : null;
+            int? slotHeader = slots.Count == 1 ? (int?)slots[0] : null;
 
             var p = new PhieuXuLyBatThuong
             {
@@ -183,13 +225,14 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 SoPhieuTraHangGoc = header.SoPhieu,
                 // Phiếu khách trả: header phiếu trả chính là chứng từ khách trả.
                 PhieuKhachTraId = header.Nguon == NguonXuLyBatThuong.KhachTra ? (int?)header.Id : null,
-                SlotIdNguon = header.Nguon == NguonXuLyBatThuong.TraNoiBo ? ct.SlotIdNguon : null,
-                LotNguon = header.Nguon == NguonXuLyBatThuong.TraNoiBo ? ct.LotNo : null,
+                SlotIdNguon = traNoiBo ? slotHeader : null,
+                LotNguon = traNoiBo ? lotHeader : null,
                 Model = modelValue,
-                MaSanPham = ct.MaHang.Trim(),
-                SoLo = ct.LotNo,
-                SoLoLoi = ct.LotNo,
-                SoLuongLoi = ct.SoLuong,
+                MaSanPham = maHang,
+                SoLo = lotHeader,
+                SoLoLoi = lotHeader,
+                // Tổng số lượng các dòng detail: bước 5-8 làm việc trên con số tổng này.
+                SoLuongLoi = items.Sum(x => x.SoLuongLoi),
                 NoiDungBatThuong = noiDung,
                 PhanLoaiXuLy = phanLoai,
                 BoPhanPhatHanh = boPhan,
@@ -197,7 +240,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 CreatedBy = nguoiThucHien.Trim()
             };
 
-            var id = _repo.Insert(ct.Id, p);
+            var id = _repo.InsertWithItems(p, items);
             _repo.UpdateStatus(id, QTChungStatus.DaTaoPhieuBatThuong, nguoiThucHien);
             return id;
         }

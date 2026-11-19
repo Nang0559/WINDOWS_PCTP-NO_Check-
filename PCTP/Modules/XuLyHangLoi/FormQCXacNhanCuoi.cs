@@ -382,7 +382,13 @@ namespace PCTP.Modules.XuLyHangLoi
                 _lblSoPhieu.Text = p.SoPhieu ?? "";
                 _lblModel.Text = p.Model ?? "";
                 _lblMaSanPham.Text = p.MaSanPham ?? "";
-                _lblLot.Text = p.SoLo ?? "";
+                // Phiếu nhiều LOT: header để trống SoLo → hiển thị các LOT lấy từ dòng detail.
+                var lotsPhieu = (p.Items ?? new List<PCTP.Modules.XuLyHangLoi.Models.PhieuXuLyBatThuongCT>())
+                    .Where(x => x != null && !string.IsNullOrWhiteSpace(x.LotNguon))
+                    .Select(x => x.LotNguon.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                _lblLot.Text = !string.IsNullOrWhiteSpace(p.SoLo) ? p.SoLo : string.Join(", ", lotsPhieu);
                 // SL QC cuối phải bằng SL Rework được duyệt ở Initial QC (QTChungService.QCXacNhanCuoi kiểm theo
                 // plan.SoLuongReworkDuocPhep), KHÔNG phải SL lỗi của riêng phiếu: LOT nằm ở nhiều SlotLot
                 // (vd. 200 + 800) thì phiếu chỉ ghi 1 phần nhưng truy vết/Initial QC tính cả LOT (1000).

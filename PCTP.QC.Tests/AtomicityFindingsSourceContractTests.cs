@@ -142,10 +142,20 @@ public sealed class AtomicityFindingsSourceContractTests
         Assert.Contains("InTransaction(", entry, StringComparison.Ordinal);
         Assert.Contains("InsertCore(", entry, StringComparison.Ordinal);
 
+        var withItems = Method(source, "public int InsertWithItems(");
+        Assert.Contains("InTransaction(", withItems, StringComparison.Ordinal);
+        Assert.Contains("InsertCore(", withItems, StringComparison.Ordinal);
+
         var core = Method(source, "private int InsertCore(");
         Assert.Contains("INSERT INTO FVN_PhieuXuLyBatThuong", core, StringComparison.Ordinal);
-        Assert.Contains("UPDATE FVN_PhieuTraHangCT", core, StringComparison.Ordinal);
+        Assert.Contains("InsertItems(", core, StringComparison.Ordinal);
         AssertNoDirectDb(core, "InsertCore");
+
+        // Header + detail (PHASE15): dòng detail và liên kết ngược PhieuTraHangCT cùng nằm trong scope.
+        var items = Method(source, "private void InsertItems(");
+        Assert.Contains("INSERT INTO FVN_PhieuXuLyBatThuongCT", items, StringComparison.Ordinal);
+        Assert.Contains("UPDATE FVN_PhieuTraHangCT", items, StringComparison.Ordinal);
+        AssertNoDirectDb(items, "InsertItems");
     }
 
     [Fact]

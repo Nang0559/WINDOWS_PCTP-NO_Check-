@@ -17,6 +17,7 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         public NguonXuLyBatThuong Nguon { get; set; }
 
         public int? PhieuTraHangId { get; set; }
+        /// <summary>Legacy (phiếu 1-1 dòng phiếu trả). Phiếu mới: 0, dùng <see cref="Items"/>.</summary>
         public int PhieuTraHangCTId { get; set; }
         public string SoPhieuTraHangGoc { get; set; }
         public int? PhieuKhachTraId { get; set; }
@@ -43,6 +44,13 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         // ============================================================
         public virtual List<PhieuXuLyBatThuongAffectedLot> AffectedLots { get; set; }
             = new List<PhieuXuLyBatThuongAffectedLot>();
+
+        /// <summary>
+        /// Dòng detail (Slot/LOT nguồn của phiếu trả). Chỉ để biết hàng đang ở vị trí nào
+        /// trong kho; bước 5-8 làm việc trên tổng số lượng ở header.
+        /// </summary>
+        public virtual List<PhieuXuLyBatThuongCT> Items { get; set; }
+            = new List<PhieuXuLyBatThuongCT>();
 
         public virtual QCInspectionResult QCInspection { get; set; }
         public virtual ReworkResult Rework { get; set; }
@@ -154,6 +162,21 @@ namespace PCTP.Modules.XuLyHangLoi.Models
             UpdatedAt = DateTime.Now;
             UpdatedBy = updatedBy;
         }
+    }
+
+    /// <summary>Dòng detail của phiếu xử lý bất thường: một Slot/LOT nguồn của phiếu trả.</summary>
+    public class PhieuXuLyBatThuongCT
+    {
+        public int Id { get; set; }
+        public int PhieuXuLyBatThuongId { get; set; }
+        public int PhieuTraHangCTId { get; set; }
+        public int? SlotIdNguon { get; set; }
+        public int? SlotLotIdNguon { get; set; }
+        public string LotNguon { get; set; }
+        public string MaSanPham { get; set; }
+        public int SoLuongLoi { get; set; }
+        public string LyDoNg { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 
     /// <summary>Nguồn snapshot khi truy vết LOT bị ảnh hưởng.</summary>

@@ -186,8 +186,9 @@ WHERE ct.MaHang IS NOT NULL
         (h.CreatedAt >= @tu AND h.CreatedAt < DATEADD(DAY, 1, @den))
      OR EXISTS (
             SELECT 1
-            FROM FVN_PhieuXuLyBatThuong x
-            WHERE x.PhieuTraHangCTId = ct.Id
+            FROM FVN_PhieuXuLyBatThuongCT d
+            JOIN FVN_PhieuXuLyBatThuong x ON x.Id = d.PhieuXuLyBatThuongId
+            WHERE d.PhieuTraHangCTId = ct.Id
               AND x.CreatedAt >= @tu
               AND x.CreatedAt < DATEADD(DAY, 1, @den))
       )
