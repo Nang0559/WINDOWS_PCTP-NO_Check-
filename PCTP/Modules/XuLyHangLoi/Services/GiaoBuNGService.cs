@@ -48,7 +48,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public List<HangChoGiao> GetHangSanSangGiaoBu(
             int phieuKhachTraId)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _stockExportService.SiteCode, _stockExportService.SiteCode);
             if (phieuKhachTraId <= 0)
                 return new List<HangChoGiao>();
 
@@ -75,7 +75,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string rawQr,
             string nguoiGiao)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _stockExportService.SiteCode, _stockExportService.SiteCode);
             nguoiGiao = AuthorizationGuard.ActorCode;
             if (phieuKhachTraId <= 0)
             {
@@ -295,7 +295,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int phieuKhachTraId,
             string nguoiGiao)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _stockExportService.SiteCode, _stockExportService.SiteCode);
             nguoiGiao = AuthorizationGuard.ActorCode;
             if (phieuKhachTraId <= 0)
             {
