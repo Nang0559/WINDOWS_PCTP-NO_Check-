@@ -27,6 +27,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly DateTimePicker _productionDate = new DateTimePicker();
         private readonly Label _status = new Label();
         private readonly DataGridView _materials = new DataGridView();
+        private readonly DataGridView _routingSteps = new DataGridView();
         private readonly DataGridView _labels = new DataGridView();
         private readonly TextBox _labelQty = new TextBox(), _labelScan = new TextBox();
         private readonly TextBox _labelVoidReason = new TextBox();
@@ -98,6 +99,19 @@ namespace PCTP.Modules.MesPlanning.UI
             AddButton(operationPanel, "PAUSE", (s, e) => TransitionOperation(40));
             AddButton(operationPanel, "RESUME", (s, e) => TransitionOperation(30));
             AddButton(operationPanel, "COMPLETE", (s, e) => TransitionOperation(50));
+            AddButton(operationPanel, "TẢI ROUTING THEO LOT", LoadRoutingClick);
+            _routingSteps.Width = 980; _routingSteps.Height = 160; _routingSteps.ReadOnly = true;
+            _routingSteps.AllowUserToAddRows = false; _routingSteps.AllowUserToDeleteRows = false;
+            _routingSteps.MultiSelect = false; _routingSteps.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            _routingSteps.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+            _routingSteps.SelectionChanged += (s, e) =>
+            {
+                if (_routingSteps.SelectedRows.Count == 0) return;
+                var row = _routingSteps.SelectedRows[0];
+                _routingStepId.Text = Convert.ToString(row.Cells["RoutingStepId"].Value);
+                _operationNo.Text = Convert.ToString(row.Cells["OperationNo"].Value);
+            };
+            operationPanel.Controls.Add(_routingSteps);
             AddButton(operationPanel, "LỊCH SỬ LOT", (s, e) => OpenTimeline("OPERATION", _operationLotId));
             AddField(operationPanel, "InputQty", _inputQty);
             AddField(operationPanel, "GoodQty", _opGoodQty);
@@ -386,6 +400,15 @@ namespace PCTP.Modules.MesPlanning.UI
                 _workflow.TransitionOrder(id, current, targetStatus, AuthorizationGuard.ActorCode,
                     "Điều hành từ form MES");
                 return "Đã chuyển trạng thái lệnh " + id + " từ " + current + " sang " + targetStatus + ".";
+            });
+        }
+
+        private void LoadRoutingClick(object sender, EventArgs e)
+        {
+            Run(() =>
+            {
+                _routingSteps.DataSource = _service.GetRoutingSteps(LongValue(_operationLotId, "ProductionLotId"));
+                return "Đã tải routing theo LOT. Chọn công đoạn trong danh sách để thao tác workflow.";
             });
         }
 
