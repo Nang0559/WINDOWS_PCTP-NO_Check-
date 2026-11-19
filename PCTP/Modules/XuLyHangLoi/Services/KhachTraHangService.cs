@@ -65,7 +65,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public int TiepNhanPhieuKhachTra(PhieuTraHang phieu)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CREATE");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CREATE", "SITE", _qtChungService.SiteCode, _qtChungService.SiteCode);
             if (phieu == null)
                 throw new ArgumentNullException(nameof(phieu));
             phieu.CreatedBy = AuthorizationGuard.ActorCode;
@@ -138,7 +138,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             DateTime? ngayGiao,
             string lotNo)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _qtChungService.SiteCode, _qtChungService.SiteCode);
             if (!string.IsNullOrWhiteSpace(lotNo))
             {
                 return _phieuGiaoRepo.TimTheoLot(lotNo);
@@ -171,7 +171,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             DateTime tuNgay,
             DateTime denNgay)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _qtChungService.SiteCode, _qtChungService.SiteCode);
             if (string.IsNullOrWhiteSpace(maHang))
                 throw new ArgumentException(
                     "Phải có Mã hàng để tìm phiếu giao.",
@@ -204,7 +204,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public int? LaySoLuongDaGiao(string dinhDanhPhieuGiao, string lotNo)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "VIEW", "SITE", _qtChungService.SiteCode, _qtChungService.SiteCode);
             if (string.IsNullOrWhiteSpace(dinhDanhPhieuGiao))
                 return null;
 
@@ -349,7 +349,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int phieuKhachTraItemId,
             string dinhDanhPhieuGiao)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "EDIT");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "EDIT", "SITE", _qtChungService.SiteCode, _qtChungService.SiteCode);
             if (phieuKhachTraItemId <= 0)
                 throw new ArgumentException(
                     "phieuKhachTraItemId không hợp lệ.",
@@ -423,7 +423,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string soPhieuKhachTra,
             string nguoiThucHien)
         {
-            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("QUALITY.RETURN", "CONFIRM", "SITE", _qtChungService.SiteCode, _qtChungService.SiteCode);
             nguoiThucHien = AuthorizationGuard.ActorCode;
             if (string.IsNullOrWhiteSpace(dinhDanhPhieuGiao))
                 throw new ArgumentException(
