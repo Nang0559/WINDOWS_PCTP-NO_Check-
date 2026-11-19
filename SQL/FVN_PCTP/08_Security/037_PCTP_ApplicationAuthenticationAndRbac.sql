@@ -203,6 +203,8 @@ BEGIN TRY
    PasswordIterations=@PasswordIterations,MustChangePassword=0,FailedLoginCount=0,LockedUntilUtc=NULL,
    UpdatedAtUtc=SYSUTCDATETIME() WHERE UserId=@UserId AND IsActive=1;
   IF @@ROWCOUNT=0 THROW 53717,''Active account not found.'',1;
+  INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId)
+   VALUES(@UserId,''USER_PASSWORD_CHANGED'',''USER'',CONVERT(nvarchar(100),@UserId));
  END');
 
  EXEC(N'
