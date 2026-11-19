@@ -23,18 +23,20 @@ IF OBJECT_ID(N'MES.FVN_MaterialLot',N'U') IS NULL
 BEGIN TRY
  BEGIN TRANSACTION;
 
+ /* Execute schema changes as separate dynamic batches. SQL Server otherwise
+    may bind MaterialLotId before the preceding ALTER TABLE has taken effect. */
  IF COL_LENGTH(N'MES.FVN_ComponentLot',N'MaterialLotId') IS NULL
-  ALTER TABLE MES.FVN_ComponentLot ADD MaterialLotId bigint NULL;
+  EXEC(N'ALTER TABLE MES.FVN_ComponentLot ADD MaterialLotId bigint NULL;');
 
  IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_MES_FVN_ComponentLot_MaterialLot')
-  ALTER TABLE MES.FVN_ComponentLot WITH CHECK
-   ADD CONSTRAINT FK_MES_FVN_ComponentLot_MaterialLot
-   FOREIGN KEY(MaterialLotId) REFERENCES MES.FVN_MaterialLot(MaterialLotId);
+  EXEC(N'ALTER TABLE MES.FVN_ComponentLot WITH CHECK
+        ADD CONSTRAINT FK_MES_FVN_ComponentLot_MaterialLot
+        FOREIGN KEY(MaterialLotId) REFERENCES MES.FVN_MaterialLot(MaterialLotId);');
 
  IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'MES.FVN_ComponentLot')
                AND name=N'UX_MES_FVN_ComponentLot_MaterialLot')
-  CREATE UNIQUE INDEX UX_MES_FVN_ComponentLot_MaterialLot
-   ON MES.FVN_ComponentLot(MaterialLotId) WHERE MaterialLotId IS NOT NULL;
+  EXEC(N'CREATE UNIQUE INDEX UX_MES_FVN_ComponentLot_MaterialLot
+        ON MES.FVN_ComponentLot(MaterialLotId) WHERE MaterialLotId IS NOT NULL;');
 
  IF OBJECT_ID(N'MES.FVN_ComponentReceipt',N'U') IS NULL
  CREATE TABLE MES.FVN_ComponentReceipt
@@ -82,6 +84,9 @@ BEGIN TRY
   ON MES.FVN_ComponentReceiptLine(ComponentLotId,ReceivedAtUtc);
 
  /* Backfill only if a component LOT was already issued by 031. */
+ /* Backfill in a nested batch so the newly-added column is resolved only
+    after the ALTER TABLE above has completed. */
+ EXEC(N'
  DECLARE @ComponentLotId bigint,@SiteCode nvarchar(30),@PartNo nvarchar(100),
          @LotNo nvarchar(120),@SupplierCode nvarchar(60),@MaterialLotId bigint;
  DECLARE lot_cursor CURSOR LOCAL FAST_FORWARD FOR
@@ -97,8 +102,8 @@ BEGIN TRY
   BEGIN
    INSERT MES.FVN_MaterialLot(SiteCode,PartNo,LotNo,LotType,SupplierLotNo,SupplierCode,
      LotStatus,SourceSystem,SourceReference)
-   VALUES(@SiteCode,@PartNo,@LotNo,'RAW',@LotNo,@SupplierCode,'BLOCKED','MES',
-     N'COMPONENT_PO:'+CONVERT(nvarchar(30),@ComponentLotId));
+   VALUES(@SiteCode,@PartNo,@LotNo,''RAW'',@LotNo,@SupplierCode,''BLOCKED'',''MES'',
+     N''COMPONENT_PO:''+CONVERT(nvarchar(30),@ComponentLotId));
    SET @MaterialLotId=SCOPE_IDENTITY();
   END;
   UPDATE MES.FVN_ComponentLot SET MaterialLotId=@MaterialLotId
@@ -106,7 +111,7 @@ BEGIN TRY
   SET @MaterialLotId=NULL;
   FETCH NEXT FROM lot_cursor INTO @ComponentLotId,@SiteCode,@PartNo,@LotNo,@SupplierCode;
  END;
- CLOSE lot_cursor; DEALLOCATE lot_cursor;
+ CLOSE lot_cursor; DEALLOCATE lot_cursor;');
 
  /* Replace release procedure: every released QR LOT is also a canonical MES material LOT. */
  EXEC(N'
