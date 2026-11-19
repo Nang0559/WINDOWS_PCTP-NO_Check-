@@ -9,6 +9,12 @@ namespace PCTP.Modules.MesPlanning
         private readonly IProductionPlanRepository _repository;
         public ProductionPlanService(IProductionPlanRepository repository)
         { _repository = repository ?? throw new ArgumentNullException(nameof(repository)); }
+        public System.Data.DataTable GetPlanLines(string siteCode)
+        {
+            AuthorizationGuard.DemandScope("MES.PLAN_UPLOAD", "SITE", siteCode, siteCode);
+            return _repository.GetPlanLines(siteCode);
+        }
+
         public void ImportRows(IList<ProductionPlanImportRow> rows, string sourceFileName, string createdBy)
         {
             createdBy = AuthorizationGuard.ActorCode;
