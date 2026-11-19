@@ -9,8 +9,13 @@ namespace PCTP.Modules.MesPlanning
         public ComponentDemandService(IComponentDemandRepository repo){_repo=repo??throw new ArgumentNullException(nameof(repo));}
         public DataTable GetPlanLines(string site){AuthorizationGuard.DemandScope("MES.COMPONENT_ISSUE","SITE",site,site);return _repo.GetPlanLines(site);}
         public long GenerateDemand(long id,string siteCode,string user)
-        { AuthorizationGuard.DemandActionAndScope("MES.COMPONENT_ISSUE","CONFIRM","SITE",siteCode,siteCode); if(id<=0) throw new ArgumentException("ProductionPlanLineId không hợp lệ."); if(string.IsNullOrWhiteSpace(user)) throw new ArgumentException("Thiếu người thao tác."); return _repo.GenerateDemand(id,user.Trim()); }
+        {
             user = AuthorizationGuard.ActorCode;
+            AuthorizationGuard.DemandActionAndScope("MES.COMPONENT_ISSUE","CONFIRM","SITE",siteCode,siteCode);
+            if(id<=0) throw new ArgumentException("ProductionPlanLineId không hợp lệ.");
+            if(string.IsNullOrWhiteSpace(user)) throw new ArgumentException("Thiếu người thao tác.");
+            return _repo.GenerateDemand(id,user.Trim());
+        }
         public DataTable GetDemandLines(long id,string siteCode){AuthorizationGuard.DemandActionAndScope("MES.COMPONENT_ISSUE","VIEW","SITE",siteCode,siteCode);return _repo.GetDemandLines(id);}
         public DataTable GetPartLots(string site,string part,string areaCode){AuthorizationGuard.DemandScope("MES.COMPONENT_ISSUE","SITE",site,site);return _repo.GetPartLots(site,part,areaCode);}
         public DataTable GetWipSlots(string site){AuthorizationGuard.DemandScope("MES.COMPONENT_ISSUE","SITE",site,site);return _repo.GetWipSlots(site);}
