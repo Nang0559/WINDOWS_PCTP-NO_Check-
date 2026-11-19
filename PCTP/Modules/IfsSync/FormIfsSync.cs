@@ -334,6 +334,10 @@ SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];", sql))
                     XtraMessageBox.Show(this, "Hãy chọn ít nhất một nhóm dữ liệu.", "Đồng bộ IFS", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
+                if (selectedEntities.Contains("BOM_COMPONENT") && !selectedEntities.Contains("BOM_ALTERNATIVE"))
+                    selectedEntities.Add("BOM_ALTERNATIVE");
+                if ((selectedEntities.Contains("BOM_COMPONENT") || selectedEntities.Contains("BOM_ALTERNATIVE")) && !selectedEntities.Contains("BOM_HEADER"))
+                    selectedEntities.Add("BOM_HEADER");
             }
             string modeDescription = selectedOnly
                 ? "các nhóm đã chọn: " + string.Join(", ", selectedEntities)
