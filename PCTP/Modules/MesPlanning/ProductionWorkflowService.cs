@@ -82,6 +82,25 @@ namespace PCTP.Modules.MesPlanning
                     string.Equals(entityType, "PLAN", StringComparison.OrdinalIgnoreCase)
                         ? "MES.PLAN_UPLOAD" : "MES.PRODUCTION_EXECUTION",
                     actionCode, "SITE", site, site);
+
+                // Production operators may execute only orders/operations owned by
+                // departments explicitly assigned to their MES.PRODUCTION_EXECUTION scope.
+                // PLAN workflow remains governed by the planner's Site scope.
+                if (!string.Equals(entityType, "PLAN", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(actionCode, "VIEW", StringComparison.OrdinalIgnoreCase))
+                {
+                    var departments = _repository.GetEntityDepartments(entityType, entityId);
+                    if (departments == null || departments.Rows.Count == 0)
+                        throw new UnauthorizedAccessException("Không xác định được bộ phận sở hữu đối tượng sản xuất.");
+                    foreach (DataRow departmentRow in departments.Rows)
+                    {
+                        string department = Convert.ToString(departmentRow["DepartmentCode"]);
+                        if (string.IsNullOrWhiteSpace(department))
+                            throw new UnauthorizedAccessException("Đối tượng sản xuất chưa được gán bộ phận.");
+                        AuthorizationGuard.DemandActionAndScope(
+                            "MES.PRODUCTION_EXECUTION", actionCode, "DEPARTMENT", department, site);
+                    }
+                }
             }
         }
 
