@@ -78,11 +78,6 @@ namespace PCTP.Modules.IfsSync
                 { "SUPPLIER", "SELECT SUPPLIER_ID, NAME, OBJKEY, OBJVERSION FROM IFSAPP.SUPPLIER_INFO_GENERAL ORDER BY SUPPLIER_ID" }
             };
 
-        public IfsSyncResult SyncAll()
-        {
-            return SyncAll(null);
-        }
-
         public IfsSyncResult SyncAll(Action<string> phaseChanged)
         {
             return SyncEntities(new List<string>(EntityQueries.Keys), "FULL", phaseChanged);
