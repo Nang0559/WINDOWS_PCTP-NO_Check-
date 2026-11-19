@@ -164,17 +164,17 @@ namespace PCTP
                 ["menuChuyenHangNoiBo"] = "WAREHOUSE.MOVE",
                 ["menuThuHoiHangNoiBo"] = "WAREHOUSE.MOVE",
                 ["menuKhoTonTP"] = "WAREHOUSE.STOCK_VIEW",
-                ["menuNhanLinhKien"] = "WAREHOUSE.RECEIPT",
+                ["menuNhanLinhKien"] = "WAREHOUSE.COMPONENT_RECEIPT",
                 ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
                 ["menuDieuHanhSanXuat"] = "MES.PRODUCTION_EXECUTION",
-                ["menuYeuCauXuatLinhKien"] = "MES.COMPONENT_ISSUE",
+                ["menuYeuCauXuatLinhKien"] = "MES.COMPONENT_DEMAND",
                 ["menuDieuChinhTonKhoLot"] = "WAREHOUSE.STOCK_ADJUST",
                 ["menuHangChoGiao"] = "SHIPPING.DISPATCH",
                 ["menuIfsMasterDataSync"] = "MASTERDATA.IFS_SYNC",
                 ["menuTachLot"] = "LOT.SPLIT",
                 ["menuGhepLotThuCong"] = "LOT.MERGE",
                 ["menuBcTruyXuat"] = "REPORT.TRACEABILITY",
-                ["menuBcTruyXuatLinhKien"] = "REPORT.TRACEABILITY",
+                ["menuBcTruyXuatLinhKien"] = "REPORT.COMPONENT_TRACEABILITY",
                 ["menuBcLichSuKho"] = "REPORT.STOCK_HISTORY",
                 ["menuBcLichSuQC"] = "REPORT.QUALITY_HISTORY",
                 ["menuMesBomGraphic"] = "MES.BOM_VIEW",
@@ -217,6 +217,20 @@ namespace PCTP
                     onClick?.Invoke(s, e);
                 };
             }
+            else if (string.Equals(name, "menuYeuCauXuatLinhKien", StringComparison.OrdinalIgnoreCase))
+            {
+                item.Visible = HasComponentDemandAndIssueAccess();
+                item.Click += (s, e) =>
+                {
+                    if (!HasComponentDemandAndIssueAccess())
+                    {
+                        XtraMessageBox.Show(this, "Cần đồng thời quyền xem nhu cầu linh kiện và quyền xem chức năng xuất PART → WIP.",
+                            "PCTP - Phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    onClick?.Invoke(s, e);
+                };
+            }
             else if (MenuFunctionMap.TryGetValue(name, out functionCode))
             {
                 item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
@@ -247,6 +261,8 @@ namespace PCTP
             string functionCode;
             if (string.Equals(item.Name, "menuSecurityAdmin", StringComparison.OrdinalIgnoreCase))
                 item.Visible = CanOpenSecurityAdministration();
+            else if (string.Equals(item.Name, "menuYeuCauXuatLinhKien", StringComparison.OrdinalIgnoreCase))
+                item.Visible = HasComponentDemandAndIssueAccess();
             else if (MenuFunctionMap.TryGetValue(item.Name ?? string.Empty, out functionCode))
                 item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
 
@@ -257,6 +273,14 @@ namespace PCTP
                 if (string.Equals(item.Name, "menuMesBomGroup", StringComparison.OrdinalIgnoreCase))
                     item.Visible = item.Elements.Cast<AccordionControlElement>().Any(child => child.Visible);
             }
+        }
+
+        private bool HasComponentDemandAndIssueAccess()
+        {
+            var session = UserSession.Current;
+            return session != null &&
+                session.HasPermission("MES.COMPONENT_DEMAND", "VIEW") &&
+                session.HasPermission("MES.COMPONENT_ISSUE", "VIEW");
         }
 
         private bool CanOpenSecurityAdministration()
