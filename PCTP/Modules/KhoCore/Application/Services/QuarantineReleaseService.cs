@@ -3,6 +3,7 @@ using PCTP.Common;
 using PCTP.Shared.Common;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Repositories;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Modules.KhoCore.Application.Services
 {
@@ -40,6 +41,9 @@ namespace PCTP.Modules.KhoCore.Application.Services
         public QuarantineReleaseResult Release(QuarantineReleaseRequest request)
         {
             if (request == null) return QuarantineReleaseResult.Fail("Release request không được null.");
+            var session = AuthorizationGuard.DemandActionAndScope(
+                "QUALITY.RETURN", "APPROVE", "SITE", _balance.SiteCode, _balance.SiteCode);
+            request.PerformedBy = session.ActorCode;
             if (request.SlotLotId <= 0) return QuarantineReleaseResult.Fail("SlotLotId không hợp lệ.");
             if (string.IsNullOrWhiteSpace(request.PerformedBy)) return QuarantineReleaseResult.Fail("Người thực hiện release là bắt buộc.");
             if (!request.QcDispositionApproved)
