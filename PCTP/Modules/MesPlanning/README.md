@@ -164,7 +164,10 @@ The five visible stages are:
 5. **Hoàn thành** — completed/closed order.
 
 The worklist also shows the department, line, shift, product, last workflow event,
-the current waiting stage and a derived waiting reason. The latter is a monitoring
+the current waiting stage and a derived waiting reason. The "Chỉ việc của tôi"
+filter narrows the grid to actions allowed by the signed-in user's current
+function permissions and department scope. Double-clicking an actionable row
+opens its owning workflow form; the dashboard itself never executes the action. The latter is a monitoring
 indicator inferred from canonical facts (e.g. outstanding component quantity or
 incomplete routing); it is not a separate MES HOLD transaction or an approval.
 
