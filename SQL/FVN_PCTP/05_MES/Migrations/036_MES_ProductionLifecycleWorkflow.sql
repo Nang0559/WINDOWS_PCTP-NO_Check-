@@ -16,19 +16,20 @@ BEGIN TRY
  BEGIN TRANSACTION;
 
  IF COL_LENGTH(N'MES.FVN_ProductionPlan',N'WorkflowStatusCode') IS NULL
-  ALTER TABLE MES.FVN_ProductionPlan ADD WorkflowStatusCode int NULL;
+  EXEC(N'ALTER TABLE MES.FVN_ProductionPlan ADD WorkflowStatusCode int NULL;');
  IF COL_LENGTH(N'MES.FVN_ProductionOrder',N'WorkflowStatusCode') IS NULL
-  ALTER TABLE MES.FVN_ProductionOrder ADD WorkflowStatusCode int NULL;
+  EXEC(N'ALTER TABLE MES.FVN_ProductionOrder ADD WorkflowStatusCode int NULL;');
 
- UPDATE MES.FVN_ProductionPlan SET WorkflowStatusCode=
-  CASE Status WHEN 'IMPORTED' THEN 0 WHEN 'VALIDATED' THEN 10 WHEN 'FIRM' THEN 20
-   WHEN 'CANCELLED' THEN 900 ELSE 0 END
- WHERE WorkflowStatusCode IS NULL;
- UPDATE MES.FVN_ProductionOrder SET WorkflowStatusCode=
-  CASE Status WHEN 'CREATED' THEN 0 WHEN 'RELEASED' THEN 10 WHEN 'RUNNING' THEN 20
-   WHEN 'PAUSED' THEN 30 WHEN 'COMPLETED' THEN 40 WHEN 'CLOSED' THEN 50
-   WHEN 'CANCELLED' THEN 900 ELSE 0 END
- WHERE WorkflowStatusCode IS NULL;
+ /* Defer binding until the newly-added columns exist (SQL Server compiles a batch early). */
+ EXEC(N'UPDATE MES.FVN_ProductionPlan SET WorkflowStatusCode=
+  CASE Status WHEN ''IMPORTED'' THEN 0 WHEN ''VALIDATED'' THEN 10 WHEN ''FIRM'' THEN 20
+   WHEN ''CANCELLED'' THEN 900 ELSE 0 END
+  WHERE WorkflowStatusCode IS NULL;');
+ EXEC(N'UPDATE MES.FVN_ProductionOrder SET WorkflowStatusCode=
+  CASE Status WHEN ''CREATED'' THEN 0 WHEN ''RELEASED'' THEN 10 WHEN ''RUNNING'' THEN 20
+   WHEN ''PAUSED'' THEN 30 WHEN ''COMPLETED'' THEN 40 WHEN ''CLOSED'' THEN 50
+   WHEN ''CANCELLED'' THEN 900 ELSE 0 END
+  WHERE WorkflowStatusCode IS NULL;');
 
  IF OBJECT_ID(N'MES.FVN_ProductionOperationWorkflow',N'U') IS NULL
  CREATE TABLE MES.FVN_ProductionOperationWorkflow(
