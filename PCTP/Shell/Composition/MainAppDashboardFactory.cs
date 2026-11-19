@@ -32,15 +32,37 @@ namespace PCTP.Shell.Composition
             _hangChoGiaoRepository = new HangChoGiaoRepository(sql, uow);
         }
 
-        internal WarehouseDashboardBar Create(Action openNhapKho)
+        internal WarehouseDashboardBar Create(Action openNhapKho, Action openHangChoGiao)
         {
             if (openNhapKho == null)
                 throw new ArgumentNullException("openNhapKho");
+            if (openHangChoGiao == null)
+                throw new ArgumentNullException("openHangChoGiao");
 
             return new WarehouseDashboardBar(
                 _phieuXuLyRepository,
                 _dashboardRepository,
-                openNhapKho);
+                _hangChoGiaoRepository,
+                openNhapKho,
+                openHangChoGiao);
+        }
+
+        internal WmsFgHomePanel CreateFgHome(Action openNhapKho, Action openHangChoGiao, Action openTonKho)
+        {
+            if (openNhapKho == null)
+                throw new ArgumentNullException("openNhapKho");
+            if (openHangChoGiao == null)
+                throw new ArgumentNullException("openHangChoGiao");
+            if (openTonKho == null)
+                throw new ArgumentNullException("openTonKho");
+
+            return new WmsFgHomePanel(
+                _phieuXuLyRepository,
+                _dashboardRepository,
+                _hangChoGiaoRepository,
+                openNhapKho,
+                openHangChoGiao,
+                openTonKho);
         }
 
         internal WmsWorklistBar CreateWorklist(Action openNhapKho, Action openHangChoGiao)

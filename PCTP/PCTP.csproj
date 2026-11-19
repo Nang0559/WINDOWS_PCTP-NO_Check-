@@ -771,6 +771,7 @@
     <Compile Include="Security\ChangePasswordDialog.cs"><SubType>Form</SubType></Compile>
     <Compile Include="Infrastructure\Security\AuthorizationGuard.cs" />
     <Compile Include="Security\SecurityAdministrationRepository.cs" />
+    <Compile Include="Security\PermissionMatrixControl.cs"><SubType>UserControl</SubType></Compile>
     <Compile Include="Security\FormSecurityAdministration.cs"><SubType>Form</SubType></Compile>
     <Compile Include="Infrastructure\Configuration\ReportConnectionAlias.cs" />
     <Compile Include="Infrastructure\Configuration\RuntimeConfigurationBootstrap.cs" />
@@ -949,6 +950,9 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="Shell\Widgets\WmsControlCenterBar.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shell\Widgets\WmsFgHomePanel.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="Shell\Widgets\WmsWorklistBar.cs">

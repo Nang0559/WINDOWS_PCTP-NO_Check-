@@ -3,6 +3,7 @@ using PCTP.Common;
 using PCTP.Modules.NhapKho;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Repository;
+using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Security;
 using System;
 using System.Drawing;
@@ -18,18 +19,25 @@ namespace PCTP.Shell.Widgets
     {
         private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
         private readonly INhapKhoDashboardRepository _dashRepo;
+        private readonly IHangChoGiaoRepository _hangChoGiaoRepo;
         private readonly Action _openNhapKho;
+        private readonly Action _openHangChoGiao;
 
         private LabelControl _lblChoDinhHuong;
         private LabelControl _lblChoQC;
         private LabelControl _lblDaDuyetChuaTra;
+        private LabelControl _lblChoGiao;
         private LabelControl _lblLechA0;
 
         public WarehouseDashboardBar(
             IPhieuXuLyBatThuongRepository phieuXuLyRepo,
             INhapKhoDashboardRepository dashRepo,
-            Action openNhapKho)
+            IHangChoGiaoRepository hangChoGiaoRepo,
+            Action openNhapKho,
+            Action openHangChoGiao)
         {
+            _hangChoGiaoRepo = hangChoGiaoRepo ?? throw new ArgumentNullException("hangChoGiaoRepo");
+            _openHangChoGiao = openHangChoGiao ?? throw new ArgumentNullException("openHangChoGiao");
             _phieuXuLyRepo = phieuXuLyRepo ?? throw new ArgumentNullException("phieuXuLyRepo");
             _dashRepo = dashRepo ?? throw new ArgumentNullException("dashRepo");
             _openNhapKho = openNhapKho ?? throw new ArgumentNullException("openNhapKho");
@@ -66,12 +74,17 @@ namespace PCTP.Shell.Widgets
             _lblDaDuyetChuaTra = MakeLabel("🔄 Đã duyệt chờ trả SX: --");
             _lblDaDuyetChuaTra.Click += delegate { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); };
 
+            _lblChoGiao = MakeLabel("🚚 Hàng đã pick chờ giao: --");
+            _lblChoGiao.Click += delegate { _openHangChoGiao(); };
+
             _lblLechA0 = MakeLabel("⚠ Lệch đối chiếu A0: --");
             _lblLechA0.Click += delegate { _openNhapKho(); };
 
             var session = UserSession.Current;
             bool quality = session != null && session.HasPermission("QUALITY.RETURN", "VIEW");
             bool stockView = session != null && session.HasPermission("WAREHOUSE.STOCK_VIEW", "VIEW");
+            bool dispatch = session != null && session.HasPermission("SHIPPING.DISPATCH", "VIEW");
+            _lblChoGiao.Visible = dispatch;
             _lblChoDinhHuong.Visible = quality;
             _lblChoQC.Visible = quality;
             _lblDaDuyetChuaTra.Visible = quality;
@@ -79,6 +92,7 @@ namespace PCTP.Shell.Widgets
             flow.Controls.Add(_lblChoDinhHuong);
             flow.Controls.Add(_lblChoQC);
             flow.Controls.Add(_lblDaDuyetChuaTra);
+            flow.Controls.Add(_lblChoGiao);
             flow.Controls.Add(_lblLechA0);
             panel.Controls.Add(flow);
             Controls.Add(panel);
@@ -108,6 +122,12 @@ namespace PCTP.Shell.Widgets
                     SetItem(_lblChoDinhHuong, "🟡 QC chờ định hướng: " + choDinhHuong, choDinhHuong > 0 ? Color.DarkOrange : Color.SeaGreen);
                     SetItem(_lblChoQC, "🔴 QC chờ duyệt cuối: " + choQCCuoi, choQCCuoi > 0 ? Color.Crimson : Color.SeaGreen);
                     SetItem(_lblDaDuyetChuaTra, "🔄 Đã duyệt chờ trả SX: " + daDuyetChuaTra, daDuyetChuaTra > 0 ? Color.DarkOrange : Color.SeaGreen);
+                }
+
+                if (session.HasPermission("SHIPPING.DISPATCH", "VIEW"))
+                {
+                    int choGiao = _hangChoGiaoRepo.CountPending(); // FVN_HangChoGiao
+                    SetItem(_lblChoGiao, "🚚 Hàng đã pick chờ giao: " + choGiao, choGiao > 0 ? Color.DarkOrange : Color.SeaGreen);
                 }
 
                 if (session.HasPermission("WAREHOUSE.STOCK_VIEW", "VIEW"))

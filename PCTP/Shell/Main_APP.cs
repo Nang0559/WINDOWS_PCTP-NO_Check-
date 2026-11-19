@@ -37,6 +37,7 @@ namespace PCTP
         private MainAppDashboardController _dashboard;
         private WarehouseDashboardBar _dashboardBar;
         private WmsWorklistBar _worklistBar;
+        private WmsFgHomePanel _fgHome;
         private MainAppDashboardFactory _dashboardFactory;
         private WmsControlCenterBar _controlCenter;
         private ShellSystemInfoRibbon _systemInfo;
@@ -167,17 +168,22 @@ namespace PCTP
         private void InitializeShellComposition()
         {
             _dashboardFactory = new MainAppDashboardFactory();
-            _dashboardBar = _dashboardFactory.Create(OpenNhapKhoFromDashboard);
+            Action openHangChoGiao = () => OpenHangChoGiao(this, EventArgs.Empty);
+            _dashboardBar = _dashboardFactory.Create(OpenNhapKhoFromDashboard, openHangChoGiao);
+            _fgHome = _dashboardFactory.CreateFgHome(
+                OpenNhapKhoFromDashboard, openHangChoGiao, () => OpenTonKhoThanhPham(this, EventArgs.Empty));
             _worklistBar = _dashboardFactory.CreateWorklist(OpenNhapKhoFromDashboard, () => OpenHangChoGiao(this, EventArgs.Empty));
             _controlCenter = new WmsControlCenterBar(_wmsHelp);
             _controlCenter.RefreshRequested += ControlCenter_RefreshRequested;
 
             Controls.Add(_dashboardBar);
             Controls.Add(_worklistBar);
+            Controls.Add(_fgHome);
             Controls.Add(_controlCenter);
 
             _dashboardBar.BringToFront();
             _worklistBar.BringToFront();
+            _fgHome.BringToFront();
             _controlCenter.BringToFront();
         }
 
@@ -264,6 +270,8 @@ namespace PCTP
                 _dashboardBar.Refresh();
             if (_worklistBar != null)
                 _worklistBar.RefreshWorklist();
+            if (_fgHome != null)
+                _fgHome.RefreshData();
         }
 
 
