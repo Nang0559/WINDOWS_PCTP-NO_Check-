@@ -73,6 +73,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
             var orderPanel = Panel();
             AddField(orderPanel, "ProductionPlanLineId", _planLineId);
+            AddButton(orderPanel, "CHỌN KẾ HOẠCH FIRM", SelectPlanLineClick);
             AddField(orderPanel, "OrderNo", _orderNo);
             AddButton(orderPanel, "TẠO LỆNH TỪ KẾ HOẠCH", CreateOrderClick);
             AddField(orderPanel, "ProductionOrderId", _orderId);
@@ -234,6 +235,15 @@ namespace PCTP.Modules.MesPlanning.UI
             if (!int.TryParse(input.Text.Trim(), out value) || value <= 0)
                 throw new InvalidOperationException("SlotId phải là số nguyên dương hoặc để trống.");
             return value;
+        }
+
+        private void SelectPlanLineClick(object sender, EventArgs e)
+        {
+            using (var picker = new FormProductionPlanWorkflow())
+            {
+                if (picker.ShowDialog(this) == DialogResult.OK)
+                    _planLineId.Text = picker.SelectedPlanLineId.ToString();
+            }
         }
 
         private void CreateOrderClick(object sender, EventArgs e)
