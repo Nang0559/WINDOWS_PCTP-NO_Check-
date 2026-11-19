@@ -360,10 +360,22 @@ namespace PCTP.Modules.MesPlanning.UI
                         row["MyTask"] = "Tạo LOT sản xuất";
                 }
                 else if (stage == "PRODUCTION" && productionDepartmentScope &&
-                    session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW") &&
-                    session.HasPermission("MES.PRODUCTION_EXECUTION", "CONFIRM"))
-                    row["MyTask"] = Convert.ToString(row["OrderStatus"]) == "PAUSED"
-                        ? "RESUME lệnh" : "Thực hiện công đoạn";
+                    session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"))
+                {
+                    string orderStatus = Convert.ToString(row["OrderStatus"]);
+                    int operationCount = SafeInt(row["OperationCount"]);
+                    int completedOperations = SafeInt(row["CompletedOperationCount"]);
+                    int pausedOperations = SafeInt(row["PausedOperationCount"]);
+                    if (orderStatus == "PAUSED" && session.HasPermission("MES.PRODUCTION_EXECUTION", "CONFIRM"))
+                        row["MyTask"] = "RESUME lệnh";
+                    else if (pausedOperations > 0 && session.HasPermission("MES.PRODUCTION_EXECUTION", "CONFIRM"))
+                        row["MyTask"] = "RESUME công đoạn";
+                    else if (operationCount > 0 && completedOperations >= operationCount &&
+                        session.HasPermission("MES.PRODUCTION_EXECUTION", "APPROVE"))
+                        row["MyTask"] = "COMPLETE lệnh";
+                    else if (session.HasPermission("MES.PRODUCTION_EXECUTION", "CONFIRM"))
+                        row["MyTask"] = "Thực hiện công đoạn";
+                }
             }
         }
 
@@ -497,7 +509,8 @@ namespace PCTP.Modules.MesPlanning.UI
             else if (task == "Cấp linh kiện")
                 OpenPart();
             else if (task == "Tạo lệnh sản xuất" || task == "Tạo LOT sản xuất" ||
-                task == "RELEASE lệnh" || task == "RESUME lệnh" || task == "Thực hiện công đoạn")
+                task == "RELEASE lệnh" || task == "RESUME lệnh" || task == "RESUME công đoạn" ||
+                task == "COMPLETE lệnh" || task == "Thực hiện công đoạn")
                 OpenProduction();
         }
 
