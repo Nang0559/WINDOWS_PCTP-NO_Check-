@@ -23,8 +23,8 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly TextEdit _site = new TextEdit();
         private readonly DateEdit _from = new DateEdit();
         private readonly DateEdit _to = new DateEdit();
-        private readonly GridControl _grid = new GridControl();
-        private readonly GridView _view;
+        private readonly PCTP.Shared.MesControls.FvnDepartmentTaskGridControl _taskGrid =
+            new PCTP.Shared.MesControls.FvnDepartmentTaskGridControl();
         private readonly MemoEdit _details = new MemoEdit();
         private readonly PCTP.Shared.MesControls.FvnKpiStageStripControl _stageStrip = new PCTP.Shared.MesControls.FvnKpiStageStripControl();
         private readonly PCTP.Shared.MesControls.FvnProgressSummaryControl _progressSummary = new PCTP.Shared.MesControls.FvnProgressSummaryControl();
@@ -49,7 +49,6 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             AuthorizationGuard.Demand("MES.PRODUCTION_FLOW", "VIEW");
             _service = service ?? throw new ArgumentNullException(nameof(service));
-            _view = new GridView(_grid);
             Text = "MES CONTROL TOWER - Dòng chảy sản xuất";
             StartPosition = FormStartPosition.CenterParent;
             WindowState = FormWindowState.Maximized;
@@ -120,19 +119,8 @@ namespace PCTP.Modules.MesPlanning.UI
             var kpis = _stageStrip;
 
             var split = new SplitContainerControl { Dock = DockStyle.Fill, Horizontal = false, SplitterPosition = 840 };
-            _grid.Dock = DockStyle.Fill;
-            _grid.MainView = _view;
-            _grid.ViewCollection.Add(_view);
-            _view.OptionsBehavior.Editable = false;
-            _view.OptionsBehavior.ReadOnly = true;
-            _view.OptionsView.ShowGroupPanel = false;
-            _view.OptionsView.ShowAutoFilterRow = true;
-            _view.OptionsView.ShowIndicator = true;
-            _view.OptionsView.ColumnAutoWidth = false;
-            _view.OptionsSelection.MultiSelect = false;
-            _view.OptionsSelection.EnableAppearanceFocusedCell = false;
-            _view.FocusRectStyle = DrawFocusRectStyle.RowFocus;
-            _view.RowCellStyle += View_RowCellStyle;
+            _taskGrid.Dock = DockStyle.Fill;
+            _taskGrid.View.RowCellStyle += View_RowCellStyle;
             _view.CustomColumnDisplayText += (s, e) =>
             {
                 if (e.Column.FieldName == "IsRelatedDepartment")
@@ -175,7 +163,7 @@ namespace PCTP.Modules.MesPlanning.UI
             detailPanel.Controls.Add(_holdAlert);
             detailPanel.Controls.Add(_scopeBadge);
             detailPanel.Controls.Add(detailTitle);
-            split.Panel1.Controls.Add(_grid);
+            split.Panel1.Controls.Add(_taskGrid);
             split.Panel2.Controls.Add(detailPanel);
 
             var footer = new PanelControl { Dock = DockStyle.Fill, BorderStyle = BorderStyles.NoBorder };
@@ -213,7 +201,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 }
                 _data = e.Result as DataTable ?? new DataTable();
                 EnrichActionableTasks();
-                _grid.DataSource = _data;
+                _taskGrid.Grid.DataSource = _data;
                 ConfigureColumns();
                 UpdateKpis();
                 _refreshStamp.Text = "Cập nhật: " + DateTime.Now.ToString("HH:mm:ss");
