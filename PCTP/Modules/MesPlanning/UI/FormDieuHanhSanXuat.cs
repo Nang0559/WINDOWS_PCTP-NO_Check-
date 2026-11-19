@@ -10,7 +10,7 @@ using DevExpress.XtraPrinting.BarCode;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
-    public sealed class FormDieuHanhSanXuat : Form
+    public sealed class FormDieuHanhSanXuat : XtraForm
     {
         private readonly IProductionExecutionService _service;
         private readonly TextBox _planLineId = new TextBox(), _orderNo = new TextBox();
@@ -34,11 +34,11 @@ namespace PCTP.Modules.MesPlanning.UI
         public FormDieuHanhSanXuat()
             : this(new ProductionExecutionService(new ProductionExecutionRepository()))
         {
-            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "VIEW");
         }
 
         public FormDieuHanhSanXuat(IProductionExecutionService service)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "VIEW");
             _service = service ?? throw new ArgumentNullException(nameof(service));
             Text = "Điều hành sản xuất MES";
             StartPosition = FormStartPosition.CenterParent;
