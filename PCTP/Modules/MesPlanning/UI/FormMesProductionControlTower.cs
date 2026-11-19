@@ -26,6 +26,8 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly GridControl _grid = new GridControl();
         private readonly GridView _view;
         private readonly MemoEdit _details = new MemoEdit();
+        private readonly ProgressBarControl _componentProgress = new ProgressBarControl();
+        private readonly ProgressBarControl _operationProgress = new ProgressBarControl();
         private readonly LabelControl _status = new LabelControl();
         private readonly LabelControl _refreshStamp = new LabelControl();
         private readonly PanelControl[] _kpiCards = new PanelControl[5];
@@ -200,7 +202,19 @@ namespace PCTP.Modules.MesPlanning.UI
                 Dock = DockStyle.Top, Height = 28, Text = "CHI TIẾT DÒNG CHẢY / ĐIỂM CHỜ",
                 Appearance = { Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = Color.FromArgb(45, 65, 88) }
             };
+            var progressPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom, Height = 42, WrapContents = false,
+                Padding = new Padding(2, 5, 2, 2)
+            };
+            ConfigureProgress(_componentProgress);
+            ConfigureProgress(_operationProgress);
+            progressPanel.Controls.Add(new LabelControl { Text = "CẤP LINH KIỆN", Width = 105, Padding = new Padding(0, 5, 0, 0) });
+            progressPanel.Controls.Add(_componentProgress);
+            progressPanel.Controls.Add(new LabelControl { Text = "CÔNG ĐOẠN", Width = 90, Padding = new Padding(12, 5, 0, 0) });
+            progressPanel.Controls.Add(_operationProgress);
             detailPanel.Controls.Add(_details);
+            detailPanel.Controls.Add(progressPanel);
             detailPanel.Controls.Add(detailTitle);
             split.Panel1.Controls.Add(_grid);
             split.Panel2.Controls.Add(detailPanel);
@@ -413,10 +427,33 @@ namespace PCTP.Modules.MesPlanning.UI
             }
         }
 
+        private static void ConfigureProgress(ProgressBarControl progress)
+        {
+            progress.Width = 220;
+            progress.Height = 24;
+            progress.Properties.Minimum = 0;
+            progress.Properties.Maximum = 100;
+            progress.Properties.ShowTitle = true;
+            progress.Position = 0;
+        }
+
         private void ShowSelectedDetails()
         {
             var row = _view.GetFocusedDataRow();
-            if (row == null) return;
+            if (row == null)
+            {
+                _componentProgress.Position = 0;
+                _operationProgress.Position = 0;
+                return;
+            }
+            decimal required = SafeDecimal(row["RequiredComponentQty"]);
+            decimal issued = SafeDecimal(row["IssuedComponentQty"]);
+            int componentPercent = required <= 0 ? 0 : (int)Math.Min(100m, Math.Max(0m, issued / required * 100m));
+            int operationCount = SafeInt(row["OperationCount"]);
+            int completedOperations = SafeInt(row["CompletedOperationCount"]);
+            _componentProgress.Position = componentPercent;
+            _operationProgress.Position = operationCount <= 0 ? 0 :
+                (int)Math.Min(100m, Math.Max(0m, completedOperations * 100m / operationCount));
             string related = Convert.ToBoolean(row["IsRelatedDepartment"])
                 ? "BỘ PHẬN LIÊN QUAN (chỉ xem)" : "BỘ PHẬN TRONG PHẠM VI";
             _details.Text =
@@ -451,6 +488,20 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             using (var form = new FormDieuHanhSanXuat()) form.ShowDialog(this);
             LoadFlow();
+        }
+
+        private static decimal SafeDecimal(object value)
+        {
+            if (value == null || value == DBNull.Value) return 0m;
+            decimal result;
+            return decimal.TryParse(Convert.ToString(value), out result) ? result : 0m;
+        }
+
+        private static int SafeInt(object value)
+        {
+            if (value == null || value == DBNull.Value) return 0;
+            int result;
+            return int.TryParse(Convert.ToString(value), out result) ? result : 0;
         }
 
         private static LabelControl MakeCaption(string text)
