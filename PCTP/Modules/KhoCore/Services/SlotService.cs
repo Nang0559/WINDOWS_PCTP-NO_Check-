@@ -5,6 +5,7 @@ using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Helpers;
 using PCTP.Infrastructure.Security;
+using PCTP.Modules.GiaoHangKhach;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -35,21 +36,21 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
         private void DemandWarehouse(string functionCode, string actionCode, string warehouseName)
         {
-            AuthorizationGuard.DemandActionAndScope(functionCode, actionCode, "WAREHOUSE", warehouseName, null);
+            AuthorizationGuard.DemandActionAndScope(functionCode, actionCode, "WAREHOUSE", warehouseName, AppSettingsSiteContext.Default.SiteCode);
         }
 
         private List<SlotLotViewInfo> FilterScopedLots(IEnumerable<SlotLotViewInfo> rows)
         {
             var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             return (rows ?? Enumerable.Empty<SlotLotViewInfo>())
-                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.WarehouseName, null)).ToList();
+                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.WarehouseName, AppSettingsSiteContext.Default.SiteCode)).ToList();
         }
 
         private List<Slot> FilterScopedSlots(IEnumerable<Slot> rows)
         {
             var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             return (rows ?? Enumerable.Empty<Slot>())
-                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.whname, null)).ToList();
+                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.whname, AppSettingsSiteContext.Default.SiteCode)).ToList();
         }
 
         public List<SlotChuaLotInfo> FindSlotsContainingLot(string lotNo)
@@ -57,7 +58,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             if (string.IsNullOrWhiteSpace(lotNo)) return new List<SlotChuaLotInfo>();
             var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             return (_repository.GetSlotsChuaLot(lotNo) ?? new List<SlotChuaLotInfo>())
-                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.WarehouseName, null)).ToList();
+                .Where(x => x != null && session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", x.WarehouseName, AppSettingsSiteContext.Default.SiteCode)).ToList();
         }
         public int GetSlotId(
             string warehouseName,
@@ -442,7 +443,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
                 // Không parse được thì loại bỏ: không thể xác thực warehouse scope.
                 if (!SlotParser.TryParse(slotText, out string wh, out string rack, out int slotNo, out int capacity))
                     continue;
-                if (!session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", wh, null))
+                if (!session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", wh, AppSettingsSiteContext.Default.SiteCode))
                     continue;
 
                 int slotId = _repository.GetSlotId(wh, rack, slotNo);
@@ -532,7 +533,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             foreach (DataRow row in source.Rows)
             {
                 string warehouse = Convert.ToString(row["WhName"]);
-                if (session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", warehouse, null))
+                if (session.HasDataScope("WAREHOUSE.STOCK_VIEW", "WAREHOUSE", warehouse, AppSettingsSiteContext.Default.SiteCode))
                     filtered.ImportRow(row);
             }
             return filtered;
