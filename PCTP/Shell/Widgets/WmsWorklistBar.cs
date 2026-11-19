@@ -114,11 +114,11 @@ namespace PCTP.Shell.Widgets
             _lblChoQCCuoi.Visible = quality;
             _lblChoRework.Visible = quality;
             _lblChoQCRework.Visible = quality;
-            _lblChoNhapLai.Visible = quality;
+            _lblChoNhapLai.Visible = quality && receipt;
             _lblChoGiaoBu.Visible = dispatch;
             _lblChoGiao.Visible = dispatch;
             _lblChoNhap.Visible = receipt;
-            _lblLechA0.Visible = stockView;
+            _lblLechA0.Visible = stockView && receipt;
 
             flow.Controls.Add(title);
             flow.Controls.Add(_lblChoDinhHuong);
@@ -169,7 +169,7 @@ namespace PCTP.Shell.Widgets
                     int choQCCuoi = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
                     int choRework = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaDinhHuong);
                     int choQCRework = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
-                    int choNhapLai = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaQCXacNhanCuoi);
+                    int choNhapLai = receipt ? _phieuXuLyRepo.CountByStatus(QTChungStatus.DaQCXacNhanCuoi) : 0;
                     SetItem(_lblChoDinhHuong, "🟡 QC chờ định hướng: " + choDinhHuong, choDinhHuong);
                     SetItem(_lblChoQCCuoi, "🔴 QC chờ duyệt cuối: " + choQCCuoi, choQCCuoi);
                     SetItem(_lblChoRework, "🛠 Chờ xuất Rework: " + choRework, choRework);
@@ -191,7 +191,7 @@ namespace PCTP.Shell.Widgets
                     SetItem(_lblChoNhap, "📥 Phiếu chờ nhập: " + choNhap, choNhap);
                 }
 
-                if (stockView)
+                if (stockView && receipt)
                 {
                     int lechA0 = _nhapKhoRepo.DemLechDoiChieu();
                     SetItem(_lblLechA0, lechA0 > 0 ? "⚠ Lệch đối chiếu A0: " + lechA0 : "✅ Không lệch đối chiếu A0", lechA0);
