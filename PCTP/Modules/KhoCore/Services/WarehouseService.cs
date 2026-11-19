@@ -4,6 +4,7 @@ using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoVatLy.Repository;
 using PCTP.Shared.Common;
 using PCTP.Infrastructure.Security;
+using PCTP.Modules.GiaoHangKhach;
 using System.Linq;
 using System;
 using System.Collections.Generic;
@@ -31,7 +32,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         string warehouseName, string rackName,
         int rowCount, int columnCount, int slotCapacity)
         {
-            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_ADJUST", "ADMIN", "WAREHOUSE", warehouseName, null);
+            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_ADJUST", "ADMIN", "WAREHOUSE", warehouseName, AppSettingsSiteContext.Default.SiteCode);
             if (string.IsNullOrWhiteSpace(warehouseName))
                 throw new ArgumentException("Tên kho không được rỗng.");
             if (string.IsNullOrWhiteSpace(rackName))
@@ -67,7 +68,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             var session = AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             return (_repository.GetAllWarehouses() ?? new List<Warehouse>())
                 .Where(w => w != null && session.HasDataScope(
-                    "WAREHOUSE.STOCK_VIEW", "WAREHOUSE", w.Name, null)).ToList();
+                    "WAREHOUSE.STOCK_VIEW", "WAREHOUSE", w.Name, AppSettingsSiteContext.Default.SiteCode)).ToList();
         }
         public bool Exists(string warehouseName)
         {
