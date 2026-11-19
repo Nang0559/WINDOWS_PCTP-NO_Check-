@@ -408,6 +408,7 @@ SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];", sql))
 SELECT TOP (100)
        b.SyncBatchId,
        b.SyncMode,
+       b.SelectedEntities,
        b.Status,
        b.StartedAtUtc,
        b.CompletedAtUtc,
@@ -453,7 +454,7 @@ ORDER BY b.SyncBatchId DESC;", connection))
                 const string sql = @"
 ;WITH Latest AS
 (
-    SELECT TOP (1) SyncBatchId, Status, StartedAtUtc, CompletedAtUtc, ErrorSummary,
+    SELECT TOP (1) SyncBatchId, SyncMode, SelectedEntities, Status, StartedAtUtc, CompletedAtUtc, ErrorSummary,
            PartCatalogRows, InventoryPartRows, BomHeaderRows, BomAlternativeRows,
            BomComponentRows, WarehouseRows, SupplierRows
     FROM IFS.SyncBatch
@@ -463,6 +464,7 @@ SELECT v.EntityName, v.SourceObject, v.TargetObject, v.SourceRows, v.TargetRows,
        CASE
          WHEN l.SyncBatchId IS NULL THEN N'CHƯA ĐỒNG BỘ'
          WHEN entityError.SyncErrorId IS NOT NULL THEN N'LỖI ENTITY'
+         WHEN l.SyncMode = 'SELECTIVE' AND CHARINDEX(v.EntityName, COALESCE(l.SelectedEntities,N'')) = 0 THEN N'KHÔNG CHỌN TRONG BATCH GẦN NHẤT'
          WHEN l.Status = 'FAILED' THEN N'LỖI BATCH'
          WHEN l.Status <> 'APPLIED' THEN N'ĐANG XỬ LÝ / CHƯA APPLY'
          WHEN v.TargetRows = 0 THEN N'ĐÃ ĐỌC - ĐÍCH CHƯA CÓ DỮ LIỆU'
