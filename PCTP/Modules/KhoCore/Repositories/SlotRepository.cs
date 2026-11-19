@@ -986,6 +986,7 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
     FROM dbo.FVN_Slot s
     JOIN dbo.FVN_Rack r ON s.RackId = r.RackId
     JOIN dbo.FVN_Warehouse w ON r.WarehouseId = w.WarehouseId
-    WHERE s.IsOccupied = 1");
+    WHERE s.SiteCode=@site AND r.SiteCode=@site AND w.SiteCode=@site
+      AND s.IsOccupied = 1", SiteParam());
     }
 }
