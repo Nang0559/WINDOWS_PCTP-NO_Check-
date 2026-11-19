@@ -73,7 +73,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
             var orderPanel = Panel();
             AddField(orderPanel, "ProductionPlanLineId", _planLineId);
-            AddButton(orderPanel, "CHỌN KẾ HOẠCH FIRM", SelectPlanLineClick, UserSession.Current.HasPermission("MES.PLAN_UPLOAD", "VIEW"));
+            AddButton(orderPanel, "CHỌN KẾ HOẠCH FIRM", SelectPlanLineClick, UserSession.Current.HasPermission("MES.PRODUCTION_FLOW", "VIEW"));
             AddField(orderPanel, "OrderNo", _orderNo);
             AddButton(orderPanel, "TẠO LỆNH TỪ KẾ HOẠCH", CreateOrderClick, Can("CREATE"));
             AddField(orderPanel, "ProductionOrderId", _orderId);
@@ -252,7 +252,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void SelectPlanLineClick(object sender, EventArgs e)
         {
-            using (var picker = new FormProductionPlanWorkflow())
+            using (var picker = new FormMesProductionControlTower(true))
             {
                 if (picker.ShowDialog(this) == DialogResult.OK)
                     _planLineId.Text = picker.SelectedPlanLineId.ToString();
