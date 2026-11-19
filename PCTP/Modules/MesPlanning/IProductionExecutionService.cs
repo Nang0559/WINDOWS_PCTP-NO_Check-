@@ -6,6 +6,7 @@ namespace PCTP.Modules.MesPlanning
     public interface IProductionExecutionService
     {
         DataTable GetOrderMaterials(long orderId);
+        DataTable GetRoutingSteps(long productionLotId);
         DataTable CreateOrder(long planLineId, string orderNo, string actor);
         DataTable CreateLot(long orderId, DateTime producedAtUtc, decimal goodQty,
             decimal ngQty, bool finished, string actor);
