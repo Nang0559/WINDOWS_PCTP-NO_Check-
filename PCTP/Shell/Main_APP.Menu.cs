@@ -250,7 +250,12 @@ namespace PCTP
                     item.Visible = CanOpenSecurityAdministration();
                 else if (MenuFunctionMap.TryGetValue(item.Name ?? string.Empty, out functionCode))
                     item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
-                if (item.Elements.Count > 0) ApplyAuthorizationRecursive(item);
+                if (item.Elements.Count > 0)
+                {
+                    ApplyAuthorizationRecursive(item);
+                    if (string.Equals(item.Name, "menuMesBomGroup", StringComparison.OrdinalIgnoreCase))
+                        item.Visible = item.Elements.Cast<AccordionControlElement>().Any(child => child.Visible);
+                }
             }
         }
 
