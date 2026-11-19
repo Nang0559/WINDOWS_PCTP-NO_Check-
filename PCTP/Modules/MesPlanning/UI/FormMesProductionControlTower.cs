@@ -141,6 +141,17 @@ namespace PCTP.Modules.MesPlanning.UI
                 kpis.Controls.Add(_kpiCards[i], i, 0);
             }
             SetKpiCaptions();
+            Color[] stageColors =
+            {
+                Color.FromArgb(239, 246, 255), Color.FromArgb(255, 248, 230),
+                Color.FromArgb(244, 246, 249), Color.FromArgb(235, 243, 255),
+                Color.FromArgb(232, 247, 238)
+            };
+            for (int i = 0; i < _kpiCards.Length; i++)
+            {
+                _kpiCards[i].Appearance.BackColor = stageColors[i];
+                _kpiCards[i].Appearance.Options.UseBackColor = true;
+            }
 
             var split = new SplitContainerControl { Dock = DockStyle.Fill, Horizontal = false, SplitterPosition = 840 };
             _grid.Dock = DockStyle.Fill;
@@ -361,7 +372,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void SetKpiCaptions()
         {
-            string[] captions = { "01  KẾ HOẠCH", "02  CẤP LINH KIỆN", "03  LỆNH SẢN XUẤT", "04  SẢN XUẤT THỰC TẾ", "05  HOÀN THÀNH" };
+            string[] captions = { "01  KẾ HOẠCH  →", "02  CẤP LINH KIỆN  →", "03  LỆNH SẢN XUẤT  →", "04  SẢN XUẤT THỰC TẾ  →", "05  HOÀN THÀNH" };
             for (int i = 0; i < captions.Length; i++) _kpiCaptions[i].Text = captions[i];
         }
 
@@ -369,6 +380,17 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             var row = _view.GetDataRow(e.RowHandle);
             if (row == null || !row.Table.Columns.Contains("FlowStage")) return;
+            if (Convert.ToBoolean(row["IsRelatedDepartment"]))
+            {
+                e.Appearance.BackColor = Color.FromArgb(244, 246, 248);
+                e.Appearance.ForeColor = Color.FromArgb(105, 115, 125);
+                return;
+            }
+            if (e.Column.FieldName == "MyTask" && Convert.ToString(row["MyTask"]) != "Theo dõi")
+            {
+                e.Appearance.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+                e.Appearance.ForeColor = Color.FromArgb(23, 89, 154);
+            }
             string stage = Convert.ToString(row["FlowStage"]);
             if (stage == "COMPONENTS")
             {
