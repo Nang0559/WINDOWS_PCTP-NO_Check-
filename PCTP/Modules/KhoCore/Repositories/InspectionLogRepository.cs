@@ -157,6 +157,7 @@ namespace PCTP.Modules.KhoCore.Repositories
         private static InspectionLogEntry MapEntry(DataRow r) => new InspectionLogEntry
         {
             InspectionCode = r["InspectionCode"] as string,
+            SiteCode = r["SiteCode"] as string,
             ItemCode = r["ItemCode"] as string,
             LotNoTong = r["LotNoTong"] as string,
             NSXTong = r["NSXTong"] as string,
