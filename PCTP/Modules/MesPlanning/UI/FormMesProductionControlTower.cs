@@ -325,6 +325,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 string site = Convert.ToString(row["SiteCode"]);
                 string department = Convert.ToString(row["DepartmentCode"]);
                 bool productionDepartmentScope = !string.IsNullOrWhiteSpace(department) &&
+                    session.HasDataScope("MES.PRODUCTION_EXECUTION", "SITE", site, site) &&
                     session.HasDataScope("MES.PRODUCTION_EXECUTION", "DEPARTMENT", department, site);
 
                 if (stage == "PLAN" && planStatus == "IMPORTED" &&
