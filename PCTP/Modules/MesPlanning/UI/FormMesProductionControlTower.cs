@@ -36,19 +36,34 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly SimpleButton _openPlan = new SimpleButton();
         private readonly SimpleButton _openPart = new SimpleButton();
         private readonly SimpleButton _openProduction = new SimpleButton();
+        private readonly SimpleButton _selectFirmPlan = new SimpleButton();
+        private readonly bool _selectionMode;
         private readonly BackgroundWorker _worker = new BackgroundWorker();
         private readonly Timer _refreshTimer = new Timer();
         private DataTable _data = new DataTable();
 
+        public long SelectedPlanLineId { get; private set; }
+
         public FormMesProductionControlTower()
-            : this(MesProductionFlowComposition.Create())
+            : this(MesProductionFlowComposition.Create(), false)
+        {
+        }
+
+        public FormMesProductionControlTower(bool selectionMode)
+            : this(MesProductionFlowComposition.Create(), selectionMode)
         {
         }
 
         public FormMesProductionControlTower(IProductionFlowService service)
+            : this(service, false)
+        {
+        }
+
+        public FormMesProductionControlTower(IProductionFlowService service, bool selectionMode)
         {
             AuthorizationGuard.Demand("MES.PRODUCTION_FLOW", "VIEW");
             _service = service ?? throw new ArgumentNullException(nameof(service));
+            _selectionMode = selectionMode;
             Text = "MES CONTROL TOWER - Dòng chảy sản xuất";
             StartPosition = FormStartPosition.CenterParent;
             WindowState = FormWindowState.Maximized;
@@ -105,15 +120,24 @@ namespace PCTP.Modules.MesPlanning.UI
                 Dock = DockStyle.Right, Width = 440, WrapContents = false,
                 FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(0, 12, 0, 0)
             };
-            ConfigureAction(_openProduction, "TÁC VỤ SẢN XUẤT", UserSession.Current.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"));
-            _openProduction.Click += (s, e) => OpenProduction();
-            ConfigureAction(_openPart, "TÁC VỤ LINH KIỆN", UserSession.Current.HasPermission("MES.COMPONENT_DEMAND", "VIEW") && UserSession.Current.HasPermission("MES.COMPONENT_ISSUE", "VIEW"));
-            _openPart.Click += (s, e) => OpenPart();
-            ConfigureAction(_openPlan, "KẾ HOẠCH", UserSession.Current.HasPermission("MES.PLAN_UPLOAD", "VIEW"));
-            _openPlan.Click += (s, e) => OpenPlan();
-            actionPanel.Controls.Add(_openProduction);
-            actionPanel.Controls.Add(_openPart);
-            actionPanel.Controls.Add(_openPlan);
+            if (_selectionMode)
+            {
+                ConfigureAction(_selectFirmPlan, "CHỌN DÒNG FIRM", false);
+                _selectFirmPlan.Click += (s, e) => SelectCurrentFirmPlan();
+                actionPanel.Controls.Add(_selectFirmPlan);
+            }
+            else
+            {
+                ConfigureAction(_openProduction, "TÁC VỤ SẢN XUẤT", UserSession.Current.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"));
+                _openProduction.Click += (s, e) => OpenProduction();
+                ConfigureAction(_openPart, "TÁC VỤ LINH KIỆN", UserSession.Current.HasPermission("MES.COMPONENT_DEMAND", "VIEW") && UserSession.Current.HasPermission("MES.COMPONENT_ISSUE", "VIEW"));
+                _openPart.Click += (s, e) => OpenPart();
+                ConfigureAction(_openPlan, "KẾ HOẠCH", UserSession.Current.HasPermission("MES.PLAN_UPLOAD", "VIEW"));
+                _openPlan.Click += (s, e) => OpenPlan();
+                actionPanel.Controls.Add(_openProduction);
+                actionPanel.Controls.Add(_openPart);
+                actionPanel.Controls.Add(_openPlan);
+            }
             header.Controls.Add(actionPanel);
 
             var kpis = _stageStrip;
@@ -142,8 +166,16 @@ namespace PCTP.Modules.MesPlanning.UI
                         waiting == "PRODUCTION" ? "Sản xuất" : waiting;
                 }
             };
-            _view.FocusedRowChanged += (s, e) => ShowSelectedDetails();
-            _view.DoubleClick += (s, e) => OpenSelectedTask();
+            _view.FocusedRowChanged += (s, e) =>
+            {
+                ShowSelectedDetails();
+                UpdateSelectionButton();
+            };
+            _view.DoubleClick += (s, e) =>
+            {
+                if (_selectionMode) SelectCurrentFirmPlan();
+                else OpenSelectedTask();
+            };
             _details.Dock = DockStyle.Fill;
             _details.Properties.ReadOnly = true;
             _details.Properties.ScrollBars = ScrollBars.Vertical;
@@ -209,6 +241,7 @@ namespace PCTP.Modules.MesPlanning.UI
                     " dòng kế hoạch trong phạm vi được cấp. Màn hình chỉ đọc.";
                 _status.Appearance.ForeColor = Color.FromArgb(70, 85, 100);
                 ShowSelectedDetails();
+                UpdateSelectionButton();
             };
             _refreshTimer.Interval = 30000;
             _refreshTimer.Tick += (s, e) => LoadFlow();
@@ -428,6 +461,33 @@ namespace PCTP.Modules.MesPlanning.UI
                 "Lý do: " + Convert.ToString(row["WaitingReason"]) + Environment.NewLine +
                 "Cập nhật gần nhất: " + Convert.ToString(row["LastEventAtUtc"]) + " | " +
                 Convert.ToString(row["LastEventAction"]) + " | " + Convert.ToString(row["LastEventActor"]);
+        }
+
+        private void UpdateSelectionButton()
+        {
+            if (!_selectionMode) return;
+            var row = _view.GetFocusedDataRow();
+            _selectFirmPlan.Enabled = row != null &&
+                !Convert.ToBoolean(row["IsRelatedDepartment"]) &&
+                string.Equals(Convert.ToString(row["PlanStatus"]), "FIRM", StringComparison.OrdinalIgnoreCase) &&
+                row["ProductionOrderId"] == DBNull.Value;
+        }
+
+        private void SelectCurrentFirmPlan()
+        {
+            var row = _view.GetFocusedDataRow();
+            if (row == null || Convert.ToBoolean(row["IsRelatedDepartment"]) ||
+                !string.Equals(Convert.ToString(row["PlanStatus"]), "FIRM", StringComparison.OrdinalIgnoreCase) ||
+                row["ProductionOrderId"] != DBNull.Value)
+            {
+                XtraMessageBox.Show(this,
+                    "Chỉ được chọn dòng kế hoạch FIRM thuộc bộ phận của bạn và chưa tạo lệnh sản xuất.",
+                    "Chọn kế hoạch", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            SelectedPlanLineId = Convert.ToInt64(row["ProductionPlanLineId"]);
+            DialogResult = DialogResult.OK;
+            Close();
         }
 
         private void OpenSelectedTask()
