@@ -3,6 +3,7 @@ using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using PCTP.Security;
+using PCTP.Infrastructure.Security;
 
 namespace PCTP.Security
 {
@@ -18,8 +19,7 @@ namespace PCTP.Security
 
         private static void Demand(string functionCode, string actionCode)
         {
-            (UserSession.Current ?? throw new UnauthorizedAccessException("Chưa đăng nhập."))
-                .DemandPermission(functionCode, actionCode);
+            AuthorizationGuard.Demand(functionCode, actionCode);
         }
 
         private DataTable Query(string procedure, Action<SqlParameterCollection> parameters = null)
