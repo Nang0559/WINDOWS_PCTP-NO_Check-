@@ -20,7 +20,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly TextEdit _file = new TextEdit();
         private readonly ComboBoxEdit _sheet = new ComboBoxEdit();
         private readonly GridControl _grid = new GridControl();
-        private readonly GridView _gridView = new GridView();
+        private readonly GridView _gridView = new GridView(_grid);
         private readonly LabelControl _status = new LabelControl();
         private readonly SimpleButton _choose = new SimpleButton();
         private readonly SimpleButton _preview = new SimpleButton();
