@@ -106,6 +106,31 @@ BEGIN TRY
         AND r.IsActive=1
         AND (r.OwnerProductPartNo IS NULL OR r.OwnerProductPartNo=pf.ProductPartNo)
         AND (r.RelatedProductPartNo IS NULL OR r.RelatedProductPartNo=l.ProductPartNo))
+     OR EXISTS
+      (
+       SELECT 1
+       FROM MES.FVN_ProductionPlanLine ownerLine
+       JOIN MES.FVN_ProductionPlan ownerPlan
+        ON ownerPlan.ProductionPlanId=ownerLine.ProductionPlanId
+       JOIN MES.FVN_ProductionLotCodeMap ownerMap
+        ON ownerMap.SiteCode=ownerLine.SiteCode
+        AND ownerMap.PlanProductionLineCode=ownerLine.ProductionLineCode
+        AND ownerMap.IsActive=1
+       JOIN @Scope ownerScope ON ownerScope.DepartmentCode=ownerMap.DepartmentCode
+       JOIN MES.FVN_ComponentDemandHeader demand
+        ON demand.ProductionPlanLineId=ownerLine.ProductionPlanLineId
+       JOIN IFS.FVN_BomComponent component
+        ON component.SiteCode=ownerLine.SiteCode
+        AND component.PartNo=ownerLine.ProductPartNo
+        AND component.ComponentPartNo=l.ProductPartNo
+        AND component.EngChgLevel=demand.BomEngChgLevel
+        AND component.BomTypeDb=demand.BomTypeDb
+        AND component.AlternativeNo=demand.AlternativeNo
+       WHERE ownerPlan.SiteCode=p.SiteCode
+        AND ownerPlan.Status NOT IN(''CANCELLED'',''CLOSED'')
+        AND component.EffectiveInDate<=CAST(ISNULL(ownerLine.ProductionDate,ownerPlan.PlanDate) AS datetime2(0))
+        AND (component.EffectiveOutDate IS NULL OR component.EffectiveOutDate>=CAST(ISNULL(ownerLine.ProductionDate,ownerPlan.PlanDate) AS datetime2(0)))
+      )
     )
   )
   SELECT pf.ProductionPlanLineId,pf.ProductionPlanId,pf.SiteCode,pf.PlanNo,
