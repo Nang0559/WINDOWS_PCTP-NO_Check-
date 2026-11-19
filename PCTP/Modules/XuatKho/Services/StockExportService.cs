@@ -454,6 +454,7 @@ namespace PCTP.Modules.XuatKho.Services
             string itemCode = null,
             string actionType = "EXPORT")
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
             if (_stockMovement == null)
                 throw new InvalidOperationException("Chưa cấu hình IStockMovementService cho XuatKho.");
             if (string.IsNullOrWhiteSpace(itemCode))
