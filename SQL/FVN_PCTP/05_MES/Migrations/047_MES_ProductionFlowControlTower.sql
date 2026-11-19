@@ -119,6 +119,7 @@ BEGIN TRY
        JOIN @Scope ownerScope ON ownerScope.DepartmentCode=ownerMap.DepartmentCode
        JOIN MES.FVN_ComponentDemandHeader demand
         ON demand.ProductionPlanLineId=ownerLine.ProductionPlanLineId
+        AND demand.Status<>N''CANCELLED''
        JOIN IFS.FVN_BomComponent component
         ON component.SiteCode=ownerLine.SiteCode
         AND component.PartNo=ownerLine.ProductPartNo
