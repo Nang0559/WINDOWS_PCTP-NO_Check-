@@ -50,6 +50,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Interfaces
         // ============================================================
         // sử dụng cho rewwork 
         SlotLotInfo GetLotsBySlotLotId(int slotLotId);
+        string GetWarehouseNameBySlotId(int slotId);
         void DecreaseSlotLotQuantity(int slotLotId, int qty);
         // sử dụng chung
         void LockSlotForUpdate(int slotId);
