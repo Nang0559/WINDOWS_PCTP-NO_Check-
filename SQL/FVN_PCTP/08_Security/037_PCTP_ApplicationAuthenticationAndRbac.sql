@@ -369,11 +369,13 @@ BEGIN TRY
  BEGIN
   SET NOCOUNT ON; SET XACT_ABORT ON;
   IF EXISTS(SELECT 1 FROM SEC.Role WHERE RoleCode=@RoleCode) THROW 53720,''Role code already exists.'',1;
+  BEGIN TRANSACTION;
   INSERT SEC.Role(RoleCode,RoleName,Description) VALUES(@RoleCode,@RoleName,@Description);
   DECLARE @Id int=SCOPE_IDENTITY();
   INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId,AfterJson)
    VALUES(@ActorUserId,''ROLE_CREATED'',''ROLE'',CONVERT(nvarchar(100),@Id),
     N''{"roleCode":"''+STRING_ESCAPE(@RoleCode,''json'')+N''"}'');
+  COMMIT TRANSACTION;
   SELECT @Id RoleId;
  END');
 
@@ -383,6 +385,7 @@ BEGIN TRY
  AS
  BEGIN
   SET NOCOUNT ON; SET XACT_ABORT ON;
+  BEGIN TRANSACTION;
   DECLARE @Before bit=(SELECT IsAllowed FROM SEC.RoleFunctionPermission
    WHERE RoleId=@RoleId AND FunctionCode=@FunctionCode AND ActionCode=@ActionCode);
   MERGE SEC.RoleFunctionPermission AS t
@@ -397,6 +400,7 @@ BEGIN TRY
     CASE WHEN @Before=1 THEN N''true'' WHEN @Before=0 THEN N''false'' ELSE N''null'' END+N''}'',
    N''{"function":"''+@FunctionCode+N''","action":"''+@ActionCode+N''","allowed":''+
     CASE WHEN @IsAllowed=1 THEN N''true'' ELSE N''false'' END+N''}'');
+  COMMIT TRANSACTION;
  END');
 
  EXEC(N'
@@ -405,6 +409,7 @@ BEGIN TRY
  AS
  BEGIN
   SET NOCOUNT ON; SET XACT_ABORT ON;
+  BEGIN TRANSACTION;
   IF @IsAssigned=1
   BEGIN
    IF NOT EXISTS(SELECT 1 FROM SEC.UserRole WHERE UserId=@UserId AND RoleId=@RoleId)
@@ -421,6 +426,7 @@ BEGIN TRY
   INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId,AfterJson)
    VALUES(@ActorUserId,''USER_ROLE_CHANGED'',''USER'',CONVERT(nvarchar(100),@UserId),
     N''{"roleId":''+CONVERT(nvarchar(20),@RoleId)+N'',"assigned":''+CASE WHEN @IsAssigned=1 THEN N''true'' ELSE N''false'' END+N''}'');
+  COMMIT TRANSACTION;
  END');
 
  EXEC(N'
@@ -429,6 +435,7 @@ BEGIN TRY
  AS
  BEGIN
   SET NOCOUNT ON; SET XACT_ABORT ON;
+  BEGIN TRANSACTION;
   IF @IsActive=0 AND EXISTS(SELECT 1 FROM SEC.UserRole ur JOIN SEC.Role r ON r.RoleId=ur.RoleId
     WHERE ur.UserId=@UserId AND r.RoleCode=''SYSTEM_ADMIN'')
    AND (SELECT COUNT(*) FROM SEC.UserRole ur JOIN SEC.Role r ON r.RoleId=ur.RoleId
@@ -452,12 +459,14 @@ BEGIN TRY
   SET NOCOUNT ON; SET XACT_ABORT ON;
   IF DATALENGTH(@PasswordSalt)<16 OR DATALENGTH(@PasswordHash)<>32 OR @PasswordIterations NOT BETWEEN 100000 AND 1000000
    THROW 53722,''Password credential parameters are invalid.'',1;
+  BEGIN TRANSACTION;
   UPDATE SEC.UserAccount SET PasswordSalt=@PasswordSalt,PasswordHash=@PasswordHash,
    PasswordIterations=@PasswordIterations,MustChangePassword=1,FailedLoginCount=0,LockedUntilUtc=NULL,
    UpdatedAtUtc=SYSUTCDATETIME(),UpdatedByUserId=@ActorUserId WHERE UserId=@UserId;
   IF @@ROWCOUNT=0 THROW 53723,''User not found.'',1;
   INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId)
    VALUES(@ActorUserId,''USER_PASSWORD_RESET'',''USER'',CONVERT(nvarchar(100),@UserId));
+  COMMIT TRANSACTION;
  END');
 
  EXEC(N'
@@ -470,6 +479,7 @@ BEGIN TRY
   SET NOCOUNT ON; SET XACT_ABORT ON;
   IF DATALENGTH(@PasswordSalt)<16 OR DATALENGTH(@PasswordHash)<>32 OR @PasswordIterations NOT BETWEEN 100000 AND 1000000
    THROW 53724,''Password credential parameters are invalid.'',1;
+  BEGIN TRANSACTION;
   INSERT SEC.UserAccount(UserName,DisplayName,EmployeeCode,Email,PasswordSalt,PasswordHash,
    PasswordIterations,MustChangePassword,CreatedByUserId)
   VALUES(LTRIM(RTRIM(@UserName)),LTRIM(RTRIM(@DisplayName)),@EmployeeCode,@Email,
@@ -477,6 +487,7 @@ BEGIN TRY
   DECLARE @NewUserId bigint=SCOPE_IDENTITY();
   INSERT SEC.AdminAudit(ActorUserId,EventCode,TargetType,TargetId)
    VALUES(@ActorUserId,''USER_CREATED'',''USER'',CONVERT(nvarchar(100),@NewUserId));
+  COMMIT TRANSACTION;
   SELECT @NewUserId UserId;
  END');
 
