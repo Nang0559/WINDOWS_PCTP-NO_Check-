@@ -135,10 +135,10 @@ BEGIN TRY
    BEGIN
     COMMIT TRANSACTION;
     SELECT l.ComponentLotId,l.MaterialLotId,l.LotNo,l.QrPayload,l.IssuedQty,
-           p.LineNo,p.PartNo,p.PartDescription
+           p.[LineNo],p.PartNo,p.PartDescription
      FROM MES.FVN_ComponentLot l JOIN MES.FVN_ComponentPurchaseOrderLine p
       ON p.PurchaseOrderLineId=l.PurchaseOrderLineId
-     WHERE p.PurchaseOrderId=@PurchaseOrderId ORDER BY p.LineNo;
+     WHERE p.PurchaseOrderId=@PurchaseOrderId ORDER BY p.[LineNo];
     RETURN;
    END;
    IF @Status<>''VALIDATED'' THROW 53214,''Only a VALIDATED MES order can be released.'',1;
@@ -154,7 +154,7 @@ BEGIN TRY
    EXEC MES.usp_FVN_AllocateSupplierId5 @SupplierCode=@SupplierCode,@SupplierId5=@SupplierId5 OUTPUT;
    DECLARE c CURSOR LOCAL FAST_FORWARD FOR
     SELECT PurchaseOrderLineId,PartNo,OrderQty FROM MES.FVN_ComponentPurchaseOrderLine
-    WITH(UPDLOCK,HOLDLOCK) WHERE PurchaseOrderId=@PurchaseOrderId ORDER BY LineNo;
+    WITH(UPDLOCK,HOLDLOCK) WHERE PurchaseOrderId=@PurchaseOrderId ORDER BY [LineNo];
    OPEN c; FETCH NEXT FROM c INTO @LineId,@PartNo,@Qty;
    WHILE @@FETCH_STATUS=0
    BEGIN
@@ -194,10 +194,10 @@ BEGIN TRY
     WHERE PurchaseOrderId=@PurchaseOrderId;
    COMMIT TRANSACTION;
    SELECT l.ComponentLotId,l.MaterialLotId,l.LotNo,l.QrPayload,l.IssuedQty,
-    p.LineNo,p.PartNo,p.PartDescription
+    p.[LineNo],p.PartNo,p.PartDescription
    FROM MES.FVN_ComponentLot l JOIN MES.FVN_ComponentPurchaseOrderLine p
     ON p.PurchaseOrderLineId=l.PurchaseOrderLineId
-   WHERE p.PurchaseOrderId=@PurchaseOrderId ORDER BY p.LineNo;
+   WHERE p.PurchaseOrderId=@PurchaseOrderId ORDER BY p.[LineNo];
   END TRY
   BEGIN CATCH
    IF CURSOR_STATUS(''local'',''c'')>=0 CLOSE c;
