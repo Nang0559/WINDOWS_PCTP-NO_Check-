@@ -247,7 +247,7 @@ namespace PCTP.Modules.XuatKho.Services
         public StockExportResult ConfirmGiaoHangTuChoGiao(int hangChoGiaoId, string nguoiGiao)
         {
             nguoiGiao = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
+            DemandShippingSite("CONFIRM");
             if (_stockMovement == null)
                 return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
 
@@ -330,7 +330,7 @@ namespace PCTP.Modules.XuatKho.Services
         public StockExportResult XuatTrucTiep(StockExportRequest request)
         {
             if (request != null) request.NguoiThucHien = AuthorizationGuard.ActorCode;
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
+            DemandShippingSite("CONFIRM");
             var validation = _validationService.ValidateXuatTrucTiep(request);
             if (!validation.IsValid)
                 return MapFail(validation);
@@ -456,7 +456,7 @@ namespace PCTP.Modules.XuatKho.Services
             string itemCode = null,
             string actionType = "EXPORT")
         {
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
+            DemandShippingSite("CONFIRM");
             if (_stockMovement == null)
                 throw new InvalidOperationException("Chưa cấu hình IStockMovementService cho XuatKho.");
             if (string.IsNullOrWhiteSpace(itemCode))
