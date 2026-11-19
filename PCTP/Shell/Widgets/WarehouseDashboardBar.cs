@@ -3,6 +3,7 @@ using PCTP.Common;
 using PCTP.Modules.NhapKho;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Repository;
+using PCTP.Security;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -68,6 +69,13 @@ namespace PCTP.Shell.Widgets
             _lblLechA0 = MakeLabel("⚠ Lệch đối chiếu A0: --");
             _lblLechA0.Click += delegate { _openNhapKho(); };
 
+            var session = UserSession.Current;
+            bool quality = session != null && session.HasPermission("QUALITY.RETURN", "VIEW");
+            bool stockView = session != null && session.HasPermission("WAREHOUSE.STOCK_VIEW", "VIEW");
+            _lblChoDinhHuong.Visible = quality;
+            _lblChoQC.Visible = quality;
+            _lblDaDuyetChuaTra.Visible = quality;
+            _lblLechA0.Visible = stockView;
             flow.Controls.Add(_lblChoDinhHuong);
             flow.Controls.Add(_lblChoQC);
             flow.Controls.Add(_lblDaDuyetChuaTra);
@@ -89,15 +97,24 @@ namespace PCTP.Shell.Widgets
 
             try
             {
-                int choDinhHuong = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaTaoPhieuBatThuong);
-                int choQCCuoi = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
-                int daDuyetChuaTra = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaQCXacNhanCuoi);
-                int lech = _dashRepo.DemLechDoiChieu();
+                var session = UserSession.Current;
+                if (session == null) return;
 
-                SetItem(_lblChoDinhHuong, "🟡 QC chờ định hướng: " + choDinhHuong, choDinhHuong > 0 ? Color.DarkOrange : Color.SeaGreen);
-                SetItem(_lblChoQC, "🔴 QC chờ duyệt cuối: " + choQCCuoi, choQCCuoi > 0 ? Color.Crimson : Color.SeaGreen);
-                SetItem(_lblDaDuyetChuaTra, "🔄 Đã duyệt chờ trả SX: " + daDuyetChuaTra, daDuyetChuaTra > 0 ? Color.DarkOrange : Color.SeaGreen);
-                SetItem(_lblLechA0, lech > 0 ? "⚠ Lệch đối chiếu A0: " + lech : "✅ Không lệch đối chiếu A0", lech > 0 ? Color.Red : Color.SeaGreen);
+                if (session.HasPermission("QUALITY.RETURN", "VIEW"))
+                {
+                    int choDinhHuong = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaTaoPhieuBatThuong);
+                    int choQCCuoi = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
+                    int daDuyetChuaTra = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaQCXacNhanCuoi);
+                    SetItem(_lblChoDinhHuong, "🟡 QC chờ định hướng: " + choDinhHuong, choDinhHuong > 0 ? Color.DarkOrange : Color.SeaGreen);
+                    SetItem(_lblChoQC, "🔴 QC chờ duyệt cuối: " + choQCCuoi, choQCCuoi > 0 ? Color.Crimson : Color.SeaGreen);
+                    SetItem(_lblDaDuyetChuaTra, "🔄 Đã duyệt chờ trả SX: " + daDuyetChuaTra, daDuyetChuaTra > 0 ? Color.DarkOrange : Color.SeaGreen);
+                }
+
+                if (session.HasPermission("WAREHOUSE.STOCK_VIEW", "VIEW"))
+                {
+                    int lech = _dashRepo.DemLechDoiChieu();
+                    SetItem(_lblLechA0, lech > 0 ? "⚠ Lệch đối chiếu A0: " + lech : "✅ Lệch đối chiếu A0: 0", lech > 0 ? Color.Red : Color.SeaGreen);
+                }
             }
             catch (Exception ex)
             {
