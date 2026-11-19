@@ -5,6 +5,10 @@ namespace PCTP.Modules.MesPlanning
 {
     public interface IProductionExecutionRepository
     {
+        string GetPlanLineSiteCode(long planLineId);
+        string GetOrderSiteCode(long orderId);
+        string GetLotSiteCode(long productionLotId);
+        string GetLabelSiteCode(string labelCode);
         DataTable GetOrderMaterials(long orderId);
         DataTable CreateOrder(long planLineId, string orderNo, string actor);
         DataTable CreateLot(long orderId, DateTime producedAtUtc, decimal goodQty, decimal ngQty, bool finished, string actor);
