@@ -99,7 +99,7 @@ BEGIN TRY
         DECLARE @PlanId bigint, @Actor nvarchar(100), @LineId bigint;
 
         DECLARE firm_plans CURSOR LOCAL FAST_FORWARD FOR
-            SELECT i.ProductionPlanId, COALESCE(NULLIF(i.UpdatedBy, N''''), NULLIF(i.CreatedBy, N''''), N''MES'')
+            SELECT i.ProductionPlanId, COALESCE(NULLIF(i.CreatedBy, N''''), N''MES'')
             FROM inserted i
             LEFT JOIN deleted d ON d.ProductionPlanId = i.ProductionPlanId
             WHERE (i.Status = ''FIRM'' OR i.WorkflowStatusCode = 20)
