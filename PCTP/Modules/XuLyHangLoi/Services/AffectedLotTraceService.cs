@@ -38,8 +38,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         {
             if (phieu == null) throw new ArgumentNullException(nameof(phieu));
 
-            // Phiếu header + detail: truy vết từng (Mã hàng, LOT) có trong các dòng detail rồi gộp
-            // thành một snapshot cho cả phiếu. Phiếu cũ chưa có detail dùng đường truy vết legacy.
+            // Phiếu header + detail: các dòng detail là vị trí hàng nghi lỗi đã được xác nhận,
+            // nên phạm vi ảnh hưởng CHỈ gồm các dòng này (số lượng của từng dòng phiếu trả).
+            // Không truy vết toàn bộ tồn kho của LOT (LOT còn hàng ở Slot/WIP khác sẽ làm tổng bị phình,
+            // ví dụ cần kiểm 1.200 nhưng tồn cả LOT là 2.174). Phiếu cũ chưa có detail dùng đường legacy.
             if (phieu.Items == null || phieu.Items.Count == 0)
                 return TraceLegacyHeader(phieu, nguoiThucHien);
 
@@ -50,46 +52,29 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 IsComplete = true
             };
 
-            var groups = phieu.Items
-                .Where(x => x != null)
-                .GroupBy(x => new
-                {
-                    Ma = (string.IsNullOrWhiteSpace(x.MaSanPham) ? phieu.MaSanPham : x.MaSanPham).Trim().ToUpperInvariant(),
-                    Lot = NormalizeLot(x.LotNguon).ToUpperInvariant()
-                });
-
-            foreach (var g in groups)
+            var now = DateTime.Now;
+            foreach (var line in phieu.Items.Where(x => x != null && x.SoLuongLoi > 0))
             {
-                var first = g.First();
-                var ma = (string.IsNullOrWhiteSpace(first.MaSanPham) ? phieu.MaSanPham : first.MaSanPham).Trim();
-                var sub = Trace(ma, first.LotNguon, nguoiThucHien);
-
-                // Kho/WIP/khách trả không trả về số lượng: dùng đúng các dòng detail của (Mã hàng, LOT)
-                // này làm fallback; số lượng lấy từ dòng phiếu trả, không lấy từ dòng khác.
-                if (sub.TotalAffectedQuantity <= 0)
+                merged.Items.Add(new PhieuXuLyBatThuongAffectedLot
                 {
-                    foreach (var line in g.Where(x => x.SoLuongLoi > 0))
-                    {
-                        sub.Items.Add(new PhieuXuLyBatThuongAffectedLot
-                        {
-                            SourceType = phieu.Nguon == NguonXuLyBatThuong.TraNoiBo
-                                ? AffectedLotSourceType.Kho
-                                : AffectedLotSourceType.KhachTra,
-                            SourceReference = "PHIEU_TRA_HANG:" + (phieu.PhieuTraHangId ?? 0) + "/CT:" + line.PhieuTraHangCTId,
-                            SlotId = line.SlotIdNguon,
-                            LotNo = line.LotNguon,
-                            MaSanPham = ma,
-                            Model = phieu.Model,
-                            SoLuongAnhHuong = line.SoLuongLoi,
-                            SnapshotAt = DateTime.Now,
-                            SnapshotBy = nguoiThucHien.Trim()
-                        });
-                    }
-                }
+                    SourceType = phieu.Nguon == NguonXuLyBatThuong.TraNoiBo
+                        ? AffectedLotSourceType.Kho
+                        : AffectedLotSourceType.KhachTra,
+                    SourceReference = "PHIEU_TRA_HANG:" + (phieu.PhieuTraHangId ?? 0) + "/CT:" + line.PhieuTraHangCTId,
+                    SlotId = line.SlotIdNguon,
+                    LotNo = NormalizeLot(line.LotNguon),
+                    MaSanPham = string.IsNullOrWhiteSpace(line.MaSanPham) ? phieu.MaSanPham : line.MaSanPham.Trim(),
+                    Model = phieu.Model,
+                    SoLuongAnhHuong = line.SoLuongLoi,
+                    SnapshotAt = now,
+                    SnapshotBy = nguoiThucHien.Trim()
+                });
+            }
 
-                merged.Items.AddRange(sub.Items);
-                merged.Warnings.AddRange(sub.Warnings);
-                if (!sub.IsComplete) merged.IsComplete = false;
+            if (merged.Items.Count == 0)
+            {
+                merged.IsComplete = false;
+                merged.Warnings.Add("Phiếu không có dòng detail hợp lệ (số lượng > 0).");
             }
 
             return merged;
