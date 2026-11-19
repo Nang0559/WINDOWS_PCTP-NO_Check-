@@ -11,6 +11,7 @@ namespace PCTP.Modules.MesPlanning
         { _repository = repository ?? throw new ArgumentNullException(nameof(repository)); }
         public void ImportRows(IList<ProductionPlanImportRow> rows, string sourceFileName, string createdBy)
         {
+            createdBy = AuthorizationGuard.ActorCode;
             AuthorizationGuard.Demand("MES.PLAN_UPLOAD", "CREATE");
             if (rows != null)
                 foreach (var row in rows)
