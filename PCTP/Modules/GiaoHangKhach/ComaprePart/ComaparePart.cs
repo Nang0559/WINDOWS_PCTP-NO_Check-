@@ -1,4 +1,5 @@
-﻿using DevExpress.Utils.Menu;
+﻿using PCTP.Infrastructure.Security;
+using DevExpress.Utils.Menu;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraGrid.Views.Grid;
@@ -50,6 +51,7 @@ namespace PCTP.QRCODE_HVN.ComaprePart
         // ── Ctor cho phép inject repo (test/tái sử dụng) ─────────────────────
         public ComaparePart(IComparePartRepository repo)
         {
+            AuthorizationGuard.Demand("SYSTEM.COMPARE_PART", "VIEW");
             _repo = repo ?? throw new ArgumentNullException(nameof(repo));
 
             InitializeComponent();
@@ -223,6 +225,7 @@ namespace PCTP.QRCODE_HVN.ComaprePart
 
         private void cmd_Tao_Click(object sender, EventArgs e)
         {
+            AuthorizationGuard.Demand("SYSTEM.COMPARE_PART", "CREATE");
             string partNo = Convert.ToString(lup_Ma.EditValue)?.Trim();
             string partNoCompare = Convert.ToString(LuKToPart.EditValue)?.Trim();
 
@@ -374,6 +377,7 @@ namespace PCTP.QRCODE_HVN.ComaprePart
 
         private void OnDeleteClick(object sender, EventArgs e)
         {
+            AuthorizationGuard.Demand("SYSTEM.COMPARE_PART", "DELETE");
             GridView view = null;
 
             if (sender is DXMenuItem menuItem)
