@@ -1,5 +1,7 @@
 using System;
 using System.Windows.Forms;
+using System.Security.Cryptography;
+using System.Text;
 using DevExpress.XtraEditors;
 using PCTP.Security;
 
@@ -58,6 +60,19 @@ namespace PCTP
         {
             var session = UserSession.Current;
             return session != null && session.HasPermission("SYSTEM.FIFO_CONFIG", "ADMIN");
+        }
+
+        [Obsolete("Mật khẩu FIFO đã chuyển sang tài khoản PCTP tập trung; hàm này chỉ giữ tương thích mã cũ.")]
+        public static string Hash(string user, string password)
+        {
+            string input = "PCTP|" + (user ?? string.Empty).Trim().ToLowerInvariant() + "|" + (password ?? string.Empty);
+            using (var sha = SHA256.Create())
+            {
+                byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
+                var result = new StringBuilder(bytes.Length * 2);
+                foreach (byte value in bytes) result.Append(value.ToString("x2"));
+                return result.ToString();
+            }
         }
     }
 }
