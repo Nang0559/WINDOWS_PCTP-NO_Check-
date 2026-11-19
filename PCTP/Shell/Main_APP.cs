@@ -40,6 +40,7 @@ namespace PCTP
         private MainAppDashboardFactory _dashboardFactory;
         private WmsControlCenterBar _controlCenter;
         private ShellSystemInfoRibbon _systemInfo;
+        private BarStaticItem _userIdentityStatus;
 
         public Main_APP()
         {
@@ -157,6 +158,7 @@ namespace PCTP
             DevExpress.LookAndFeel.UserLookAndFeel.Default.SetSkinStyle("Caramel");
             InitializeShellComposition();
             _systemInfo = new ShellSystemInfoRibbon(ribbonControl, ribbonPage);
+            InitializeUserIdentityStatus();
             InitializeDashboard();
             RefreshSystemInfo();
             InstallQcUiBridgeIfRequested(); // test-only; no-op unless PCTP_QC_UI_BRIDGE=1
@@ -182,6 +184,50 @@ namespace PCTP
         private void ControlCenter_RefreshRequested(object sender, EventArgs e)
         {
             RefreshDashboard();
+        }
+
+        private void InitializeUserIdentityStatus()
+        {
+            if (_userIdentityStatus == null)
+            {
+                _userIdentityStatus = new BarStaticItem
+                {
+                    Name = "barUserIdentityStatus",
+                    Id = ribbonControl.Items.Count + 100,
+                    Alignment = BarItemLinkAlignment.Right,
+                    AutoSize = BarStaticItemSize.Spring
+                };
+                ribbonControl.Items.Add(_userIdentityStatus);
+                ribbonStatusBar.ItemLinks.Add(_userIdentityStatus);
+            }
+
+            RefreshUserIdentityStatus();
+        }
+
+        private void RefreshUserIdentityStatus()
+        {
+            var session = UserSession.Current;
+            if (_userIdentityStatus == null || session == null) return;
+
+            string displayName = string.IsNullOrWhiteSpace(session.DisplayName)
+                ? session.UserName
+                : session.DisplayName.Trim();
+            string employee = string.IsNullOrWhiteSpace(session.EmployeeCode)
+                ? "Chưa liên kết mã nhân viên"
+                : "Mã NV: " + session.EmployeeCode.Trim();
+            int permissionCount = session.Permissions == null
+                ? 0
+                : session.Permissions.Count(p => p != null && p.IsAllowed);
+
+            _userIdentityStatus.Caption = "Đăng nhập: " + displayName +
+                "  |  " + employee +
+                "  |  Tài khoản: " + session.UserName +
+                "  |  Quyền: " + permissionCount;
+            _userIdentityStatus.Hint = "User ID: " + session.UserId +
+                Environment.NewLine + "Tên hiển thị: " + displayName +
+                Environment.NewLine + employee +
+                Environment.NewLine + "Tài khoản: " + session.UserName +
+                Environment.NewLine + "Số quyền được cấp: " + permissionCount;
         }
 
         private void InitializeDashboard()
