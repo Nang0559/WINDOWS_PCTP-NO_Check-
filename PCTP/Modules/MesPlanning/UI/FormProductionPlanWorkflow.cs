@@ -6,6 +6,7 @@ using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Infrastructure.Security;
+using PCTP.Security;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -60,12 +61,13 @@ namespace PCTP.Modules.MesPlanning.UI
             _site.Width = 120;
             _site.Properties.NullValuePrompt = "Nhập SiteCode";
             toolbar.Controls.Add(_site);
-            AddButton(toolbar, "TẢI KẾ HOẠCH", LoadPlans);
-            AddButton(toolbar, "1. KIỂM TRA / VALIDATE", () => Transition(10));
-            AddButton(toolbar, "2. FIRM + SINH NHU CẦU BOM", () => Transition(20));
-            AddButton(toolbar, "HỦY KẾ HOẠCH", () => Transition(900));
-            AddButton(toolbar, "LỊCH SỬ WORKFLOW", OpenTimeline);
-            AddButton(toolbar, "CHỌN DÒNG KẾ HOẠCH", SelectPlanLine);
+            var session = UserSession.Current;
+            AddButton(toolbar, "TẢI KẾ HOẠCH", LoadPlans, true);
+            AddButton(toolbar, "1. KIỂM TRA / VALIDATE", () => Transition(10), session.HasPermission("MES.PLAN_UPLOAD", "CONFIRM"));
+            AddButton(toolbar, "2. FIRM + SINH NHU CẦU BOM", () => Transition(20), session.HasPermission("MES.PLAN_UPLOAD", "APPROVE"));
+            AddButton(toolbar, "HỦY KẾ HOẠCH", () => Transition(900), session.HasPermission("MES.PLAN_UPLOAD", "CANCEL"));
+            AddButton(toolbar, "LỊCH SỬ WORKFLOW", OpenTimeline, true);
+            AddButton(toolbar, "CHỌN DÒNG KẾ HOẠCH", SelectPlanLine, true);
 
             _reason.Width = 220;
             _reason.Properties.NullValuePrompt = "Lý do / ghi chú (nếu có)";
@@ -93,9 +95,14 @@ namespace PCTP.Modules.MesPlanning.UI
             Controls.Add(root);
         }
 
-        private static void AddButton(Control parent, string caption, Action action)
+        private static void AddButton(Control parent, string caption, Action action, bool enabled)
         {
-            var button = new SimpleButton { Text = caption, Width = 165, Height = 30, Margin = new Padding(4, 2, 4, 2) };
+            var button = new SimpleButton
+            {
+                Text = caption, Width = 165, Height = 30, Margin = new Padding(4, 2, 4, 2),
+                Enabled = enabled,
+                ToolTip = enabled ? caption : "Bạn chỉ có quyền theo dõi, không có quyền thực hiện thao tác này."
+            };
             button.Click += (s, e) => action();
             parent.Controls.Add(button);
         }
