@@ -15,9 +15,10 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly Label _status=new Label();
         private readonly Button _postButton=new Button();
         public FormYeuCauVaXuatLinhKien():this(new ComponentDemandService(new ComponentDemandRepository())){}
-            AuthorizationGuard.Demand("MES.COMPONENT_ISSUE", "VIEW");
+    
         public FormYeuCauVaXuatLinhKien(IComponentDemandService service)
         {
+            AuthorizationGuard.Demand("MES.COMPONENT_ISSUE", "VIEW");
             _service=service??throw new ArgumentNullException(nameof(service));
             Text="Yêu cầu và xuất linh kiện sang WIP"; StartPosition=FormStartPosition.CenterParent;
             Size=new Size(1280,820); MinimumSize=new Size(1000,650); BuildUi();
