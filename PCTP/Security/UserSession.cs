@@ -73,8 +73,9 @@ namespace PCTP.Security
             var matching = DataScopes.Where(s =>
                 (string.IsNullOrWhiteSpace(s.FunctionCode) ||
                  string.Equals(s.FunctionCode, functionCode, StringComparison.OrdinalIgnoreCase)) &&
-                string.Equals(s.ScopeType, scopeType, StringComparison.OrdinalIgnoreCase) &&
-                (s.ScopeValue == "*" || string.Equals(s.ScopeValue, scopeValue, StringComparison.OrdinalIgnoreCase)) &&
+                (string.Equals(s.ScopeType, "ALL", StringComparison.OrdinalIgnoreCase) ||
+                 (string.Equals(s.ScopeType, scopeType, StringComparison.OrdinalIgnoreCase) &&
+                  (s.ScopeValue == "*" || string.Equals(s.ScopeValue, scopeValue, StringComparison.OrdinalIgnoreCase)))) &&
                 (string.IsNullOrWhiteSpace(s.SiteCode) ||
                  string.Equals(s.SiteCode, siteCode, StringComparison.OrdinalIgnoreCase))).ToList();
             if (matching.Any(s => !s.IsAllowed)) return false;
