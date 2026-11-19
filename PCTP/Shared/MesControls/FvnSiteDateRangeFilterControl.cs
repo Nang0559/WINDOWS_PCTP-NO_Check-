@@ -59,7 +59,13 @@ namespace PCTP.Shared.MesControls
             set { _to.EditValue = value.HasValue ? (object)value.Value.Date : null; }
         }
 
-        public void SetBusy(bool busy) { _refresh.Enabled = !busy; }
+        public void SetBusy(bool busy)
+        {
+            _site.Enabled = !busy;
+            _from.Enabled = !busy;
+            _to.Enabled = !busy;
+            _refresh.Enabled = !busy;
+        }
 
         private static LabelControl Caption(string text, int width)
         {
