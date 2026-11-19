@@ -67,12 +67,12 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public DataTable GetHeaderGiaoDB(DateTime ngayLap, int nhaMay)
         {
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
+            DemandShippingSite("VIEW");
             return _phieuRepo.GetHeaderGiaoDB(ngayLap, nhaMay);
         }
         public DataTable GetChiTietGiaoDB(DateTime ngayLap, int nhaMay)
         {
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
+            DemandShippingSite("VIEW");
             return _phieuRepo.GetChiTietGiaoDB(ngayLap, nhaMay);
         }
         public int LuuPhieuGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet)
@@ -88,7 +88,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm)
         {
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT");
+            DemandShippingSite("EDIT");
             _giaoDbRepo.LuuGiaoDB(
                 donHang,
                 gioXuat.MoTa,
@@ -100,7 +100,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm)
         {
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
+            DemandShippingSite("VIEW");
             var ctx = new OrderLoadContext
             {
                 Cfg = _cfg,
@@ -116,7 +116,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void XuLySauUpload()
         {
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT");
+            DemandShippingSite("EDIT");
             // Đơn chờ = mọi dòng STATUS='NG' của bảng nghiệp vụ FVN_Purchase_Order_DB_CT.
             DataTable donHang = _phieuRepo.BuildDonHangTuUpload();
             if (donHang == null)
@@ -141,7 +141,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public string CanhBaoLuoiRong(DateTime ngayGiao, int addNm)
         {
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
+            DemandShippingSite("VIEW");
             DataTable thongKe = _giaoDbRepo.ThongKeDonChoXuLy();
             if (thongKe == null || thongKe.Rows.Count == 0)
                 return null;
