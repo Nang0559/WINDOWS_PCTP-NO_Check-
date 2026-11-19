@@ -8,6 +8,7 @@ using System;
 using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
+using ComboBox = DevExpress.XtraEditors.ComboBox;
 
 namespace PCTP.Security
 {
