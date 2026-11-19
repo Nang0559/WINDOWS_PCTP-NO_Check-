@@ -23,6 +23,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         // ============================================================
 
         int GetCapacity(int slotId);
+        string GetWarehouseNameBySlotId(int slotId);
 
         int GetQuantity(int slotId);
 
