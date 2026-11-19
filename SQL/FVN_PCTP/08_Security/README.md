@@ -32,7 +32,8 @@ must be added to the catalog and granted explicitly.
 - One account may have multiple roles.
 - Permissions are explicit pairs of `FunctionCode + ActionCode`: VIEW,
   CREATE, EDIT, DELETE, CONFIRM, APPROVE, CANCEL, EXPORT, PRINT, ADMIN.
-- A per-user override can ALLOW or DENY a role grant; DENY wins.
+- When multiple assigned roles disagree, an explicit role DENY wins over role
+  ALLOW. A per-user ALLOW/DENY override is the final account-specific decision.
 - Data scopes are explicit: ALL, SITE, DEPARTMENT, WAREHOUSE, LINE, PROCESS,
   OWN. A missing scope is denied; it is not treated as ALL.
 - Menu visibility is only a usability layer. Application services must call
