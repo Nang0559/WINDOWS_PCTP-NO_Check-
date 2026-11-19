@@ -67,7 +67,7 @@ namespace PCTP.Modules.MesPlanning
             if (string.Equals(entityType, "PLAN", StringComparison.OrdinalIgnoreCase))
                 sql = @"SELECT DISTINCT m.DepartmentCode
 FROM MES.FVN_ProductionPlanLine l
-JOIN MES.FVN_ProductionPlanCodeMap m
+JOIN MES.FVN_ProductionLotCodeMap m
  ON m.SiteCode=l.SiteCode AND m.PlanProductionLineCode=l.ProductionLineCode
 WHERE l.ProductionPlanId=@EntityId";
             else if (string.Equals(entityType, "ORDER", StringComparison.OrdinalIgnoreCase))
