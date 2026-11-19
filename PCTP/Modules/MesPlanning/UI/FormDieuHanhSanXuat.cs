@@ -19,14 +19,14 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly IProductionExecutionService _service;
         private readonly IProductionWorkflowService _workflow;
         private readonly TextEdit _routingStepId = new TextEdit();
-        private readonly TextBox _planLineId = new TextBox(), _orderNo = new TextBox();
-        private readonly TextBox _orderId = new TextBox(), _goodQty = new TextBox(), _ngQty = new TextBox();
-        private readonly TextBox _lotId = new TextBox(), _operationLotId = new TextBox(), _consumeProductionLotId = new TextBox();
-        private readonly TextBox _operationNo = new TextBox(), _inputQty = new TextBox();
-        private readonly TextBox _opGoodQty = new TextBox(), _opNgQty = new TextBox();
-        private readonly TextBox _inputSlot = new TextBox(), _outputSlot = new TextBox();
-        private readonly TextBox _materialLineId = new TextBox(), _componentLotId = new TextBox();
-        private readonly TextBox _consumeQty = new TextBox(), _consumeSlot = new TextBox();
+        private readonly TextEdit _planLineId = new TextEdit(), _orderNo = new TextEdit();
+        private readonly TextEdit _orderId = new TextEdit(), _goodQty = new TextEdit(), _ngQty = new TextEdit();
+        private readonly TextEdit _lotId = new TextEdit(), _operationLotId = new TextEdit(), _consumeProductionLotId = new TextEdit();
+        private readonly TextEdit _operationNo = new TextEdit(), _inputQty = new TextEdit();
+        private readonly TextEdit _opGoodQty = new TextEdit(), _opNgQty = new TextEdit();
+        private readonly TextEdit _inputSlot = new TextEdit(), _outputSlot = new TextEdit();
+        private readonly TextEdit _materialLineId = new TextEdit(), _componentLotId = new TextEdit();
+        private readonly TextEdit _consumeQty = new TextEdit(), _consumeSlot = new TextEdit();
         private readonly CheckEdit _finished = new CheckEdit();
         private readonly DateEdit _productionDate = new DateEdit();
         private readonly LabelControl _status = new LabelControl();
@@ -36,8 +36,8 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly GridView _routingView = new GridView();
         private readonly GridControl _labels = new GridControl();
         private readonly GridView _labelView = new GridView();
-        private readonly TextBox _labelQty = new TextBox(), _labelScan = new TextBox();
-        private readonly TextBox _labelVoidReason = new TextBox();
+        private readonly TextEdit _labelQty = new TextEdit(), _labelScan = new TextEdit();
+        private readonly TextEdit _labelVoidReason = new TextEdit();
         private DataTable _printRows;
         private int _printIndex;
 
@@ -440,7 +440,7 @@ namespace PCTP.Modules.MesPlanning.UI
             });
         }
 
-        private void OpenTimeline(string entityType, TextBox idInput)
+        private void OpenTimeline(string entityType, TextEdit idInput)
         {
             Run(() =>
             {
