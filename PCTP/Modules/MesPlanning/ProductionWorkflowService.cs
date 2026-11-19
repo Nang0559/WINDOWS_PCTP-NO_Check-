@@ -32,7 +32,8 @@ namespace PCTP.Modules.MesPlanning
         public DataTable TransitionOrder(long orderId, int fromStatus, int toStatus, string actor, string reason = null)
         {
             actor = AuthorizationGuard.ActorCode;
-            DemandEntityScope("ORDER", orderId, toStatus == 900 ? "CANCEL" : "CONFIRM");
+            DemandEntityScope("ORDER", orderId, toStatus == 900 ? "CANCEL" :
+                (toStatus == 10 || toStatus == 40 || toStatus == 50 ? "APPROVE" : "CONFIRM"));
             return Transition("ORDER", "MES_PRODUCTION_ORDER", orderId, null, fromStatus, toStatus, actor, reason);
         }
 
@@ -40,7 +41,8 @@ namespace PCTP.Modules.MesPlanning
             int toStatus, string actor, string reason = null)
         {
             actor = AuthorizationGuard.ActorCode;
-            DemandEntityScope("OPERATION", productionLotId, toStatus == 900 ? "CANCEL" : "CONFIRM");
+            DemandEntityScope("OPERATION", productionLotId, toStatus == 900 ? "CANCEL" :
+                (toStatus == 50 ? "APPROVE" : "CONFIRM"));
             if (routingStepId <= 0) throw new ArgumentException("RoutingStepId không hợp lệ.");
             return Transition("OPERATION", "MES_PRODUCTION_OPERATION", productionLotId,
                 routingStepId, fromStatus, toStatus, actor, reason);
