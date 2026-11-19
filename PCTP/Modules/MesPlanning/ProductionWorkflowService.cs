@@ -24,20 +24,20 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable TransitionPlan(long planId, int fromStatus, int toStatus, string actor, string reason = null)
         {
-            AuthorizationGuard.Demand("MES.PLAN_UPLOAD", toStatus == 20 ? "APPROVE" : (toStatus == 900 ? "CANCEL" : "CONFIRM"));
+            DemandEntityScope("PLAN", planId, toStatus == 20 ? "APPROVE" : (toStatus == 900 ? "CANCEL" : "CONFIRM"));
             return Transition("PLAN", "MES_PRODUCTION_PLAN", planId, null, fromStatus, toStatus, actor, reason);
         }
 
         public DataTable TransitionOrder(long orderId, int fromStatus, int toStatus, string actor, string reason = null)
         {
-            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", toStatus == 900 ? "CANCEL" : "CONFIRM");
+            DemandEntityScope("ORDER", orderId, toStatus == 900 ? "CANCEL" : "CONFIRM");
             return Transition("ORDER", "MES_PRODUCTION_ORDER", orderId, null, fromStatus, toStatus, actor, reason);
         }
 
         public DataTable TransitionOperation(long productionLotId, long routingStepId, int fromStatus,
             int toStatus, string actor, string reason = null)
         {
-            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", toStatus == 900 ? "CANCEL" : "CONFIRM");
+            DemandEntityScope("OPERATION", productionLotId, toStatus == 900 ? "CANCEL" : "CONFIRM");
             if (routingStepId <= 0) throw new ArgumentException("RoutingStepId không hợp lệ.");
             return Transition("OPERATION", "MES_PRODUCTION_OPERATION", productionLotId,
                 routingStepId, fromStatus, toStatus, actor, reason);
@@ -45,10 +45,27 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable GetTimeline(string entityType, long entityId)
         {
-            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "VIEW");
             if (entityId <= 0) throw new ArgumentException("EntityId không hợp lệ.");
             ValidateEntityType(entityType);
+            DemandEntityScope(entityType, entityId, "VIEW");
             return _repository.GetTimeline(entityType, entityId);
+        }
+
+        private void DemandEntityScope(string entityType, long entityId, string actionCode)
+        {
+            if (entityId <= 0) throw new ArgumentException("EntityId không hợp lệ.");
+            var sites = _repository.GetEntitySites(entityType, entityId);
+            if (sites == null || sites.Rows.Count == 0)
+                throw new UnauthorizedAccessException("Không xác định được SiteCode của đối tượng workflow.");
+            foreach (DataRow row in sites.Rows)
+            {
+                string site = Convert.ToString(row["SiteCode"]);
+                if (string.IsNullOrWhiteSpace(site))
+                    throw new UnauthorizedAccessException("Đối tượng workflow chưa có SiteCode.");
+                AuthorizationGuard.DemandActionAndScope(
+                    entityType == "PLAN" ? "MES.PLAN_UPLOAD" : "MES.PRODUCTION_EXECUTION",
+                    actionCode, "SITE", site, site);
+            }
         }
 
         private DataTable Transition(string entityType, string processCode, long entityId,
