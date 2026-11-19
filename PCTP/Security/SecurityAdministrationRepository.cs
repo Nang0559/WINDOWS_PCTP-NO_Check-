@@ -137,6 +137,7 @@ namespace PCTP.Security
 
         public void ResetPassword(long userId, string password, long actorId)
         {
+            Demand("ADMIN.USER_MANAGEMENT", "ADMIN");
             PasswordHasher.ValidatePolicy(password);
             var salt = PasswordHasher.CreateSalt();
             var hash = PasswordHasher.Hash(password, salt);
