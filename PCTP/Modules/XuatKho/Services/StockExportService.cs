@@ -28,6 +28,8 @@ namespace PCTP.Modules.XuatKho.Services
         private readonly IStockMovementService _stockMovement;
         private readonly IStockExportHistoryRepository _exportHistoryRepo;
 
+        public string SiteCode => _stockMovement == null ? null : _stockMovement.SiteCode;
+
         public StockExportService(
             IUnitOfWork uow,
             ISlotService slotService,
