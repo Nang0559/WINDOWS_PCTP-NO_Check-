@@ -1,3 +1,4 @@
+using PCTP.Infrastructure.Security;
 using System;
 using System.Data;
 using System.Drawing;
@@ -33,6 +34,7 @@ namespace PCTP.Modules.MesPlanning.UI
         public FormDieuHanhSanXuat()
             : this(new ProductionExecutionService(new ProductionExecutionRepository()))
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "VIEW");
         }
 
         public FormDieuHanhSanXuat(IProductionExecutionService service)
