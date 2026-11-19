@@ -172,6 +172,13 @@ namespace PCTP.Modules.MesPlanning.UI
         private DataRow SelectedPlan() => _planView.GetFocusedDataRow();
         private DataRow SelectedDemand() => _demandView.GetFocusedDataRow();
 
+        private static DataRow SelectedLookupRow(LookUpEdit editor)
+        {
+            var selected = editor.GetSelectedDataRow();
+            var view = selected as DataRowView;
+            return view != null ? view.Row : selected as DataRow;
+        }
+
         private void LoadPlans()
         {
             try
@@ -254,7 +261,7 @@ namespace PCTP.Modules.MesPlanning.UI
                     _wipSlots.Properties.Columns["SlotId"].Visible = false;
 
                 var outstanding = CellDecimal(demand, "OutstandingQty");
-                var lot = _lots.GetSelectedDataRow() as DataRowView;
+                var lot = SelectedLookupRow(_lots);
                 var available = lot == null ? 0M : Convert.ToDecimal(lot["AvailableQty"]);
                 var suggested = Math.Min(outstanding, available);
                 if (suggested >= _qty.Properties.MinValue)
@@ -270,7 +277,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 var plan = SelectedPlan();
                 var demand = SelectedDemand();
                 if (demand == null) throw new InvalidOperationException("Chọn dòng yêu cầu linh kiện.");
-                var lot = _lots.GetSelectedDataRow() as DataRowView;
+                var lot = SelectedLookupRow(_lots);
                 if (lot == null) throw new InvalidOperationException("Không có LOT khả dụng trong khu vực nguồn đã cấu hình.");
                 if (CellText(demand, "SupplyMode") == "MAKE")
                     throw new InvalidOperationException("LOT sản xuất MAKE không xuất từ PART; hãy ghi nhận tiêu hao trong Điều hành sản xuất MES.");
