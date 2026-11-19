@@ -16,7 +16,7 @@ namespace PCTP.Security
         public UserSession Authenticate(string userName, string password)
         {
             userName = (userName ?? string.Empty).Trim();
-            if (userName.Length == 0 || string.IsNullOrEmpty(password))
+            if (userName.Length == 0 || userName.Length > 80 || string.IsNullOrEmpty(password))
                 throw new InvalidOperationException("Vui lòng nhập tên đăng nhập và mật khẩu.");
 
             DataRow row = _repository.GetCredential(userName);
@@ -55,10 +55,10 @@ namespace PCTP.Security
         public UserSession InitializeFirstAdmin(string userName, string displayName, string password)
         {
             PasswordHasher.ValidatePolicy(password);
-            if (string.IsNullOrWhiteSpace(userName) || userName.Trim().Length < 3)
-                throw new InvalidOperationException("Tên đăng nhập phải có ít nhất 3 ký tự.");
-            if (string.IsNullOrWhiteSpace(displayName))
-                throw new InvalidOperationException("Vui lòng nhập họ tên hiển thị.");
+            if (string.IsNullOrWhiteSpace(userName) || userName.Trim().Length < 3 || userName.Trim().Length > 80)
+                throw new InvalidOperationException("Tên đăng nhập phải có từ 3 đến 80 ký tự.");
+            if (string.IsNullOrWhiteSpace(displayName) || displayName.Trim().Length > 160)
+                throw new InvalidOperationException("Họ tên hiển thị không được để trống và tối đa 160 ký tự.");
 
             byte[] salt = PasswordHasher.CreateSalt();
             byte[] hash = PasswordHasher.Hash(password, salt);
