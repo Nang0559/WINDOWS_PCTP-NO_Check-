@@ -71,19 +71,20 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     && (lot.Length == 0 || LotKhop(x.LotNo, lot)))
                 .ToList();
 
-            // Một (Slot, LOT) có thể gồm nhiều dòng SlotLot (nhiều tem) → gộp thành MỘT vị trí.
+            // MỖI SlotLot (mỗi tem) là MỘT dòng riêng với đúng SL của nó. KHÔNG gộp nhiều SlotLot cùng (Slot, LOT)
+            // thành một dòng tổng: dòng gộp mang SlotLotId của tem đầu tiên nhưng SL của cả nhóm nên SL dòng
+            // không còn khớp SL tem/SlotLot khi lưu phiếu và khi xuất kho.
             var result = new List<LotKhaDungInfo>();
-            foreach (var g in rows.GroupBy(x => new { x.SlotId, Lot = Chuan(x.LotNo).ToUpperInvariant() }))
+            foreach (var x in rows.OrderBy(r => r.SlotId).ThenBy(r => r.SlotLotId))
             {
-                var first = g.OrderBy(x => x.SlotLotId).First();
                 result.Add(new LotKhaDungInfo
                 {
-                    SlotLotId = first.SlotLotId,
-                    SlotId = first.SlotId,
-                    ViTri = ViTri(first),
-                    MaHang = Chuan(first.ItemCode),
-                    LotNo = Chuan(first.LotNo),
-                    TonKho = g.Sum(x => x.Quantity),
+                    SlotLotId = x.SlotLotId,
+                    SlotId = x.SlotId,
+                    ViTri = ViTri(x),
+                    MaHang = Chuan(x.ItemCode),
+                    LotNo = Chuan(x.LotNo),
+                    TonKho = x.Quantity,
                     DaGiu = 0,
                     PhieuDangGiu = string.Empty
                 });
@@ -104,16 +105,32 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     if (conGiu <= 0)
                         continue;
 
-                    var target = result.FirstOrDefault(x =>
-                        x.SlotId == c.SlotIdNguon.Value
-                        && string.Equals(x.LotNo, lotKey, StringComparison.OrdinalIgnoreCase));
-                    if (target == null)
+                    // Phiếu giữ theo (Slot, LOT) chứ không theo SlotLot: chia phần giữ lần lượt qua các SlotLot
+                    // của (Slot, LOT) đó (theo SlotLotId), mỗi SlotLot nhận tối đa phần tồn còn lại của nó.
+                    var targets = result
+                        .Where(x => x.SlotId == c.SlotIdNguon.Value
+                            && string.Equals(x.LotNo, lotKey, StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(x => x.SlotLotId)
+                        .ToList();
+                    if (targets.Count == 0)
                         continue;
 
-                    target.DaGiu += conGiu;
                     string soPhieu = string.IsNullOrWhiteSpace(c.SoPhieu) ? "Id=" + c.PhieuTraHangId : c.SoPhieu.Trim();
-                    if (target.PhieuDangGiu.IndexOf(soPhieu, StringComparison.OrdinalIgnoreCase) < 0)
-                        target.PhieuDangGiu = target.PhieuDangGiu.Length == 0 ? soPhieu : target.PhieuDangGiu + ", " + soPhieu;
+                    int conLai = conGiu;
+                    foreach (var target in targets)
+                    {
+                        if (conLai <= 0)
+                            break;
+
+                        int them = Math.Min(conLai, Math.Max(0, target.TonKho - target.DaGiu));
+                        if (them <= 0)
+                            continue;
+
+                        target.DaGiu += them;
+                        conLai -= them;
+                        if (target.PhieuDangGiu.IndexOf(soPhieu, StringComparison.OrdinalIgnoreCase) < 0)
+                            target.PhieuDangGiu = target.PhieuDangGiu.Length == 0 ? soPhieu : target.PhieuDangGiu + ", " + soPhieu;
+                    }
                 }
             }
 
@@ -148,30 +165,39 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     .Where(x => string.Equals(x.LotNo, lot, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
-                foreach (var line in g)
-                {
-                    if (!line.SlotIdNguon.HasValue || line.SlotIdNguon.Value <= 0)
-                    {
-                        loi.Add("- " + ma + " / LOT " + lot + ": dòng chưa có Slot nguồn.");
-                        continue;
-                    }
+                // Một (Slot, LOT) có thể có nhiều SlotLot (nhiều tem) và phiếu có nhiều dòng cho cùng Slot:
+                // so TỔNG SL các dòng của Slot với TỔNG tồn khả dụng của các SlotLot trong Slot đó.
+                foreach (var line in g.Where(x => !x.SlotIdNguon.HasValue || x.SlotIdNguon.Value <= 0))
+                    loi.Add("- " + ma + " / LOT " + lot + ": dòng chưa có Slot nguồn.");
 
-                    var row = khaDung.FirstOrDefault(x => x.SlotId == line.SlotIdNguon.Value);
-                    if (row == null)
+                foreach (var theoSlot in g.Where(x => x.SlotIdNguon.HasValue && x.SlotIdNguon.Value > 0)
+                                          .GroupBy(x => x.SlotIdNguon.Value))
+                {
+                    var rowsSlot = khaDung.Where(x => x.SlotId == theoSlot.Key).ToList();
+                    if (rowsSlot.Count == 0)
                     {
                         loi.Add("- " + ma + " / LOT " + lot + ": Slot nguồn không còn chứa LOT này.");
                         continue;
                     }
 
-                    if (row.KhaDung <= 0)
-                        loi.Add("- " + ma + " / LOT " + lot + " (" + row.ViTri + "): tồn "
-                            + row.TonKho.ToString("n0") + " đã được phiếu " + row.PhieuDangGiu
+                    int tonKho = rowsSlot.Sum(x => x.TonKho);
+                    int daGiu = rowsSlot.Sum(x => x.DaGiu);
+                    int khaDungSlot = rowsSlot.Sum(x => x.KhaDung);
+                    int slDong = theoSlot.Sum(x => x.SoLuong);
+                    string viTri = rowsSlot[0].ViTri;
+                    string phieuGiu = string.Join(", ", rowsSlot
+                        .SelectMany(x => (x.PhieuDangGiu ?? string.Empty).Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries))
+                        .Distinct(StringComparer.OrdinalIgnoreCase));
+
+                    if (khaDungSlot <= 0)
+                        loi.Add("- " + ma + " / LOT " + lot + " (" + viTri + "): tồn "
+                            + tonKho.ToString("n0") + " đã được phiếu " + phieuGiu
                             + " lấy hết, không thể tạo phiếu tiếp.");
-                    else if (line.SoLuong > row.KhaDung)
-                        loi.Add("- " + ma + " / LOT " + lot + " (" + row.ViTri + "): SL "
-                            + line.SoLuong.ToString("n0") + " vượt số còn khả dụng " + row.KhaDung.ToString("n0")
-                            + " (tồn " + row.TonKho.ToString("n0") + ", phiếu " + row.PhieuDangGiu
-                            + " đang giữ " + row.DaGiu.ToString("n0") + ").");
+                    else if (slDong > khaDungSlot)
+                        loi.Add("- " + ma + " / LOT " + lot + " (" + viTri + "): SL "
+                            + slDong.ToString("n0") + " vượt số còn khả dụng " + khaDungSlot.ToString("n0")
+                            + " (tồn " + tonKho.ToString("n0") + ", phiếu " + phieuGiu
+                            + " đang giữ " + daGiu.ToString("n0") + ").");
                 }
             }
 

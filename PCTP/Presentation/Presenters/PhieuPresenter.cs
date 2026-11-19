@@ -171,6 +171,19 @@ namespace PCTP.Presentation.Presenters
             }, "Đang khởi tạo biểu mẫu in...");
             if (showReport != null) showReport();
         }
+        /// <summary>True khi mọi LOT trong chuỗi ghép (cách nhau bởi ',', dạng LOT20-SL) có ký tự thứ 13 = '0' (không có Gear).</summary>
+        private static bool IsLotNoGear(string lotGhep)
+        {
+            if (string.IsNullOrWhiteSpace(lotGhep)) return false;
+            string[] lots = lotGhep.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            if (lots.Length == 0) return false;
+            foreach (string raw in lots)
+            {
+                string lot = raw.Trim();
+                if (lot.Length < 13 || lot[12] != '0') return false;
+            }
+            return true;
+        }
         private void OnInGhepLot(object sender, EventArgs e)
         {
             List<GhepLotItem> selectedRows = _v.GetSelectedGhepLotRows().ToList();
@@ -188,13 +201,16 @@ namespace PCTP.Presentation.Presenters
                 }
                 foreach (GhepLotItem item in selectedRows)
                 {
-                    if (string.IsNullOrWhiteSpace(item.GearName))
+                    // Ký tự 13 của LOT = '0' nghĩa là "không phân loại Gear" (B20Gear.Code=0 có Name rỗng theo thiết kế):
+                    // vẫn in tem ghép, ô Gear để trống. Chỉ báo lỗi khi Gear rỗng mà LOT lại có mã Gear khác 0 (dữ liệu chưa tải đủ).
+                    string gearName = (item.GearName ?? string.Empty).Trim();
+                    if (gearName.Length == 0 && !IsLotNoGear(item.Lot))
                     {
                         MessageBox.Show("Dòng ghép LOT của mã " + item.MaHang + " không có Gear. Bấm \"Kiểm tra ghép LOT\" để tải lại rồi chọn dòng cần in.",
                             "In ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
-                    gearByPayload[(item.Lot ?? string.Empty).Trim()] = item.GearName.Trim();
+                    gearByPayload[(item.Lot ?? string.Empty).Trim()] = gearName;
                 }
             }
 

@@ -303,6 +303,27 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Uow.Begin();
             try
             {
+                // Khóa và kiểm tra dòng TMP TRƯỚC khi trừ kho. Lưới UI chỉ là ảnh chụp cũ: STT có thể đã được cập nhật kho
+                // (TMP STATUS='OK') mà lưới chưa tải lại, hoặc STT bị trùng ở dòng TMP khác mã hàng. Phạm vi theo STT + MAHANG.
+                int nNg = Convert.ToInt32(ExecuteScalar(
+                    $"SELECT COUNT(*) FROM [{tmpTable}] WITH (UPDLOCK, HOLDLOCK) WHERE STT = @stt AND MAHANG = @maHang AND STATUS = 'NG'",
+                    new SqlParameter("@stt", SqlDbType.Int) { Value = stt },
+                    new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" }));
+                if (nNg == 0)
+                {
+                    // Đã xử lý trước đó (hoặc không còn): KHÔNG trừ kho lần 2 và KHÔNG báo lỗi — trả false không kèm lỗi
+                    // để presenter tải lại lưới và hiển thị đúng trạng thái.
+                    Uow.Rollback();
+                    return false;
+                }
+                if (nNg > 1)
+                {
+                    error = new DS_ERR_CNK { MH = maHang, LOT = lotSl, SLC = 0, SLTK = 0, SLT = 0,
+                        Ms = $"TMP có {nNg} dòng NG trùng STT={stt} / mã {maHang}. Kiểm tra dữ liệu {tmpTable} trước khi cập nhật kho." };
+                    Uow.Rollback();
+                    return false;
+                }
+
                 foreach (var item in lotsToProcess)
                 {
                     string lotKey = item.LotKey;
@@ -381,8 +402,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                            NGAYGIAO, GIOGIAO, 'OK', ISNULL(STATUSDOC, ''), ISNULL(GEAR,''), @nhaMay,
                            CONVERT(VARCHAR(8), GETDATE(), 108), ISNULL(PO_NO,''), ISNULL(TTPHIEU,'')" + noteSel + @"
                     FROM [" + tmpTable + @"]
-                    WHERE STT = @stt AND STATUS = 'NG'",
+                    WHERE STT = @stt AND MAHANG = @maHang AND STATUS = 'NG'",
                         new SqlParameter("@nhaMay", SqlDbType.NVarChar, 200) { Value = nhaMay ?? "" },
+                        new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" },
                         new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
                 }
                 catch (SqlException ex) when (ex.Number == 8152)
@@ -408,7 +430,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                             maHang, stt), ex);
                 }
 
-                int updatedTmp = ExecuteNonQuery($"UPDATE [{tmpTable}] SET STATUS = 'OK' WHERE STT = @stt AND STATUS = 'NG'", new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
+                int updatedTmp = ExecuteNonQuery($"UPDATE [{tmpTable}] SET STATUS = 'OK' WHERE STT = @stt AND MAHANG = @maHang AND STATUS = 'NG'", new SqlParameter("@stt", SqlDbType.Int) { Value = stt }, new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" });
                 if (updatedTmp != 1)
                     throw new InvalidOperationException($"Không thể xác nhận phiếu giao STT={stt}: trạng thái đã thay đổi hoặc không còn tồn tại.");
                 ExecuteNonQuery($"DELETE FROM [{docQRTable}] WHERE MAHANGFCC = @maHang AND KETQUA = 'DG' AND (STTBAN = @stt OR ISNULL(STTBAN, 0) = 0)", new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" }, new SqlParameter("@stt", SqlDbType.Int) { Value = stt });

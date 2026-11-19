@@ -1328,10 +1328,14 @@ namespace PCTP.Modules.XuLyHangLoi
 
             foreach (var r in kq)
             {
+                // Mỗi SlotLot (tem) là một dòng: trùng khi cùng SlotLotId. Dòng của phiếu mở lại không có SlotLotId
+                // (UI-only, không lưu DB) → so (Slot, mã, LOT) nhưng chỉ khi dòng đó chưa gắn SlotLotId nào.
                 bool trung = data.Any(d =>
-                    d.SlotIdNguon == r.SlotId
-                    && string.Equals((d.MaHang ?? string.Empty).Trim(), r.MaHang, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals((d.LotNo ?? string.Empty).Trim(), r.LotNo, StringComparison.OrdinalIgnoreCase));
+                    d.SlotLotIdNguon.HasValue
+                        ? d.SlotLotIdNguon.Value == r.SlotLotId
+                        : d.SlotIdNguon == r.SlotId
+                            && string.Equals((d.MaHang ?? string.Empty).Trim(), r.MaHang, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals((d.LotNo ?? string.Empty).Trim(), r.LotNo, StringComparison.OrdinalIgnoreCase));
 
                 if (trung)
                 {
