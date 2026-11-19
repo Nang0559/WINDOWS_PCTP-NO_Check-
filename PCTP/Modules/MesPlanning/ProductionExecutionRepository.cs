@@ -39,6 +39,27 @@ WHERE l.ProductionPlanLineId=@Id;", cn))
             }
         }
 
+        public decimal? GetPlanLineOutstandingComponentQty(long planLineId)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"
+SELECT CASE WHEN NOT EXISTS
+    (SELECT 1 FROM MES.FVN_ComponentDemandHeader WHERE ProductionPlanLineId=@Id)
+ THEN CAST(NULL AS decimal(19,6))
+ ELSE ISNULL((
+    SELECT SUM(CASE WHEN NetRequiredQty>IssuedQty THEN NetRequiredQty-IssuedQty ELSE 0 END)
+    FROM MES.FVN_ComponentDemandLine l
+    JOIN MES.FVN_ComponentDemandHeader h ON h.ComponentDemandId=l.ComponentDemandId
+    WHERE h.ProductionPlanLineId=@Id
+ ),0) END;", cn))
+            {
+                cmd.Parameters.Add("@Id", SqlDbType.BigInt).Value = planLineId;
+                cn.Open();
+                var value = cmd.ExecuteScalar();
+                return value == null || value == DBNull.Value ? (decimal?)null : Convert.ToDecimal(value);
+            }
+        }
+
         public string GetPlanLineStatus(long planLineId)
         {
             using (var cn = new SqlConnection(_connectionString))
