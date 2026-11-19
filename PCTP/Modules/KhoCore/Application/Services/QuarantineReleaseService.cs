@@ -43,6 +43,11 @@ namespace PCTP.Modules.KhoCore.Application.Services
             if (request == null) return QuarantineReleaseResult.Fail("Release request không được null.");
             var session = AuthorizationGuard.DemandActionAndScope(
                 "QUALITY.RETURN", "APPROVE", "SITE", _balance.SiteCode, _balance.SiteCode);
+            int? slotId = _slots.GetSlotId(request.SlotLotId);
+            if (!slotId.HasValue) return QuarantineReleaseResult.Fail("Không xác định được Slot của LOT cách ly.");
+            string warehouse = _slots.GetWarehouseNameBySlotId(slotId.Value);
+            AuthorizationGuard.DemandActionAndScope(
+                "QUALITY.RETURN", "APPROVE", "WAREHOUSE", warehouse, _balance.SiteCode);
             request.PerformedBy = session.ActorCode;
             if (request.SlotLotId <= 0) return QuarantineReleaseResult.Fail("SlotLotId không hợp lệ.");
             if (string.IsNullOrWhiteSpace(request.PerformedBy)) return QuarantineReleaseResult.Fail("Người thực hiện release là bắt buộc.");
