@@ -14,22 +14,31 @@ namespace PCTP.Modules.KhoCore.Repositories
     public sealed class InspectionLogRepository
     : SqlRepositoryBase, IInspectionLogRepository
     {
-        public InspectionLogRepository(PhieuSqlExecutor db, IUnitOfWork uow)
-            : base(db, uow) { }
+        private readonly ISiteContext _site;
+
+        public InspectionLogRepository(PhieuSqlExecutor db, IUnitOfWork uow, ISiteContext site = null)
+            : base(db, uow)
+        {
+            _site = site ?? AppSettingsSiteContext.Default;
+        }
+
+        private SqlParameter SiteParam()
+            => new SqlParameter("@site", SqlDbType.NVarChar, 30) { Value = _site.SiteCode };
 
         public void SaveLog(InspectionLogEntry e)
         {
             const string sql = @"
             INSERT INTO dbo.FVN_InspectionLog
-                (InspectionCode, ItemCode, TemCodeTong, LotNoTong, NSXTong,
+                (SiteCode, InspectionCode, ItemCode, TemCodeTong, LotNoTong, NSXTong,
                  SoLuongTong, BoxTemCode, BoxLotNo, BoxNSX,
                  IsMatch, CheckedAt, FinalResult, MaPhieu)
             VALUES
-                (@InspectionCode, @ItemCode, @TemCodeTong, @LotNoTong, @NSXTong,
+                (@site, @InspectionCode, @ItemCode, @TemCodeTong, @LotNoTong, @NSXTong,
                  @SoLuongTong, @BoxTemCode, @BoxLotNo, @BoxNSX,
                  @IsMatch, @CheckedAt, @FinalResult, @MaPhieu);";
 
             ExecuteNonQuery(sql,
+                SiteParam(),
                 new SqlParameter("@InspectionCode", SqlDbType.NVarChar, 50)
                 { Value = e.InspectionCode },
                 new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100)
@@ -61,8 +70,8 @@ namespace PCTP.Modules.KhoCore.Repositories
         public List<InspectionLogEntry> GetByInspectionCode(string code)
         {
             DataTable dt = LoadData(
-                "SELECT * FROM dbo.FVN_InspectionLog WHERE InspectionCode = @Code",
-                new SqlParameter("@Code", SqlDbType.NVarChar, 50) { Value = code });
+                "SELECT * FROM dbo.FVN_InspectionLog WHERE SiteCode=@site AND InspectionCode = @Code",
+                SiteParam(), new SqlParameter("@Code", SqlDbType.NVarChar, 50) { Value = code });
 
             var list = new List<InspectionLogEntry>();
             if (dt == null) return list;
@@ -92,9 +101,10 @@ namespace PCTP.Modules.KhoCore.Repositories
 
         public DataTable GetHistoryMaster(DateTime from, DateTime to, string itemCode, string result)
         {
-            string where = "WHERE CheckedAt BETWEEN @From AND @To";
+            string where = "WHERE SiteCode=@site AND CheckedAt BETWEEN @From AND @To";
             var pars = new List<SqlParameter>
             {
+                SiteParam(),
                 new SqlParameter("@From", SqlDbType.DateTime) { Value = from },
                 new SqlParameter("@To",   SqlDbType.DateTime) { Value = to   }
             };
@@ -137,11 +147,11 @@ namespace PCTP.Modules.KhoCore.Repositories
             const string sql = @"
                 SELECT BoxLotNo, BoxNSX, IsMatch, MismatchFields, CheckedAt
                 FROM   dbo.FVN_InspectionLog
-                WHERE  InspectionCode = @Code
+                WHERE  SiteCode=@site AND InspectionCode = @Code
                 ORDER  BY LogId";
 
             return LoadData(sql,
-                new SqlParameter("@Code", SqlDbType.NVarChar) { Value = inspectionCode });
+                SiteParam(), new SqlParameter("@Code", SqlDbType.NVarChar) { Value = inspectionCode });
         }
 
         private static InspectionLogEntry MapEntry(DataRow r) => new InspectionLogEntry
