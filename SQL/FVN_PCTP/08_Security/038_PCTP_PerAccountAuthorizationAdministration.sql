@@ -89,7 +89,7 @@ BEGIN TRY
    THROW 53821,''Invalid data-scope type.'',1;
   IF @ScopeType=''ALL'' AND @ScopeValue<>N''*''
    THROW 53822,''ALL scope must use *.'',1;
-  IF @ScopeType<>' 'ALL'' AND NULLIF(LTRIM(RTRIM(@ScopeValue)),N'''') IS NULL
+  IF @ScopeType<>''ALL'' AND NULLIF(LTRIM(RTRIM(@ScopeValue)),N'''') IS NULL
    THROW 53823,''Scope value is required.'',1;
   IF @FunctionCode IS NOT NULL AND NOT EXISTS(SELECT 1 FROM SEC.FunctionCatalog
     WHERE FunctionCode=@FunctionCode AND IsActive=1)
@@ -123,8 +123,8 @@ BEGIN TRY
    VALUES(@ActorUserId,''USER_DATA_SCOPE_REMOVED'',''USER'',CONVERT(nvarchar(100),@UserId),@Before);
  END');
 
- INSERT MES.FVN_SchemaMigration(MigrationVersion,AppliedAtUtc,AppliedBy)
- VALUES('038',SYSUTCDATETIME(),SUSER_SNAME());
+ INSERT MES.FVN_SchemaMigration(MigrationVersion,MigrationName)
+ VALUES('038',N'Per-account function overrides and data-scope administration');
 
  COMMIT TRANSACTION;
 END TRY
