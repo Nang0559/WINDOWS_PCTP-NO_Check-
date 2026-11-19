@@ -77,8 +77,8 @@ namespace PCTP.Modules.MesPlanning
             if (orderMaterialId <= 0 || productionLotId <= 0 || fromSlotId <= 0 || quantity <= 0 ||
                 string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("Thông tin tiêu hao LOT linh kiện không hợp lệ.");
-            if (!qr.StartsWith("FVN1|", StringComparison.OrdinalIgnoreCase) || qr.Length <= 5)
-                throw new ArgumentException("QR linh kiện phải có định dạng FVN1|LOT.");
+            if (!qr.StartsWith("FVN1|", StringComparison.OrdinalIgnoreCase) || qr.Length <= 5 || qr.Length > 125)
+                throw new ArgumentException("QR linh kiện phải có định dạng FVN1|LOT và LOT không vượt quá 120 ký tự.");
             return _repository.ConsumeMaterialByQr(orderMaterialId, productionLotId, qr,
                 fromSlotId, quantity, actor.Trim(), Guid.NewGuid().ToString("N"));
         }
