@@ -76,6 +76,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string nguoiGiao)
         {
             AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            nguoiGiao = AuthorizationGuard.ActorCode;
             if (phieuKhachTraId <= 0)
             {
                 return ScanResult.Fail(
@@ -295,6 +296,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string nguoiGiao)
         {
             AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            nguoiGiao = AuthorizationGuard.ActorCode;
             if (phieuKhachTraId <= 0)
             {
                 return ScanResult.Fail(
