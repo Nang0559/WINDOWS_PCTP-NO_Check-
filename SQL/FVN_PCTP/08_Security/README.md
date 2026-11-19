@@ -37,6 +37,9 @@ must be added to the catalog and granted explicitly.
   account-specific decision; the current administration screen exposes role
   permissions and role scopes only. User-specific overrides/scopes are reserved
   for a later admin UI increment and should not be edited manually in normal use.
+- The SYSTEM_ADMIN role's grants and ALL scope cannot be revoked through the
+  application; the last active system administrator cannot be deactivated or
+  removed from that role.
 - Data scopes are explicit: ALL, SITE, DEPARTMENT, WAREHOUSE, LINE, PROCESS,
   OWN. A missing scope is denied; it is not treated as ALL.
 - Menu visibility is only a usability layer. Application services must call
