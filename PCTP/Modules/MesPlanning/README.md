@@ -146,3 +146,72 @@ The MES screens listed above are currently strongly typed DevExpress workspaces 
 7. Check action and Site scope in the service. Recheck concurrency/state/inventory in SQL.
 8. Add navigation only after the form's VIEW permission and service-side authorization are in place.
 9. Add tests for valid transition, invalid transition, unauthorized Site, duplicate/idempotent posting, and rollback on SQL failure.
+
+
+## 10. MES Control Tower — one production flow, role-specific views
+
+The read-only entry point is `UI/FormMesProductionControlTower.cs`.
+It is backed by `IProductionFlowService` → `ProductionFlowService` →
+`IProductionFlowRepository` → `ProductionFlowRepository` →
+`MES.usp_FVN_ProductionFlow_Dashboard` (migration 047).
+
+The five visible stages are:
+
+1. **Kế hoạch** — imported/validated/firm plan.
+2. **Cấp linh kiện** — BOM demand, required/issued/outstanding quantities.
+3. **Lệnh sản xuất** — released order and planned/completed quantity.
+4. **Sản xuất thực tế** — production LOTs and completed/total routing operations.
+5. **Hoàn thành** — completed/closed order.
+
+The worklist also shows the department, line, shift, product, last workflow event,
+the current waiting stage and a derived waiting reason. The latter is a monitoring
+indicator inferred from canonical facts (e.g. outstanding component quantity or
+incomplete routing); it is not a separate MES HOLD transaction or an approval.
+
+### Read-only boundary and action ownership
+
+- Control Tower has no command that changes a plan, demand, issue, order, LOT,
+  label, inventory balance or operation state.
+- Cross-department rows are marked `Liên quan · chỉ xem`; the actionable-work
+  column is suppressed for those rows.
+- Task labels mean **work that the signed-in user's current permissions and
+  department scope allow**, not a claim that a task has been individually assigned
+  to that employee.
+- Opening a workflow form is separately gated by its VIEW permission. The form
+  disables action buttons without the matching action permission.
+- ProductionExecutionService now requires both Site scope and owning
+  DEPARTMENT scope for CREATE/CONFIRM/APPROVE/PRINT/CANCEL operations.
+  ProductionWorkflowService applies the same department guard to order and
+  operation transitions. SQL remains the final state/inventory guard.
+- Planner plan transitions remain protected by `MES.PLAN_UPLOAD` and Site scope;
+  warehouse issue remains protected by the separate `MES.COMPONENT_ISSUE`
+  permission and Site scope.
+
+### Department relationship configuration
+
+Migration 047 adds `MES.FVN_ProductionDepartmentRelation`.
+Configure rows for each actual Site and product dependency:
+
+- `OwnerDepartmentCode`: department whose users need the context.
+- `RelatedDepartmentCode`: department producing/handling a related component or
+  upstream/downstream step.
+- `ProductPartNo`: optional product-specific restriction; NULL means the
+  relationship applies to all products for that department pair.
+- `RelationType`: COMPONENT, UPSTREAM, DOWNSTREAM or SHARED.
+
+The read model returns the related department's production rows only when an
+active relation matches the owner's allowed department scope. This configuration
+does not grant write permission to the related department. Grant `MES.PRODUCTION_FLOW
+/ VIEW` and `SITE` or `DEPARTMENT` data scopes using the existing security
+administration workflow.
+
+### Freshness and future assignment integration
+
+The Control Tower supports manual refresh and a 60-second polling refresh. It
+reads current canonical MES rows and workflow events; it does not copy them into
+a second operational database. The current "Việc thuộc quyền xử lý" is a
+permission-and-scope-derived work queue. If the plant later requires individual
+assignment, due dates, escalation or explicit HOLD ownership, those must be
+connected to the existing approval/task assignment source (or a formally
+configured workflow task model); they must not be guessed from department
+membership.
