@@ -239,7 +239,7 @@ BEGIN TRY
      WHERE UserId=@UserId;
   END;
   INSERT SEC.LoginAudit(UserId,UserName,IsSuccess,MachineName,ClientVersion,FailureCode)
-  VALUES(@UserId,LEFT(ISNULL(@UserName,N''),80),@IsSuccess,@MachineName,@ClientVersion,@FailureCode);
+  VALUES(@UserId,LEFT(ISNULL(@UserName,N''''),80),@IsSuccess,@MachineName,@ClientVersion,@FailureCode);
   COMMIT;
  END');
 
