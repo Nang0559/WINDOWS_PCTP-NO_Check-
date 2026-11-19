@@ -31,6 +31,7 @@ namespace PCTP.Modules.MesPlanning
         public DataTable CreateLot(long orderId, DateTime producedAtUtc, decimal goodQty,
             decimal ngQty, bool finished, string actor)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "CREATE");
             if (orderId <= 0 || goodQty <= 0 || ngQty < 0 || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("Thông tin tạo LOT sản xuất không hợp lệ.");
             return _repository.CreateLot(orderId, producedAtUtc, goodQty, ngQty, finished, actor.Trim());
@@ -39,6 +40,7 @@ namespace PCTP.Modules.MesPlanning
         public DataTable CompleteOperation(long productionLotId, string operationNo, decimal inputQty,
             decimal goodQty, decimal ngQty, int? inputSlotId, int? outputSlotId, string actor)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "CONFIRM");
             if (productionLotId <= 0 || string.IsNullOrWhiteSpace(operationNo) ||
                 inputQty <= 0 || goodQty < 0 || ngQty < 0 || goodQty + ngQty > inputQty ||
                 string.IsNullOrWhiteSpace(actor))
@@ -50,6 +52,7 @@ namespace PCTP.Modules.MesPlanning
         public DataTable ConsumeMaterial(long orderMaterialId, long productionLotId, long materialLotId,
             int fromSlotId, decimal quantity, string actor)
         {
+            AuthorizationGuard.Demand("MES.PRODUCTION_EXECUTION", "CONFIRM");
             if (orderMaterialId <= 0 || productionLotId <= 0 || materialLotId <= 0 ||
                 fromSlotId <= 0 || quantity <= 0 || string.IsNullOrWhiteSpace(actor))
                 throw new ArgumentException("Thông tin tiêu hao LOT linh kiện không hợp lệ.");
