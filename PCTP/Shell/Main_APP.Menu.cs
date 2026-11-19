@@ -21,6 +21,7 @@ using PCTP.Modules.NhapKho.UI;
 using PCTP.Modules.MesPlanning.UI;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
+using PCTP.Security;
 
 namespace PCTP
 {
@@ -97,6 +98,10 @@ namespace PCTP
                 "menuIfsMasterDataSync",
                 "Đồng bộ dữ liệu IFS → FVN_PCTP",
                 OpenIfsMasterDataSync));
+            accordionControlElement20.Elements.Add(CreateMenuItem(
+                "menuSecurityAdmin",
+                "Quản trị tài khoản & phân quyền",
+                OpenSecurityAdministration));
 
             // ── 3. Xử lý LOT ───────────────────────────────────────────
             // Tách LOT là luồng nghiệp vụ; form tự chọn mẫu in Ghép LOT theo CustomerCode.
@@ -145,16 +150,71 @@ namespace PCTP
             mainAccordionGroup.Elements.Add(accordionControlElement20);   // Công Cụ
         }
 
-        private static AccordionControlElement CreateMenuItem(string name, string text, EventHandler onClick)
-        {
-            var item = new AccordionControlElement(ElementStyle.Item)
+        private static readonly Dictionary<string, string> MenuFunctionMap =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                Name = name,
-                Text = text
+                ["menuChuyenHangNoiBo"] = "WAREHOUSE.MOVE",
+                ["menuThuHoiHangNoiBo"] = "WAREHOUSE.MOVE",
+                ["menuKhoTonTP"] = "WAREHOUSE.STOCK_VIEW",
+                ["menuNhanLinhKien"] = "WAREHOUSE.RECEIPT",
+                ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
+                ["menuDieuHanhSanXuat"] = "MES.PRODUCTION_EXECUTION",
+                ["menuYeuCauXuatLinhKien"] = "MES.COMPONENT_ISSUE",
+                ["menuDieuChinhTonKhoLot"] = "WAREHOUSE.STOCK_ADJUST",
+                ["menuHangChoGiao"] = "SHIPPING.DISPATCH",
+                ["menuIfsMasterDataSync"] = "MASTERDATA.IFS_SYNC",
+                ["menuTachLot"] = "LOT.SPLIT",
+                ["menuGhepLotThuCong"] = "LOT.MERGE",
+                ["menuBcTruyXuat"] = "REPORT.TRACEABILITY",
+                ["menuBcTruyXuatLinhKien"] = "REPORT.TRACEABILITY",
+                ["menuBcLichSuKho"] = "REPORT.STOCK_HISTORY",
+                ["menuBcLichSuQC"] = "REPORT.QUALITY_HISTORY",
+                ["menuSecurityAdmin"] = "ADMIN.USER_MANAGEMENT"
             };
 
-            item.Click += onClick;
+        private AccordionControlElement CreateMenuItem(string name, string text, EventHandler onClick)
+        {
+            var item = new AccordionControlElement(ElementStyle.Item) { Name = name, Text = text };
+            string functionCode;
+            if (MenuFunctionMap.TryGetValue(name, out functionCode))
+            {
+                item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
+                item.Click += (s, e) =>
+                {
+                    var session = UserSession.Current;
+                    if (session == null || !session.HasPermission(functionCode, "VIEW"))
+                    {
+                        XtraMessageBox.Show(this, "Bạn không có quyền truy cập chức năng này.",
+                            "PCTP - Phân quyền", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    onClick?.Invoke(s, e);
+                };
+            }
+            else item.Click += onClick;
             return item;
+        }
+
+        private void ApplyAuthorizationToNavigation()
+        {
+            ApplyAuthorizationRecursive(mainAccordionGroup);
+        }
+
+        private void ApplyAuthorizationRecursive(AccordionControlElement parent)
+        {
+            foreach (AccordionControlElement item in parent.Elements)
+            {
+                string functionCode;
+                if (MenuFunctionMap.TryGetValue(item.Name ?? string.Empty, out functionCode))
+                    item.Visible = UserSession.Current != null && UserSession.Current.HasPermission(functionCode, "VIEW");
+                if (item.Elements.Count > 0) ApplyAuthorizationRecursive(item);
+            }
+        }
+
+        private void OpenSecurityAdministration(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this,
+                () => new FormSecurityAdministration()), "Quản trị tài khoản & phân quyền");
         }
 
         /// <summary>Mở 1 màn hình từ menu; lỗi hiển thị thông báo thay vì làm sập Shell.</summary>
@@ -162,6 +222,10 @@ namespace PCTP
         {
             try
             {
+                string functionCode = ResolveFunctionCodeFromTitle(title);
+                if (!string.IsNullOrWhiteSpace(functionCode))
+                    (UserSession.Current ?? throw new UnauthorizedAccessException("Chưa đăng nhập."))
+                        .DemandPermission(functionCode, "VIEW");
                 open();
             }
             catch (Exception ex)
@@ -172,6 +236,27 @@ namespace PCTP
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
+        }
+
+        private static string ResolveFunctionCodeFromTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return null;
+            if (title.IndexOf("Điều hành sản xuất", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PRODUCTION_EXECUTION";
+            if (title.IndexOf("Upload kế hoạch", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PLAN_UPLOAD";
+            if (title.IndexOf("linh kiện", StringComparison.OrdinalIgnoreCase) >= 0 && title.IndexOf("Truy xuất", StringComparison.OrdinalIgnoreCase) < 0) return "MES.COMPONENT_ISSUE";
+            if (title.IndexOf("Tách LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "LOT.SPLIT";
+            if (title.IndexOf("Ghép LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "LOT.MERGE";
+            if (title.IndexOf("Truy xuất", StringComparison.OrdinalIgnoreCase) >= 0 || title.IndexOf("Tra cứu LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "REPORT.TRACEABILITY";
+            if (title.IndexOf("Lịch sử kho", StringComparison.OrdinalIgnoreCase) >= 0) return "REPORT.STOCK_HISTORY";
+            if (title.IndexOf("Lịch sử QC", StringComparison.OrdinalIgnoreCase) >= 0) return "REPORT.QUALITY_HISTORY";
+            if (title.IndexOf("điều chuyển", StringComparison.OrdinalIgnoreCase) >= 0 || title.IndexOf("thu hồi hàng", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.MOVE";
+            if (title.IndexOf("Tồn kho", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.STOCK_VIEW";
+            if (title.IndexOf("Điều chỉnh tồn", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.STOCK_ADJUST";
+            if (title.IndexOf("IFS", StringComparison.OrdinalIgnoreCase) >= 0) return "MASTERDATA.IFS_SYNC";
+            if (title.IndexOf("Hàng chờ giao", StringComparison.OrdinalIgnoreCase) >= 0) return "SHIPPING.DISPATCH";
+            if (title.IndexOf("Nhập kho", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.RECEIPT";
+            if (title.IndexOf("Quản trị tài khoản", StringComparison.OrdinalIgnoreCase) >= 0) return "ADMIN.USER_MANAGEMENT";
+            return null;
         }
 
         // ── Handlers ────────────────────────────────────────────────────
