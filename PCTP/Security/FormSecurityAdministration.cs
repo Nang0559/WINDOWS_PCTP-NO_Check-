@@ -467,7 +467,7 @@ namespace PCTP.Security
 
         private sealed class RoleScopeDialog : Form
         {
-            private readonly ComboBox _type=new ComboBox();
+            private readonly System.Windows.Forms.ComboBox _type = new System.Windows.Forms.ComboBox();
             private readonly TextBox _value=new TextBox();
             private readonly TextBox _function=new TextBox();
             private readonly TextBox _site=new TextBox();
