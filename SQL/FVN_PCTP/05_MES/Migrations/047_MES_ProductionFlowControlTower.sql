@@ -39,6 +39,21 @@ BEGIN TRY
  CREATE UNIQUE INDEX UX_FVN_ProductionDepartmentRelation
   ON MES.FVN_ProductionDepartmentRelation(SiteCode,OwnerDepartmentCode,RelatedDepartmentCode,OwnerProductPartNo,RelatedProductPartNo,RelationType);
 
+ IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'MES.FVN_ProductionPlanLine') AND name=N'IX_FVN_ProductionPlanLine_FlowDate')
+  CREATE INDEX IX_FVN_ProductionPlanLine_FlowDate
+   ON MES.FVN_ProductionPlanLine(ProductionPlanId,ProductionDate,ProductionLineCode)
+   INCLUDE(SiteCode,ProductPartNo,PlannedQty,ShiftCode,UomCode);
+
+ IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'MES.FVN_ProductionOrder') AND name=N'IX_FVN_ProductionOrder_FlowPlanLine')
+  CREATE INDEX IX_FVN_ProductionOrder_FlowPlanLine
+   ON MES.FVN_ProductionOrder(ProductionPlanLineId,ProductionOrderId DESC)
+   INCLUDE(SiteCode,DepartmentCode,OrderNo,Status,WorkflowStatusCode,PlannedQty,CompletedQty);
+
+ IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'MES.FVN_ProductionLot') AND name=N'IX_FVN_ProductionLot_FlowOrder')
+  CREATE INDEX IX_FVN_ProductionLot_FlowOrder
+   ON MES.FVN_ProductionLot(ProductionOrderId,ProductionLotId)
+   INCLUDE(FinalGoodQty,GoodQty);
+
  EXEC(N'
  CREATE PROCEDURE MES.usp_FVN_ProductionFlow_Dashboard
   @SiteCode nvarchar(30),
