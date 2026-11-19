@@ -383,6 +383,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa xuất Rework theo phi�
         public ScanResult GiaoHangRework(int phieuXuLyId, List<LotInfo> lots, string ngayGiao, string nguoiNhan, string boPhanNhan)
         {
             AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
             ValidateNguoiThucHien(nguoiNhan);
             if (lots == null || lots.Count == 0) return ScanResult.Fail("Danh sách Lot giao rework không được rỗng.");
             if (string.IsNullOrWhiteSpace(ngayGiao)) return ScanResult.Fail("NgayGiao không được rỗng.");
