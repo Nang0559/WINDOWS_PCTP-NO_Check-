@@ -15,6 +15,9 @@ IF OBJECT_ID(N'MES.FVN_SchemaMigration', N'U') IS NULL
 IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '028')
     THROW 53702, 'Migration 028 must be applied before migration 037.', 1;
 
+IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '036')
+    THROW 53708, 'Migration 036 must be applied before migration 037.', 1;
+
 IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '037')
     RETURN;
 
