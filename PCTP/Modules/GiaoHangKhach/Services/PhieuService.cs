@@ -41,6 +41,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private readonly IPhieuKhoService _khoService;
         private readonly IPhieuGiaoDbService _giaoDbService;
         private readonly IPhieuYmvnService _ymvnService;
+        private readonly IStockMovementService _stockMovement;
         private bool _isBanQR;
         private bool _isLoaiSP;
         // Phiếu đang hiển thị là Giao DB (nạp từ TMPPHIEUGIAOHANGDB). LoadPhieu() (giao thường) xoá cờ này.
@@ -56,6 +57,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _gioXuatRepo = gioXuatRepo ?? throw new ArgumentNullException(nameof(gioXuatRepo));
             _tenBan = tenBan;
             _cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
+            _stockMovement = stockMovement;
             _isMayBanQR = isMayBanQR;
             _tableOrderRepo = tableOrderRepo ?? throw new ArgumentNullException(nameof(tableOrderRepo));
             _orderSourceFactory = orderSourceFactory ?? throw new ArgumentNullException(nameof(orderSourceFactory));
@@ -63,7 +65,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _workingState = workingState ?? new DeliveryWorkingState(_phieuRepo, _phieuRepo);
             _loadService = loadService ?? new PhieuLoadService(_phieuRepo, _ifsRepo, _orderSourceFactory, _rowCategoryFilter, _workingState, _cfg, _tenBan);
             _khoService = khoService ?? new PhieuKhoService(_phieuRepo, _bus, _cfg, stockMovement);
-            _giaoDbService = new PhieuGiaoDbService(_phieuRepo, giaoDbRepo ?? throw new ArgumentNullException(nameof(giaoDbRepo)), _orderSourceFactory, _cfg, () => _isLoaiSP);
+            _giaoDbService = new PhieuGiaoDbService(_phieuRepo, giaoDbRepo ?? throw new ArgumentNullException(nameof(giaoDbRepo)), _orderSourceFactory, _cfg, () => _isLoaiSP, stockMovement);
             _ymvnService = ymvnService ?? new PhieuYmvnService(_phieuRepo, _tableOrderRepo, _bus, _cfg, stockMovement);
         }
 
@@ -74,7 +76,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void LoadPhieu(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios = null, bool isLoaiSP = false, long loadRequestId = 0)
         {
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
+            DemandShippingSite("VIEW");
             SetTrangThaiBan(isBanQR, isLoaiSP);
             _isGiaoDb = false;
             string ngayGiaoDate = string.IsNullOrEmpty(ngayGiao) ? string.Empty : (ngayGiao.Length >= 10 ? ngayGiao.Substring(0, 10) : ngayGiao);
@@ -107,7 +109,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm)
         {
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT");
+            DemandShippingSite("EDIT");
             if (!PCTP.Shared.Helpers.DateText.TryParseApp(ngayGiao, out DateTime dt) || dt.Year < 2000) return;
             bool isSP = _isLoaiSP;
             string ngayXuat = dt.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
@@ -134,7 +136,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DataTable TinhLechIFS(DataTable donHangBangRieng, string ngayXuatIFS) { if (!_cfg.Delivery.LoadTuBangRieng || _ifsDataCache == null) return new DataTable(); return _phieuRepo.SoSanhLechIFS(donHangBangRieng, _ifsDataCache); }
         public TrangThaiBan GetTrangThaiDangBan() => _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.MP });
         public TrangThaiBan GetTrangThaiDangBanSP() { if (!_cfg.Delivery.CoConfigSP) return new TrangThaiBan { DangBan = false }; return _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.SP }); }
-        public bool XoaDocQRCode(bool isSP = false) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "DELETE"); _phieuRepo.XoaDocQRCode(GetDocQrTableActive(isSP)); return true; }
+        public bool XoaDocQRCode(bool isSP = false) { DemandShippingSite("DELETE"); _phieuRepo.XoaDocQRCode(GetDocQrTableActive(isSP)); return true; }
         public DataTable GetDonHangHienTai(string tenbang) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW"); return _phieuRepo.GetDonHangHienTai(tenbang); }
         public DataTable GetDonHangYmvnTuTmp() { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW"); return _phieuRepo.LoadTmpOrderForGear(GetTenBan()); }
         public DataTable GetDonHangChuaLot(bool isSP = false) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW"); return _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), GetDocQrTableActive(isSP)); }
@@ -184,7 +186,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm) { _isGiaoDb = true; return _giaoDbService.LoadTmpPhieuGiaoDB(ngayGiao, addNm); }
         public void XuLySauUploadGiaoDB() => _giaoDbService.XuLySauUpload();
         public string CanhBaoLuoiRongGiaoDB(DateTime ngayGiao, int addNm) => _giaoDbService.CanhBaoLuoiRong(ngayGiao, addNm);
-        public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CREATE"); return _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu); }
+        public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) { DemandShippingSite("CREATE"); return _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu); }
         public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu) { AuthorizationGuard.Demand("SHIPPING.DISPATCH", "EDIT"); _phieuRepo.CapNhapTTPHIEU(nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu); }
         // Bảng TMP mà các luồng Cập Nhập Kho đang đọc: YMVN (CoGear) luôn dùng TmpTable;
         // các khách còn lại theo đúng cách PhieuKhoService.CapNhapKho chọn (SP / Giao DB).
@@ -285,5 +287,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 LoadRequestId = loadRequestId
             };
         }
+        private void DemandShippingSite(string action)
+        {
+            if (_stockMovement == null)
+                throw new InvalidOperationException("Thiếu IStockMovementService để xác định SiteCode và kiểm tra phạm vi giao hàng.");
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", action,
+                "SITE", _stockMovement.SiteCode, _stockMovement.SiteCode);
+        }
+
     }
 }
