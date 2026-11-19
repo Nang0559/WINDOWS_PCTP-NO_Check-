@@ -50,7 +50,11 @@ namespace PCTP.Modules.MesPlanning
             bool siteWide = applicable.Any(s => s.IsAllowed &&
                 (string.Equals(s.ScopeType, "ALL", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(s.ScopeType, "SITE", StringComparison.OrdinalIgnoreCase)) &&
-                session.HasDataScope("MES.PRODUCTION_FLOW", "SITE", siteCode, siteCode));
+                session.HasDataScope("MES.PRODUCTION_FLOW", "SITE", siteCode, siteCode)) ||
+                applicable.Any(s => s.IsAllowed &&
+                    string.Equals(s.ScopeType, "DEPARTMENT", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(s.ScopeValue, "*", StringComparison.Ordinal) &&
+                    session.HasDataScope("MES.PRODUCTION_FLOW", "DEPARTMENT", "*", siteCode));
 
             var departments = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (!siteWide)
