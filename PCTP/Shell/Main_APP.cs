@@ -9,6 +9,8 @@ using PCTP.Common;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.MesBom;
+using PCTP.Modules.KhoLinhKien.UI;
+using PCTP.Modules.MesPlanning.UI;
 using PCTP.QRCODE_HVN.ComaprePart;
 using PCTP.Shared.Helpers;
 using PCTP.Shell.Composition;
@@ -277,23 +279,71 @@ namespace PCTP
 
         private void AddMesBomNavigation()
         {
-            var group = new AccordionControlElement
+            var bomGroup = new AccordionControlElement
             {
                 Name = "menuMesBomGroup",
                 Text = "Kỹ thuật / BOM",
                 Style = ElementStyle.Group,
                 Expanded = true
             };
-            var item = new AccordionControlElement
+            var bomItem = new AccordionControlElement
             {
                 Name = "menuMesBomGraphic",
                 Text = "Product Structure Graphic",
                 Style = ElementStyle.Item
             };
-            item.Click += (s, e) =>
+            bomItem.Click += (s, e) =>
                 FormWindowManager.ShowSingle(this, () => new FormProductStructureGraphic());
+            bomGroup.Elements.Add(bomItem);
+            accordionControl.Elements.Add(bomGroup);
+
+            // MES nghiệp vụ: các form chỉ là presentation; service/repository và SQL
+            // tiếp tục chịu trách nhiệm phân quyền, phạm vi Site và trạng thái chứng từ.
+            var mesGroup = new AccordionControlElement
+            {
+                Name = "menuMesExecutionGroup",
+                Text = "MES - Linh kiện & Sản xuất",
+                Style = ElementStyle.Group,
+                Expanded = true
+            };
+            AddMesMenuItem(mesGroup, "menuMesComponentReceipt", "Nhận linh kiện / Quét QR",
+                "WAREHOUSE.COMPONENT_RECEIPT", () => new FormKiemKeHangVeList());
+            AddMesMenuItem(mesGroup, "menuMesComponentDemand", "Nhu cầu & cấp linh kiện PART → WIP",
+                "MES.COMPONENT_DEMAND", () => new FormYeuCauVaXuatLinhKien(),
+                "MES.COMPONENT_ISSUE");
+            AddMesMenuItem(mesGroup, "menuMesPlanUpload", "Upload kế hoạch sản xuất",
+                "MES.PLAN_UPLOAD", () => new FormUploadKeHoachSanXuat());
+            AddMesMenuItem(mesGroup, "menuMesProductionExecution", "Điều hành lệnh / LOT / công đoạn",
+                "MES.PRODUCTION_EXECUTION", () => new FormDieuHanhSanXuat());
+            AddMesMenuItem(mesGroup, "menuMesComponentTrace", "Truy xuất LOT / Genealogy",
+                "REPORT.COMPONENT_TRACEABILITY", () => new FormTruyXuatLinhKien());
+
+            mesGroup.Visible = mesGroup.Elements.Cast<AccordionControlElement>().Any(x => x.Visible);
+            if (mesGroup.Elements.Count > 0)
+                accordionControl.Elements.Add(mesGroup);
+        }
+
+        private static void AddMesMenuItem(AccordionControlElement group, string name, string caption,
+            string permission, Func<Form> createForm, string additionalPermission = null)
+        {
+            var session = UserSession.Current;
+            bool allowed = session != null && session.HasPermission(permission, "VIEW") &&
+                (string.IsNullOrWhiteSpace(additionalPermission) ||
+                 session.HasPermission(additionalPermission, "VIEW"));
+            var item = new AccordionControlElement
+            {
+                Name = name,
+                Text = caption,
+                Style = ElementStyle.Item,
+                Visible = allowed
+            };
+            item.Click += (s, e) =>
+            {
+                if (!allowed)
+                    throw new UnauthorizedAccessException("Tài khoản không có quyền mở chức năng " + caption + ".");
+                FormWindowManager.ShowSingle(group.Owner as Form, createForm);
+            };
             group.Elements.Add(item);
-            accordionControl.Elements.Add(group);
         }
 
         private void accordionControl_SelectedElementChanged(object sender, SelectedElementChangedEventArgs e) { }
