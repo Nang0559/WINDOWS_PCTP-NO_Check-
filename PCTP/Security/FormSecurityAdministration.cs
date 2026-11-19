@@ -39,6 +39,10 @@ namespace PCTP.Security
 
         private void BuildUi()
         {
+            _users.ReadOnly = true;
+            _roles.ReadOnly = true;
+            _scopes.ReadOnly = true;
+            _audit.ReadOnly = true;
             _tabs.Dock = DockStyle.Fill;
             var userTab = new TabPage("Tài khoản");
             var roleTab = new TabPage("Vai trò và quyền");
