@@ -183,7 +183,6 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
          List<LotInfo> lots)
         {
             DemandWarehouse("WAREHOUSE.RECEIPT", "CONFIRM", WarehouseForSlot(slotId));
-            DemandWarehouse("WAREHOUSE.RECEIPT", "CONFIRM", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException(
                     "SlotId không hợp lệ.",
@@ -293,7 +292,6 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
          int slotId,
          List<LotInfo> lots)
         {
-            DemandWarehouse("WAREHOUSE.STOCK_ADJUST", "ADMIN", WarehouseForSlot(slotId));
             DemandWarehouse("WAREHOUSE.STOCK_ADJUST", "ADMIN", WarehouseForSlot(slotId));
             if (slotId <= 0)
                 throw new ArgumentException(
