@@ -10,6 +10,8 @@ namespace PCTP.Infrastructure.Security
         {
             var session = UserSession.Current;
             if (session == null) throw new UnauthorizedAccessException("Phiên đăng nhập không tồn tại.");
+            if (!string.Equals(actionCode, "VIEW", StringComparison.OrdinalIgnoreCase))
+                session.DemandPermission(functionCode, "VIEW");
             session.DemandPermission(functionCode, actionCode);
             return session;
         }
