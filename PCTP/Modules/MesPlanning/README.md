@@ -195,8 +195,9 @@ Configure rows for each actual Site and product dependency:
 - `OwnerDepartmentCode`: department whose users need the context.
 - `RelatedDepartmentCode`: department producing/handling a related component or
   upstream/downstream step.
-- `ProductPartNo`: optional product-specific restriction; NULL means the
-  relationship applies to all products for that department pair.
+- `OwnerProductPartNo`: optional finished/subassembly product made by the owner department.
+- `RelatedProductPartNo`: optional component/subassembly produced by the related department.
+  Either may be NULL to make that side of the dependency general for the department pair.
 - `RelationType`: COMPONENT, UPSTREAM, DOWNSTREAM or SHARED.
 
 The read model returns the related department's production rows only when an
