@@ -169,7 +169,26 @@ namespace PCTP
                 ["menuBcTruyXuatLinhKien"] = "REPORT.TRACEABILITY",
                 ["menuBcLichSuKho"] = "REPORT.STOCK_HISTORY",
                 ["menuBcLichSuQC"] = "REPORT.QUALITY_HISTORY",
-                ["menuSecurityAdmin"] = "ADMIN.USER_MANAGEMENT"
+                ["menuSecurityAdmin"] = "ADMIN.USER_MANAGEMENT",
+                ["E_NhapTP"] = "WAREHOUSE.RECEIPT",
+                ["accordionControlElement_QCDinhHuong"] = "QUALITY.RETURN",
+                ["accordionControlElement_QCXacNhanCuoi"] = "QUALITY.RETURN",
+                ["trahangngPD"] = "QUALITY.RETURN",
+                ["trahangndHVN"] = "QUALITY.RETURN",
+                ["accordionControlElement21"] = "SYSTEM.TIME_CONFIG",
+                ["accordionControlElement19"] = "LOT.MERGE",
+                ["accordionControlElement24"] = "SYSTEM.QR_READER_ADMIN",
+                ["accordionControlElement29"] = "SYSTEM.COMPARE_PART",
+                ["acrImageControl"] = "SYSTEM.IMAGE_CONTROL",
+                ["cmdRackControl"] = "WAREHOUSE.STOCK_VIEW",
+                ["accordionControlElement38"] = "SYSTEM.FIFO_CONFIG",
+                ["E_GHHVN_MP"] = "SHIPPING.DISPATCH",
+                ["E_GHHVN_SP"] = "SHIPPING.DISPATCH",
+                ["HTDelever"] = "SHIPPING.DISPATCH",
+                ["accordionControlElement36"] = "WAREHOUSE.STOCK_VIEW",
+                ["accordionControlElement37"] = "QUALITY.RETURN",
+                ["E_Tracuulotno"] = "REPORT.TRACEABILITY",
+                ["E_TKTK"] = "REPORT.STOCK_HISTORY"
             };
 
         private AccordionControlElement CreateMenuItem(string name, string text, EventHandler onClick)
