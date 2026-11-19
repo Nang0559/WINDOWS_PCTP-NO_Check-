@@ -29,7 +29,26 @@ namespace PCTP.Modules.MesPlanning
 
             var session = AuthorizationGuard.Demand("MES.PRODUCTION_FLOW", "VIEW");
             string scopeXml = BuildDepartmentScope(session, siteCode);
-            return _repository.GetDashboard(siteCode, fromDate, toDate, scopeXml);
+            var table = _repository.GetDashboard(siteCode, fromDate, toDate, scopeXml);
+            ApplyTaskPolicy(table, session);
+            return table;
+        }
+
+        private static void ApplyTaskPolicy(DataTable table, UserSession session)
+        {
+            if (table == null) return;
+            if (!table.Columns.Contains("TaskCode")) table.Columns.Add("TaskCode", typeof(ProductionFlowTaskCode));
+            if (!table.Columns.Contains("AccessMode")) table.Columns.Add("AccessMode", typeof(ProductionFlowAccessMode));
+            if (!table.Columns.Contains("TaskLabel")) table.Columns.Add("TaskLabel", typeof(string));
+            foreach (DataRow row in table.Rows)
+            {
+                var decision = ProductionFlowTaskPolicy.Evaluate(row,
+                    (function, action) => session.HasPermission(function, action),
+                    (function, type, value, site) => session.HasDataScope(function, type, value, site));
+                row["TaskCode"] = decision.TaskCode;
+                row["AccessMode"] = decision.AccessMode;
+                row["TaskLabel"] = decision.TaskLabel;
+            }
         }
 
         private static string BuildDepartmentScope(UserSession session, string siteCode)
