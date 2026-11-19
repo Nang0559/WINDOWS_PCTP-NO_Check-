@@ -323,14 +323,14 @@ BEGIN TRY
 
   INSERT MES.FVN_ProductionWorkflowEvent(EntityType,EntityId,RelatedId,ProcessCode,
    FromStatus,ToStatus,ActionName,ActorCode)
-  SELECT 'OPERATION',c.ProductionLotId,c.RoutingStepId,'MES_PRODUCTION_OPERATION',
+  SELECT ''OPERATION'',c.ProductionLotId,c.RoutingStepId,''MES_PRODUCTION_OPERATION'',
    c.FromStatus,c.ToStatus,t.ActionName,c.ActorCode
   FROM @StateChanges c
-  JOIN dbo.FVN_sys_WorkflowTransitions t ON t.ProcessCode='MES_PRODUCTION_OPERATION'
+  JOIN dbo.FVN_sys_WorkflowTransitions t ON t.ProcessCode=''MES_PRODUCTION_OPERATION''
    AND t.FromStatus=c.FromStatus AND t.ToStatus=c.ToStatus AND t.IsActive=1;
 
   INSERT MES.FVN_ProductionOperationEvent(ProductionLotId,RoutingStepId,EventType,Quantity,ReferenceId,ActorCode)
-  SELECT i.ProductionLotId,i.RoutingStepId,'ACTUAL_COMPLETED',i.GoodQty+i.NgQty,i.OperationExecutionId,i.OperatorCode
+  SELECT i.ProductionLotId,i.RoutingStepId,''ACTUAL_COMPLETED'',i.GoodQty+i.NgQty,i.OperationExecutionId,i.OperatorCode
   FROM inserted i;
  END');
 
