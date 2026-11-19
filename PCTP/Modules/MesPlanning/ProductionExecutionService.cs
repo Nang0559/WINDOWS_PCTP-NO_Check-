@@ -20,6 +20,13 @@ namespace PCTP.Modules.MesPlanning
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         }
 
+        public DataTable GetRoutingSteps(long productionLotId)
+        {
+            DemandSite("MES.PRODUCTION_EXECUTION", "VIEW", _repository.GetLotSiteCode(productionLotId));
+            if (productionLotId <= 0) throw new ArgumentException("ProductionLotId không hợp lệ.");
+            return _repository.GetRoutingSteps(productionLotId);
+        }
+
         public DataTable GetOrderMaterials(long orderId)
         {
             DemandSite("MES.PRODUCTION_EXECUTION", "VIEW", _repository.GetOrderSiteCode(orderId));
