@@ -470,6 +470,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _selectFirmPlan.Enabled = row != null &&
                 !Convert.ToBoolean(row["IsRelatedDepartment"]) &&
                 string.Equals(Convert.ToString(row["PlanStatus"]), "FIRM", StringComparison.OrdinalIgnoreCase) &&
+                SafeDecimal(row["OutstandingComponentQty"]) <= 0m &&
                 row["ProductionOrderId"] == DBNull.Value;
         }
 
@@ -478,10 +479,11 @@ namespace PCTP.Modules.MesPlanning.UI
             var row = _taskGrid.View.GetFocusedDataRow();
             if (row == null || Convert.ToBoolean(row["IsRelatedDepartment"]) ||
                 !string.Equals(Convert.ToString(row["PlanStatus"]), "FIRM", StringComparison.OrdinalIgnoreCase) ||
+                SafeDecimal(row["OutstandingComponentQty"]) > 0m ||
                 row["ProductionOrderId"] != DBNull.Value)
             {
                 XtraMessageBox.Show(this,
-                    "Chỉ được chọn dòng kế hoạch FIRM thuộc bộ phận của bạn và chưa tạo lệnh sản xuất.",
+                    "Chỉ được chọn dòng FIRM thuộc bộ phận của bạn, đã đủ linh kiện và chưa tạo lệnh sản xuất.",
                     "Chọn kế hoạch", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
