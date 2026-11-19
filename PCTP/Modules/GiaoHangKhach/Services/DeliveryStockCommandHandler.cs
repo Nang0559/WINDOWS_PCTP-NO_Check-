@@ -43,7 +43,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DeliveryStockCommandResult Execute(DeliveryStockCommand command)
         {
             if (command == null) throw new ArgumentNullException(nameof(command));
-            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "CONFIRM");
+            AuthorizationGuard.DemandActionAndScope("SHIPPING.DISPATCH", "CONFIRM", "SITE", _stock.SiteCode, _stock.SiteCode);
 
             // Fail closed before opening a transaction: no physical SlotLot -> not in this slice.
             foreach (var part in command.Parts)
