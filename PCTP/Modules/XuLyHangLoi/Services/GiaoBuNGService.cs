@@ -1,4 +1,5 @@
 ﻿using PCTP.Modules.KhoVatLy.Application.Interfaces;
+using PCTP.Infrastructure.Security;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuatKho.Models;
 using PCTP.Modules.XuLyHangLoi.Models;
@@ -47,6 +48,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public List<HangChoGiao> GetHangSanSangGiaoBu(
             int phieuKhachTraId)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
             if (phieuKhachTraId <= 0)
                 return new List<HangChoGiao>();
 
@@ -73,6 +75,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             string rawQr,
             string nguoiGiao)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
             if (phieuKhachTraId <= 0)
             {
                 return ScanResult.Fail(
@@ -291,6 +294,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int phieuKhachTraId,
             string nguoiGiao)
         {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "CONFIRM");
             if (phieuKhachTraId <= 0)
             {
                 return ScanResult.Fail(
