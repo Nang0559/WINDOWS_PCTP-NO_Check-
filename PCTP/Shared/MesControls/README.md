@@ -32,8 +32,8 @@ in the Application Service / repository / SQL command boundary.
 
 ## Composition
 
-- `FormMesProductionControlTower` composes KPI strip, task grid, progress summary, scope badge
-  and dependency alert. It retains the orchestration, filters, refresh lifecycle and navigation.
+- `FormMesProductionControlTower` composes Site/date filters, KPI strip, task grid, progress summary,
+  scope badge and dependency alert. It retains the orchestration, refresh lifecycle and navigation.
 - `FormProductionWorkflowTimeline` composes the shared timeline control and delegates reads
   to `IProductionWorkflowService`.
 
