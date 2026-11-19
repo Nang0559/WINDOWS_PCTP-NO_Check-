@@ -1,4 +1,5 @@
 using PCTP.Infrastructure.Security;
+using PCTP.Security;
 using System;
 using System.Data;
 using System.Drawing;
@@ -72,9 +73,9 @@ namespace PCTP.Modules.MesPlanning.UI
 
             var orderPanel = Panel();
             AddField(orderPanel, "ProductionPlanLineId", _planLineId);
-            AddButton(orderPanel, "CHỌN KẾ HOẠCH FIRM", SelectPlanLineClick);
+            AddButton(orderPanel, "CHỌN KẾ HOẠCH FIRM", SelectPlanLineClick, UserSession.Current.HasPermission("MES.PLAN_UPLOAD", "VIEW"));
             AddField(orderPanel, "OrderNo", _orderNo);
-            AddButton(orderPanel, "TẠO LỆNH TỪ KẾ HOẠCH", CreateOrderClick);
+            AddButton(orderPanel, "TẠO LỆNH TỪ KẾ HOẠCH", CreateOrderClick, Can("CREATE"));
             AddField(orderPanel, "ProductionOrderId", _orderId);
             AddField(orderPanel, "ProductionLotId (sau khi tạo LOT)", _lotId);
             _productionDate.Properties.DisplayFormat.FormatString = "dd/MM/yyyy HH:mm";
@@ -89,13 +90,13 @@ namespace PCTP.Modules.MesPlanning.UI
             _finished.Text = "LOT thành phẩm cuối (FG); bỏ chọn = bán thành phẩm (WIP)";
             _finished.AutoSize = true;
             orderPanel.Controls.Add(_finished);
-            AddButton(orderPanel, "TẠO LOT SẢN XUẤT", CreateLotClick);
-            AddButton(orderPanel, "START LỆNH", (s, e) => TransitionOrder(20));
-            AddButton(orderPanel, "PAUSE LỆNH", (s, e) => TransitionOrder(30));
-            AddButton(orderPanel, "RESUME LỆNH", (s, e) => TransitionOrder(20));
-            AddButton(orderPanel, "COMPLETE LỆNH", (s, e) => TransitionOrder(40));
-            AddButton(orderPanel, "CLOSE LỆNH", (s, e) => TransitionOrder(50));
-            AddButton(orderPanel, "LỊCH SỬ LỆNH", (s, e) => OpenTimeline("ORDER", _orderId));
+            AddButton(orderPanel, "TẠO LOT SẢN XUẤT", CreateLotClick, Can("CREATE"));
+            AddButton(orderPanel, "START LỆNH", (s, e) => TransitionOrder(20), Can("CONFIRM"));
+            AddButton(orderPanel, "PAUSE LỆNH", (s, e) => TransitionOrder(30), Can("CONFIRM"));
+            AddButton(orderPanel, "RESUME LỆNH", (s, e) => TransitionOrder(20), Can("CONFIRM"));
+            AddButton(orderPanel, "COMPLETE LỆNH", (s, e) => TransitionOrder(40), Can("APPROVE"));
+            AddButton(orderPanel, "CLOSE LỆNH", (s, e) => TransitionOrder(50), Can("APPROVE"));
+            AddButton(orderPanel, "LỊCH SỬ LỆNH", (s, e) => OpenTimeline("ORDER", _orderId), true);
             orderTab.Controls.Add(orderPanel);
 
             var operationPanel = Panel();
@@ -104,12 +105,12 @@ namespace PCTP.Modules.MesPlanning.UI
             AddField(operationPanel, "RoutingStepId (workflow)", _routingStepId);
             _routingStepId.Properties.ReadOnly = true;
             _operationNo.Properties.ReadOnly = true;
-            AddButton(operationPanel, "PREPARE", (s, e) => TransitionOperation(10));
-            AddButton(operationPanel, "READY", (s, e) => TransitionOperation(20));
-            AddButton(operationPanel, "START", (s, e) => TransitionOperation(30));
-            AddButton(operationPanel, "PAUSE", (s, e) => TransitionOperation(40));
-            AddButton(operationPanel, "RESUME", (s, e) => TransitionOperation(30));
-            AddButton(operationPanel, "TẢI ROUTING THEO LOT", LoadRoutingClick);
+            AddButton(operationPanel, "PREPARE", (s, e) => TransitionOperation(10), Can("CONFIRM"));
+            AddButton(operationPanel, "READY", (s, e) => TransitionOperation(20), Can("CONFIRM"));
+            AddButton(operationPanel, "START", (s, e) => TransitionOperation(30), Can("CONFIRM"));
+            AddButton(operationPanel, "PAUSE", (s, e) => TransitionOperation(40), Can("CONFIRM"));
+            AddButton(operationPanel, "RESUME", (s, e) => TransitionOperation(30), Can("CONFIRM"));
+            AddButton(operationPanel, "TẢI ROUTING THEO LOT", LoadRoutingClick, true);
             _routingSteps.Width = 980; _routingSteps.Height = 160;
             _routingSteps.MainView = _routingView; _routingSteps.ViewCollection.Add(_routingView);
             ConfigureGrid(_routingView);
@@ -121,28 +122,28 @@ namespace PCTP.Modules.MesPlanning.UI
                 _operationNo.Text = Convert.ToString(row["OperationNo"]);
             };
             operationPanel.Controls.Add(_routingSteps);
-            AddButton(operationPanel, "LỊCH SỬ LOT", (s, e) => OpenTimeline("OPERATION", _operationLotId));
+            AddButton(operationPanel, "LỊCH SỬ LOT", (s, e) => OpenTimeline("OPERATION", _operationLotId), true);
             AddField(operationPanel, "InputQty", _inputQty);
             AddField(operationPanel, "GoodQty", _opGoodQty);
             AddField(operationPanel, "NgQty", _opNgQty);
             AddField(operationPanel, "InputSlotId (bắt buộc nếu công đoạn trước VIA_WIP)", _inputSlot);
             AddField(operationPanel, "OutputSlotId (bắt buộc nếu công đoạn này VIA_WIP)", _outputSlot);
-            AddButton(operationPanel, "XÁC NHẬN HOÀN THÀNH CÔNG ĐOẠN", CompleteOperationClick);
+            AddButton(operationPanel, "XÁC NHẬN HOÀN THÀNH CÔNG ĐOẠN", CompleteOperationClick, Can("CONFIRM"));
             AddField(operationPanel, "Số sản phẩm cần chuẩn bị tem", _labelQty);
-            AddButton(operationPanel, "1. CHUẨN BỊ / CẤP TEM", PrepareLabelsClick);
-            AddButton(operationPanel, "2. IN TEM CÔNG ĐOẠN", PrintLabelsClick);
+            AddButton(operationPanel, "1. CHUẨN BỊ / CẤP TEM", PrepareLabelsClick, Can("CREATE"));
+            AddButton(operationPanel, "2. IN TEM CÔNG ĐOẠN", PrintLabelsClick, Can("PRINT"));
             _labels.Width = 980; _labels.Height = 190;
             _labels.MainView = _labelView; _labels.ViewCollection.Add(_labelView);
             ConfigureGrid(_labelView);
             operationPanel.Controls.Add(_labels);
             AddField(operationPanel, "Quét QR tem MES hoặc LabelCode để xác nhận dán tem", _labelScan);
-            AddButton(operationPanel, "XÁC NHẬN ĐÃ DÁN TEM", ApplyLabelClick);
+            AddButton(operationPanel, "XÁC NHẬN ĐÃ DÁN TEM", ApplyLabelClick, Can("CONFIRM"));
             AddField(operationPanel, "Lý do hủy tem chưa sử dụng", _labelVoidReason);
-            AddButton(operationPanel, "HỦY TEM CHƯA DÙNG", VoidLabelClick);
+            AddButton(operationPanel, "HỦY TEM CHƯA DÙNG", VoidLabelClick, Can("CANCEL"));
             operationTab.Controls.Add(operationPanel);
 
             var consumePanel = Panel();
-            var loadMaterials = new SimpleButton { Text = "TẢI LINH KIỆN THEO LỆNH", AutoSize = true, Height = 34 };
+            var loadMaterials = new SimpleButton { Text = "TẢI LINH KIỆN THEO LỆNH", AutoSize = true, Height = 34, Enabled = true };
             loadMaterials.Click += LoadMaterialsClick;
             consumePanel.Controls.Add(loadMaterials);
             _materials.Width = 980; _materials.Height = 190;
@@ -159,7 +160,7 @@ namespace PCTP.Modules.MesPlanning.UI
             AddField(consumePanel, "Quét QR LOT linh kiện (FVN1|LOT)", _componentLotId);
             AddField(consumePanel, "FromSlotId (PART hoặc WIP)", _consumeSlot);
             AddField(consumePanel, "Số lượng tiêu hao thực tế", _consumeQty);
-            AddButton(consumePanel, "GHI NHẬN TIÊU HAO + GENEALOGY", ConsumeClick);
+            AddButton(consumePanel, "GHI NHẬN TIÊU HAO + GENEALOGY", ConsumeClick, Can("CONFIRM"));
             consumeTab.Controls.Add(consumePanel);
 
             tabs.TabPages.Add(orderTab);
@@ -204,9 +205,20 @@ namespace PCTP.Modules.MesPlanning.UI
             panel.Controls.Add(group);
         }
 
-        private static void AddButton(FlowLayoutPanel panel, string caption, EventHandler handler)
+        private static bool Can(string action)
         {
-            var button = new SimpleButton { Text = caption, AutoSize = true, Height = 34, Margin = new Padding(8, 18, 8, 8) };
+            return UserSession.Current != null &&
+                UserSession.Current.HasPermission("MES.PRODUCTION_EXECUTION", action);
+        }
+
+        private static void AddButton(FlowLayoutPanel panel, string caption, EventHandler handler, bool enabled)
+        {
+            var button = new SimpleButton
+            {
+                Text = caption, AutoSize = true, Height = 34, Margin = new Padding(8, 18, 8, 8),
+                Enabled = enabled,
+                ToolTip = enabled ? caption : "Bạn chỉ có quyền theo dõi, không có quyền thực hiện thao tác này."
+            };
             button.Click += handler;
             panel.Controls.Add(button);
         }
