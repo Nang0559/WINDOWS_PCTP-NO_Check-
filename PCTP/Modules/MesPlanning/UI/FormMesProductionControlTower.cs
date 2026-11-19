@@ -187,7 +187,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _onlyMyTasks.Dock = DockStyle.Left;
             _onlyMyTasks.Width = 130;
             _onlyMyTasks.CheckedChanged += (s, e) =>
-                _taskGrid.View.ActiveFilterString = _onlyMyTasks.Checked ? "[MyTask] <> 'Theo dõi'" : string.Empty;
+                _taskGrid.View.ActiveFilterString = _onlyMyTasks.Checked ? "[TaskCode] <> 0" : string.Empty;
             _status.Dock = DockStyle.Fill;
             _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _refreshStamp.Dock = DockStyle.Right;
@@ -222,7 +222,6 @@ namespace PCTP.Modules.MesPlanning.UI
                     return;
                 }
                 _data = e.Result as DataTable ?? new DataTable();
-                EnrichActionableTasks();
                 _taskGrid.Bind(_data);
                 ConfigureColumns();
                 UpdateKpis();
@@ -233,7 +232,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 ShowSelectedDetails();
                 UpdateSelectionButton();
             };
-            _refreshTimer.Interval = 30000;
+            _refreshTimer.Interval = 5000;
             _refreshTimer.Tick += (s, e) => LoadFlow();
             _refreshTimer.Start();
         }
@@ -287,7 +286,8 @@ namespace PCTP.Modules.MesPlanning.UI
             SetCaption("CompletedOperationCount", "CĐ hoàn thành");
             SetCaption("PausedOperationCount", "CĐ tạm dừng");
             SetCaption("FlowStage", "Giai đoạn");
-            SetCaption("MyTask", "Việc thuộc quyền xử lý");
+            SetCaption("TaskLabel", "Việc thuộc quyền xử lý");
+            SetCaption("AccessMode", "Quyền thao tác");
             SetCaption("WaitingAt", "Đang chờ tại");
             SetCaption("WaitingReason", "Điểm chờ / cảnh báo");
             SetCaption("LastEventAtUtc", "Cập nhật workflow");
@@ -296,7 +296,7 @@ namespace PCTP.Modules.MesPlanning.UI
             if (_taskGrid.View.Columns["IsRelatedDepartment"] != null)
                 _taskGrid.View.Columns["IsRelatedDepartment"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
             _taskGrid.View.BestFitColumns();
-            if (_taskGrid.View.Columns["MyTask"] != null) _taskGrid.View.Columns["MyTask"].VisibleIndex = 0;
+            if (_taskGrid.View.Columns["TaskLabel"] != null) _taskGrid.View.Columns["TaskLabel"].VisibleIndex = 0;
             if (_taskGrid.View.Columns["IsRelatedDepartment"] != null) _taskGrid.View.Columns["IsRelatedDepartment"].VisibleIndex = 1;
             if (_taskGrid.View.Columns["FlowStage"] != null) _taskGrid.View.Columns["FlowStage"].VisibleIndex = 2;
             if (_taskGrid.View.Columns["WaitingAt"] != null) _taskGrid.View.Columns["WaitingAt"].VisibleIndex = 3;
@@ -307,81 +307,6 @@ namespace PCTP.Modules.MesPlanning.UI
         private void SetCaption(string field, string caption)
         {
             if (_taskGrid.View.Columns[field] != null) _taskGrid.View.Columns[field].Caption = caption;
-        }
-
-        private void EnrichActionableTasks()
-        {
-            if (!_data.Columns.Contains("MyTask"))
-                _data.Columns.Add("MyTask", typeof(string));
-            var session = UserSession.Current;
-            foreach (DataRow row in _data.Rows)
-            {
-                row["MyTask"] = "Theo dõi";
-                // Cross-department dependencies are context only, never actionable.
-                if (Convert.ToBoolean(row["IsRelatedDepartment"])) continue;
-
-                string stage = Convert.ToString(row["FlowStage"]);
-                string planStatus = Convert.ToString(row["PlanStatus"]);
-                string site = Convert.ToString(row["SiteCode"]);
-                string department = Convert.ToString(row["DepartmentCode"]);
-                bool productionDepartmentScope = !string.IsNullOrWhiteSpace(department) &&
-                    session.HasDataScope("MES.PRODUCTION_EXECUTION", "SITE", site, site) &&
-                    session.HasDataScope("MES.PRODUCTION_EXECUTION", "DEPARTMENT", department, site);
-
-                if (stage == "PLAN" && planStatus == "IMPORTED" &&
-                    session.HasPermission("MES.PLAN_UPLOAD", "VIEW") &&
-                    session.HasPermission("MES.PLAN_UPLOAD", "CONFIRM") &&
-                    session.HasDataScope("MES.PLAN_UPLOAD", "SITE", site, site))
-                    row["MyTask"] = "Kiểm tra kế hoạch";
-                else if (stage == "PLAN" && planStatus == "VALIDATED" &&
-                    session.HasPermission("MES.PLAN_UPLOAD", "VIEW") &&
-                    session.HasPermission("MES.PLAN_UPLOAD", "APPROVE") &&
-                    session.HasDataScope("MES.PLAN_UPLOAD", "SITE", site, site))
-                    row["MyTask"] = "FIRM kế hoạch";
-                else if (stage == "COMPONENTS" &&
-                    !string.IsNullOrWhiteSpace(Convert.ToString(row["DemandStatus"])) &&
-                    SafeDecimal(row["OutstandingComponentQty"]) > 0m &&
-                    session.HasPermission("MES.COMPONENT_DEMAND", "VIEW") &&
-                    session.HasPermission("MES.COMPONENT_ISSUE", "VIEW") &&
-                    session.HasPermission("MES.COMPONENT_ISSUE", "CONFIRM") &&
-                    session.HasDataScope("MES.COMPONENT_ISSUE", "SITE", site, site))
-                    row["MyTask"] = "Cấp linh kiện";
-                else if (stage == "ORDER" && productionDepartmentScope &&
-                    session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"))
-                {
-                    string orderStatus = Convert.ToString(row["OrderStatus"]);
-                    bool hasOrder = row["ProductionOrderId"] != DBNull.Value;
-                    bool noLot = SafeInt(row["ProductionLotCount"]) == 0;
-                    if (!hasOrder && session.HasPermission("MES.PRODUCTION_EXECUTION", "CREATE"))
-                        row["MyTask"] = "Tạo lệnh sản xuất";
-                    else if (orderStatus == "CREATED" && session.HasPermission("MES.PRODUCTION_EXECUTION", "APPROVE"))
-                        row["MyTask"] = "RELEASE lệnh";
-                    else if (orderStatus == "RELEASED" && noLot && session.HasPermission("MES.PRODUCTION_EXECUTION", "CREATE"))
-                        row["MyTask"] = "Tạo LOT sản xuất";
-                }
-                else if (stage == "DONE" && productionDepartmentScope &&
-                    string.Equals(Convert.ToString(row["OrderStatus"]), "COMPLETED", StringComparison.OrdinalIgnoreCase) &&
-                    session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW") &&
-                    session.HasPermission("MES.PRODUCTION_EXECUTION", "APPROVE"))
-                    row["MyTask"] = "CLOSE lệnh";
-                else if (stage == "PRODUCTION" && productionDepartmentScope &&
-                    session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"))
-                {
-                    string orderStatus = Convert.ToString(row["OrderStatus"]);
-                    int operationCount = SafeInt(row["OperationCount"]);
-                    int completedOperations = SafeInt(row["CompletedOperationCount"]);
-                    int pausedOperations = SafeInt(row["PausedOperationCount"]);
-                    if (orderStatus == "PAUSED" && session.HasPermission("MES.PRODUCTION_EXECUTION", "CONFIRM"))
-                        row["MyTask"] = "RESUME lệnh";
-                    else if (pausedOperations > 0 && session.HasPermission("MES.PRODUCTION_EXECUTION", "CONFIRM"))
-                        row["MyTask"] = "RESUME công đoạn";
-                    else if (operationCount > 0 && completedOperations >= operationCount &&
-                        session.HasPermission("MES.PRODUCTION_EXECUTION", "APPROVE"))
-                        row["MyTask"] = "COMPLETE lệnh";
-                    else if (session.HasPermission("MES.PRODUCTION_EXECUTION", "CONFIRM"))
-                        row["MyTask"] = "Thực hiện công đoạn";
-                }
-            }
         }
 
         private void UpdateKpis()
@@ -411,7 +336,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 e.Appearance.ForeColor = Color.FromArgb(105, 115, 125);
                 return;
             }
-            if (e.Column.FieldName == "MyTask" && Convert.ToString(row["MyTask"]) != "Theo dõi")
+            if (e.Column.FieldName == "TaskLabel" && Convert.ToString(row["TaskLabel"]) != "Theo dõi")
             {
                 e.Appearance.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
                 e.Appearance.ForeColor = Color.FromArgb(23, 89, 154);
@@ -468,7 +393,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 "LOT: " + Convert.ToString(row["ProductionLotCount"]) + " | SL đã SX: " + Convert.ToString(row["ProducedQty"]) + Environment.NewLine +
                 "Công đoạn: " + Convert.ToString(row["CompletedOperationCount"]) + "/" + Convert.ToString(row["OperationCount"]) +
                     " | Tạm dừng: " + Convert.ToString(row["PausedOperationCount"]) + Environment.NewLine +
-                "Việc thuộc quyền: " + Convert.ToString(row["MyTask"]) + Environment.NewLine +
+                "Việc thuộc quyền: " + Convert.ToString(row["TaskLabel"]) + " (" + Convert.ToString(row["AccessMode"]) + ")" + Environment.NewLine +
                 "Đang chờ tại: " + Convert.ToString(row["WaitingAt"]) + Environment.NewLine +
                 "Lý do: " + Convert.ToString(row["WaitingReason"]) + Environment.NewLine +
                 "Cập nhật gần nhất: " + Convert.ToString(row["LastEventAtUtc"]) + " | " +
@@ -508,15 +433,22 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             var row = _taskGrid.View.GetFocusedDataRow();
             if (row == null || Convert.ToBoolean(row["IsRelatedDepartment"])) return;
-            string task = Convert.ToString(row["MyTask"]);
-            if (task == "Kiểm tra kế hoạch" || task == "FIRM kế hoạch")
-                OpenPlan();
-            else if (task == "Cấp linh kiện")
-                OpenPart();
-            else if (task == "Tạo lệnh sản xuất" || task == "Tạo LOT sản xuất" ||
-                task == "RELEASE lệnh" || task == "RESUME lệnh" || task == "RESUME công đoạn" ||
-                task == "COMPLETE lệnh" || task == "CLOSE lệnh" || task == "Thực hiện công đoạn")
-                OpenProduction();
+            var task = row["TaskCode"] == DBNull.Value
+                ? ProductionFlowTaskCode.None : (ProductionFlowTaskCode)row["TaskCode"];
+            switch (task)
+            {
+                case ProductionFlowTaskCode.ValidatePlan:
+                case ProductionFlowTaskCode.FirmPlan: OpenPlan(); break;
+                case ProductionFlowTaskCode.IssueComponents: OpenPart(); break;
+                case ProductionFlowTaskCode.CreateOrder:
+                case ProductionFlowTaskCode.ReleaseOrder:
+                case ProductionFlowTaskCode.CreateLot:
+                case ProductionFlowTaskCode.ResumeOrder:
+                case ProductionFlowTaskCode.ResumeOperation:
+                case ProductionFlowTaskCode.CompleteOrder:
+                case ProductionFlowTaskCode.CloseOrder:
+                case ProductionFlowTaskCode.ExecuteOperation: OpenProduction(); break;
+            }
         }
 
         private void OpenPlan()
