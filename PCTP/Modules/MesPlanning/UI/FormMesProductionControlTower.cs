@@ -359,6 +359,11 @@ namespace PCTP.Modules.MesPlanning.UI
                     else if (orderStatus == "RELEASED" && noLot && session.HasPermission("MES.PRODUCTION_EXECUTION", "CREATE"))
                         row["MyTask"] = "Tạo LOT sản xuất";
                 }
+                else if (stage == "DONE" && productionDepartmentScope &&
+                    string.Equals(Convert.ToString(row["OrderStatus"]), "COMPLETED", StringComparison.OrdinalIgnoreCase) &&
+                    session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW") &&
+                    session.HasPermission("MES.PRODUCTION_EXECUTION", "APPROVE"))
+                    row["MyTask"] = "CLOSE lệnh";
                 else if (stage == "PRODUCTION" && productionDepartmentScope &&
                     session.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"))
                 {
@@ -510,7 +515,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 OpenPart();
             else if (task == "Tạo lệnh sản xuất" || task == "Tạo LOT sản xuất" ||
                 task == "RELEASE lệnh" || task == "RESUME lệnh" || task == "RESUME công đoạn" ||
-                task == "COMPLETE lệnh" || task == "Thực hiện công đoạn")
+                task == "COMPLETE lệnh" || task == "CLOSE lệnh" || task == "Thực hiện công đoạn")
                 OpenProduction();
         }
 
