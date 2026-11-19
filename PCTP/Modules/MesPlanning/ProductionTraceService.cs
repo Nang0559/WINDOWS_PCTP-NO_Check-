@@ -15,7 +15,7 @@ namespace PCTP.Modules.MesPlanning
 
         public DataTable Trace(string lotNo, string direction, string siteCode)
         {
-            AuthorizationGuard.DemandActionAndScope("REPORT.TRACEABILITY", "VIEW", "SITE", siteCode, siteCode);
+            AuthorizationGuard.DemandActionAndScope("REPORT.COMPONENT_TRACEABILITY", "VIEW", "SITE", siteCode, siteCode);
             if (string.IsNullOrWhiteSpace(lotNo))
                 throw new ArgumentException("Vui lòng nhập LOT cần truy xuất.", nameof(lotNo));
             if (lotNo.Trim().Length > 120)
