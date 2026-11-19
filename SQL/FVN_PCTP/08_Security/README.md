@@ -3,7 +3,7 @@
 ## Migration
 
 Run `037_PCTP_ApplicationAuthenticationAndRbac.sql` against `FVN_PCTP`
-after MES migration 036, then run `038_PCTP_PerAccountAuthorizationAdministration.sql`. The script creates the `SEC` schema, application
+after MES migration 036, then run `038_PCTP_PerAccountAuthorizationAdministration.sql` and `039_PCTP_InspectionLogSiteScope.sql`. The script creates the `SEC` schema, application
 accounts, roles, function/action permissions, data scopes, login audit and
 administration audit. It does not create SQL Server logins or database users.
 
