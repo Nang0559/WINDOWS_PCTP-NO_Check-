@@ -51,11 +51,11 @@ namespace PCTP.Modules.MesPlanning.UI
                 Dock = DockStyle.Fill, Padding = new Padding(12),
                 ColumnCount = 1, RowCount = 3
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
 
-            var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
+            var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoScroll = true };
             toolbar.Controls.Add(new LabelControl { Text = "Site", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
             _site.Width = 120;
             _site.Properties.NullValuePrompt = "Nhập SiteCode";
