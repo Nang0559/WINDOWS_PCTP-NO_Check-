@@ -61,9 +61,6 @@ namespace PCTP.Modules.KhoCore.Application.Services
             var initialDetails = _slots.GetLotDetails(request.SlotLotId);
             if (initialDetails == null)
                 return QuarantineReleaseResult.Fail($"Không tìm thấy SlotLot {request.SlotLotId}.");
-            var slotId = _slots.GetSlotId(request.SlotLotId);
-            if (!slotId.HasValue || slotId.Value <= 0)
-                return QuarantineReleaseResult.Fail("Không xác định được Slot của LOT cách ly.");
 
             try
             {
