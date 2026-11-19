@@ -189,6 +189,7 @@ namespace PCTP.Security
                 row["OverrideChoice"] = row["Effect"] == DBNull.Value ? "INHERIT" : Convert.ToString(row["Effect"]);
             _userOverrides.DataSource = table;
             if (_userOverrides.Columns["Effect"] != null) _userOverrides.Columns["Effect"].Visible = false;
+            if (_userOverrides.Columns["IsAllowed"] != null) _userOverrides.Columns["IsAllowed"].Visible = false;
             if (_userOverrides.Columns["OverrideChoice"] != null)
             {
                 var column = new DataGridViewComboBoxColumn {
