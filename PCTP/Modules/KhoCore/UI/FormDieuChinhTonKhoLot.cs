@@ -1,3 +1,4 @@
+using PCTP.Infrastructure.Security;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraGrid;
@@ -23,6 +24,7 @@ namespace PCTP.Modules.KhoCore.UI
     /// </summary>
     public sealed class FormDieuChinhTonKhoLot : XtraForm
     {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_ADJUST", "VIEW");
         private readonly UnitOfWork _uow;
         private readonly StockTpRepository _stockTp;
         private readonly SlotRepository _slotRepo;
