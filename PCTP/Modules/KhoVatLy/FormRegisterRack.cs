@@ -1,4 +1,5 @@
-﻿using DevExpress.XtraEditors;
+﻿using PCTP.Infrastructure.Security;
+using DevExpress.XtraEditors;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -27,6 +28,7 @@ namespace PCTP.Modules.KhoVatLy
 
         private void btnOK_Click(object sender, EventArgs e)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_ADJUST", "ADMIN");
             if (string.IsNullOrWhiteSpace(txtWarehouseName.Text))
             {
                 XtraMessageBox.Show("Vui lòng nhập tên Kho!", "Thông báo",
