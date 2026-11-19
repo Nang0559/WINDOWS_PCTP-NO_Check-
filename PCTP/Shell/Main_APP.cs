@@ -323,7 +323,7 @@ namespace PCTP
                 accordionControl.Elements.Add(mesGroup);
         }
 
-        private static void AddMesMenuItem(AccordionControlElement group, string name, string caption,
+        private void AddMesMenuItem(AccordionControlElement group, string name, string caption,
             string permission, Func<Form> createForm, string additionalPermission = null)
         {
             var session = UserSession.Current;
@@ -341,7 +341,7 @@ namespace PCTP
             {
                 if (!allowed)
                     throw new UnauthorizedAccessException("Tài khoản không có quyền mở chức năng " + caption + ".");
-                FormWindowManager.ShowSingle(group.Owner as Form, createForm);
+                FormWindowManager.ShowSingle(this, createForm);
             };
             group.Elements.Add(item);
         }
