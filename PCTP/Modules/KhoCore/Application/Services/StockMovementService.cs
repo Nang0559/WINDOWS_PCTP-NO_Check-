@@ -201,6 +201,7 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
         public StockMovementResult Correct(StockMovementRequest request)
         {
+            AuthorizationGuard.DemandActionAndScope("WAREHOUSE.STOCK_ADJUST", "CONFIRM", "SITE", _balance.SiteCode, _balance.SiteCode);
             if (request == null)
                 return StockMovementResult.Fail("Stock movement request không được null.");
             if (string.IsNullOrWhiteSpace(request.LotNo))
