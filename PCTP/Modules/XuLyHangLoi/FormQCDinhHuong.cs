@@ -1,4 +1,5 @@
 ﻿using System;
+using PCTP.Infrastructure.Security;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,6 +17,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
     public partial class FormQCDinhHuong : XtraForm
     {
+            AuthorizationGuard.Demand("QUALITY.RETURN", "VIEW");
         private readonly IQTChungService _qtChungService;
         private readonly int _phieuXuLyId;
 
