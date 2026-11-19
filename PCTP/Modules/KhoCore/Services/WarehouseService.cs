@@ -3,6 +3,7 @@ using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoVatLy.Repository;
 using PCTP.Shared.Common;
+using PCTP.Infrastructure.Security;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -29,6 +30,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         string warehouseName, string rackName,
         int rowCount, int columnCount, int slotCapacity)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_ADJUST", "ADMIN");
             if (string.IsNullOrWhiteSpace(warehouseName))
                 throw new ArgumentException("Tên kho không được rỗng.");
             if (string.IsNullOrWhiteSpace(rackName))
@@ -61,23 +63,31 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         }
         public List<Warehouse> GetAll()
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             return _repository.GetAllWarehouses();
         }
         public bool Exists(string warehouseName)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             if (string.IsNullOrWhiteSpace(warehouseName)) return false;
             return _repository.Exists(warehouseName);
         }
         public List<string> GetRackNames(string warehouseName)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             if (string.IsNullOrWhiteSpace(warehouseName))
                 return new List<string>();
             return _repository.GetRackNames(warehouseName);
         }
-        public DataTable GetActiveItemList() => _repository.GetActiveItemList();
+        public DataTable GetActiveItemList()
+        {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
+            return _repository.GetActiveItemList();
+        }
 
         public string GetProductName(string itemCode)
         {
+            AuthorizationGuard.Demand("WAREHOUSE.STOCK_VIEW", "VIEW");
             if (string.IsNullOrWhiteSpace(itemCode))
                 return string.Empty;
 
@@ -85,6 +95,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         }
         public InspectionConfig GetInspectionConfig(string itemCode)
         {
+            AuthorizationGuard.Demand("SHIPPING.DISPATCH", "VIEW");
             if (string.IsNullOrWhiteSpace(itemCode)) return null;
             return _repository.GetInspectionConfig(itemCode);
         }
