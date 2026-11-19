@@ -44,6 +44,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly BackgroundWorker _worker = new BackgroundWorker();
         private readonly Timer _refreshTimer = new Timer();
         private DataTable _data = new DataTable();
+        private long _lastChangeVersion = -1;
 
         public long SelectedPlanLineId { get; private set; }
 
@@ -223,7 +224,17 @@ namespace PCTP.Modules.MesPlanning.UI
             _worker.DoWork += (s, e) =>
             {
                 var args = (LoadArgs)e.Argument;
-                e.Result = _service.GetDashboard(args.Site, args.From, args.To);
+                long version = _service.GetChangeVersion(args.Site);
+                if (!args.Force && version == _lastChangeVersion)
+                {
+                    e.Result = new LoadResult { Version = version, Data = null };
+                    return;
+                }
+                e.Result = new LoadResult
+                {
+                    Version = version,
+                    Data = _service.GetDashboard(args.Site, args.From, args.To)
+                };
             };
             _worker.RunWorkerCompleted += (s, e) =>
             {
@@ -234,7 +245,15 @@ namespace PCTP.Modules.MesPlanning.UI
                     _status.Appearance.ForeColor = Color.Firebrick;
                     return;
                 }
-                _data = e.Result as DataTable ?? new DataTable();
+                var result = e.Result as LoadResult;
+                if (result == null) return;
+                _lastChangeVersion = result.Version;
+                if (result.Data == null)
+                {
+                    _refreshStamp.Text = "Không đổi · " + DateTime.Now.ToString("HH:mm:ss");
+                    return;
+                }
+                _data = result.Data;
                 _taskGrid.Bind(_data);
                 ConfigureColumns();
                 UpdateKpis();
@@ -247,16 +266,26 @@ namespace PCTP.Modules.MesPlanning.UI
                 UpdateNavigationButtons();
             };
             _refreshTimer.Interval = 5000;
-            _refreshTimer.Tick += (s, e) => LoadFlow();
+            _refreshTimer.Tick += (s, e) => PollFlow();
             _refreshTimer.Start();
         }
 
         private void LoadFlow()
         {
+            StartLoad(true);
+        }
+
+        private void PollFlow()
+        {
+            StartLoad(false);
+        }
+
+        private void StartLoad(bool force)
+        {
             if (_worker.IsBusy) return;
             if (string.IsNullOrWhiteSpace(_filters.SiteCode))
             {
-                _status.Text = "Nhập SiteCode để xem dòng chảy thuộc phạm vi của bạn.";
+                _status.Text = "Không tìm thấy Site trong phạm vi được cấp cho tài khoản.";
                 return;
             }
             _filters.SetBusy(true);
@@ -266,7 +295,8 @@ namespace PCTP.Modules.MesPlanning.UI
             {
                 Site = _filters.SiteCode,
                 From = _filters.FromDate,
-                To = _filters.ToDate
+                To = _filters.ToDate,
+                Force = force
             });
         }
 
@@ -625,6 +655,13 @@ namespace PCTP.Modules.MesPlanning.UI
             public string Site;
             public DateTime? From;
             public DateTime? To;
+            public bool Force;
+        }
+
+        private sealed class LoadResult
+        {
+            public long Version;
+            public DataTable Data;
         }
     }
 }
