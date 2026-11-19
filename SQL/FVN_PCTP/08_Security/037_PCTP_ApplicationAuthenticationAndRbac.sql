@@ -385,6 +385,8 @@ BEGIN TRY
  AS
  BEGIN
   SET NOCOUNT ON; SET XACT_ABORT ON;
+  IF @IsAllowed=0 AND EXISTS(SELECT 1 FROM SEC.Role WHERE RoleId=@RoleId AND RoleCode=''SYSTEM_ADMIN'')
+   THROW 53731,''System administrator grants cannot be revoked.'',1;
   BEGIN TRANSACTION;
   DECLARE @Before bit=(SELECT IsAllowed FROM SEC.RoleFunctionPermission
    WHERE RoleId=@RoleId AND FunctionCode=@FunctionCode AND ActionCode=@ActionCode);
@@ -502,6 +504,8 @@ BEGIN TRY
   IF @ScopeType NOT IN(''ALL'',''SITE'',''DEPARTMENT'',''WAREHOUSE'',''LINE'',''PROCESS'',''OWN'')
    THROW 53725,''Invalid scope type.'',1;
   IF @ScopeType=''ALL'' AND @ScopeValue<>N''*'' THROW 53726,''ALL scope must use *.'',1;
+  IF @IsAllowed=0 AND EXISTS(SELECT 1 FROM SEC.Role WHERE RoleId=@RoleId AND RoleCode=''SYSTEM_ADMIN'')
+   THROW 53732,''System administrator data scope cannot be revoked.'',1;
   IF @ScopeType=''SITE'' AND NOT EXISTS(SELECT 1 FROM dbo.FVN_PCTPSite
     WHERE SiteCode=@ScopeValue AND IsActive=1)
    THROW 53729,''Site scope must reference an active PCTP site.'',1;
