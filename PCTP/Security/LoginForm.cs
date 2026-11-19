@@ -13,6 +13,8 @@ namespace PCTP.Security
         private readonly TextBox _confirm = new TextBox();
         private readonly Label _heading = new Label();
         private readonly Label _hint = new Label();
+        private readonly Label _displayNameLabel = new Label { Text = "Họ tên hiển thị", Left = 24, Top = 124, Width = 175 };
+        private readonly Label _confirmLabel = new Label { Text = "Xác nhận mật khẩu", Left = 24, Top = 212, Width = 175 };
         private readonly Button _submit = new Button();
         private bool _bootstrap;
 
@@ -38,9 +40,13 @@ namespace PCTP.Security
             Controls.Add(_heading);
 
             AddField("Tên đăng nhập", _userName, 76);
-            AddField("Họ tên hiển thị", _displayName, 120);
+            _displayName.SetBounds(205, 120, 249, 26);
+            Controls.Add(_displayNameLabel);
+            Controls.Add(_displayName);
             AddField("Mật khẩu", _password, 164);
-            AddField("Xác nhận mật khẩu", _confirm, 208);
+            _confirm.SetBounds(205, 208, 249, 26);
+            Controls.Add(_confirmLabel);
+            Controls.Add(_confirm);
             _password.UseSystemPasswordChar = true;
             _confirm.UseSystemPasswordChar = true;
 
@@ -52,7 +58,7 @@ namespace PCTP.Security
             _submit.Click += Submit;
             Controls.Add(_submit);
             AcceptButton = _submit;
-            CancelButton = new Button { DialogResult = DialogResult.Cancel };
+            CancelButton = null;
         }
 
         private void AddField(string caption, TextBox box, int y)
@@ -68,14 +74,10 @@ namespace PCTP.Security
             {
                 _bootstrap = !_authentication.HasUsers();
                 _heading.Text = _bootstrap ? "Khởi tạo quản trị viên đầu tiên" : "Đăng nhập hệ thống";
+                _displayNameLabel.Visible = _bootstrap;
                 _displayName.Visible = _bootstrap;
+                _confirmLabel.Visible = _bootstrap;
                 _confirm.Visible = _bootstrap;
-                Controls[1].Visible = true; // username label
-                Controls[2].Visible = true; // username textbox
-                Controls[3].Visible = _bootstrap;
-                Controls[4].Visible = _bootstrap;
-                Controls[5].Visible = true;
-                Controls[6].Visible = _bootstrap;
                 _hint.Text = _bootstrap
                     ? "Khởi tạo lần đầu: tài khoản này nhận vai trò SYSTEM_ADMIN."
                     : "Tài khoản được quản lý tập trung trong FVN_PCTP.";
