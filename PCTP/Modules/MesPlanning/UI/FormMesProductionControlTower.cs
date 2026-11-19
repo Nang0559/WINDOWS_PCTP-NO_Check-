@@ -325,6 +325,10 @@ namespace PCTP.Modules.MesPlanning.UI
             if (_view.Columns["IsRelatedDepartment"] != null)
                 _view.Columns["IsRelatedDepartment"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
             _view.BestFitColumns();
+            if (_view.Columns["MyTask"] != null) _view.Columns["MyTask"].VisibleIndex = 0;
+            if (_view.Columns["IsRelatedDepartment"] != null) _view.Columns["IsRelatedDepartment"].VisibleIndex = 1;
+            if (_view.Columns["FlowStage"] != null) _view.Columns["FlowStage"].VisibleIndex = 2;
+            if (_view.Columns["WaitingAt"] != null) _view.Columns["WaitingAt"].VisibleIndex = 3;
             if (_view.Columns["WaitingReason"] != null) _view.Columns["WaitingReason"].Width = 260;
             if (_view.Columns["ProductDescription"] != null) _view.Columns["ProductDescription"].Width = 220;
         }
