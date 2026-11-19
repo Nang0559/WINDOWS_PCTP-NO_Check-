@@ -168,7 +168,10 @@ BEGIN TRY
  ('ADMIN.ROLE_MANAGEMENT','ADMIN',N'Quản lý vai trò và quyền',910),
  ('ADMIN.AUDIT','ADMIN',N'Nhật ký bảo mật',920),
  ('SYSTEM.FIFO_CONFIG','SYSTEM',N'Cấu hình FIFO',930),
- ('SYSTEM.QR_READER_ADMIN','SYSTEM',N'Quản lý máy đọc QR',940);
+ ('SYSTEM.QR_READER_ADMIN','SYSTEM',N'Quản lý máy đọc QR',940),
+ ('SYSTEM.TIME_CONFIG','SYSTEM',N'Đổi thời gian hệ thống',950),
+ ('SYSTEM.COMPARE_PART','SYSTEM',N'So sánh mã linh kiện',960),
+ ('SYSTEM.IMAGE_CONTROL','SYSTEM',N'Quản lý hình ảnh',970);
 
  IF NOT EXISTS(SELECT 1 FROM SEC.Role WHERE RoleCode='SYSTEM_ADMIN')
  INSERT SEC.Role(RoleCode,RoleName,Description,IsSystem) VALUES('SYSTEM_ADMIN',N'Quản trị hệ thống',N'Quản trị tài khoản, quyền và phạm vi; không bỏ qua kiểm tra quyền.',1);
