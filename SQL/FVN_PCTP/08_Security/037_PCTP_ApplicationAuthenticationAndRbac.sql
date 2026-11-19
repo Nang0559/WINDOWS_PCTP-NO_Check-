@@ -190,13 +190,16 @@ BEGIN TRY
   SET NOCOUNT ON; SET XACT_ABORT ON;
   IF DATALENGTH(@NewPasswordSalt)<16 OR DATALENGTH(@NewPasswordHash)<>32 OR @PasswordIterations NOT BETWEEN 100000 AND 1000000
    THROW 53714,''Password credential parameters are invalid.'',1;
+  IF @IsFirstPassword=1 AND NOT EXISTS(SELECT 1 FROM SEC.UserAccount
+   WHERE UserId=@UserId AND MustChangePassword=1)
+   THROW 53715,''First-password flow is not enabled for this account.'',1;
   IF @IsFirstPassword=0 AND NOT EXISTS(SELECT 1 FROM SEC.UserAccount
    WHERE UserId=@UserId AND PasswordHash=@CurrentPasswordHash)
-   THROW 53715,''Current password is incorrect.'',1;
+   THROW 53716,''Current password is incorrect.'',1;
   UPDATE SEC.UserAccount SET PasswordSalt=@NewPasswordSalt,PasswordHash=@NewPasswordHash,
    PasswordIterations=@PasswordIterations,MustChangePassword=0,FailedLoginCount=0,LockedUntilUtc=NULL,
    UpdatedAtUtc=SYSUTCDATETIME() WHERE UserId=@UserId AND IsActive=1;
-  IF @@ROWCOUNT=0 THROW 53716,''Active account not found.'',1;
+  IF @@ROWCOUNT=0 THROW 53717,''Active account not found.'',1;
  END');
 
  EXEC(N'
@@ -320,15 +323,35 @@ BEGIN TRY
  END');
 
  EXEC(N'
- CREATE PROCEDURE SEC.usp_Admin_ListFunctionCatalog
+ CREATE PROCEDURE SEC.usp_Admin_ListFunctionCatalog @RoleId int
  AS
  BEGIN
   SET NOCOUNT ON;
   SELECT f.FunctionCode,f.ModuleCode,f.FunctionName,f.SortOrder,a.ActionCode,a.ActionName,a.SortOrder ActionSort,
    CAST(ISNULL(p.IsAllowed,0) AS bit) IsAllowed
   FROM SEC.FunctionCatalog f CROSS JOIN SEC.ActionCatalog a
-  LEFT JOIN SEC.RoleFunctionPermission p ON p.FunctionCode=f.FunctionCode AND p.ActionCode=a.ActionCode
+  LEFT JOIN SEC.RoleFunctionPermission p ON p.RoleId=@RoleId
+   AND p.FunctionCode=f.FunctionCode AND p.ActionCode=a.ActionCode
   ORDER BY f.SortOrder,a.SortOrder;
+ END');
+
+ EXEC(N'
+ CREATE PROCEDURE SEC.usp_Admin_ListRoleDataScopes @RoleId int
+ AS
+ BEGIN
+  SET NOCOUNT ON;
+  SELECT RoleDataScopeId,RoleId,FunctionCode,ScopeType,ScopeValue,SiteCode,IsAllowed
+  FROM SEC.RoleDataScope WHERE RoleId=@RoleId ORDER BY FunctionCode,ScopeType,ScopeValue;
+ END');
+
+ EXEC(N'
+ CREATE PROCEDURE SEC.usp_Admin_ListUserRoles @UserId bigint
+ AS
+ BEGIN
+  SET NOCOUNT ON;
+  SELECT r.RoleId,r.RoleCode,r.RoleName,CONVERT(bit,CASE WHEN ur.UserId IS NULL THEN 0 ELSE 1 END) IsAssigned
+  FROM SEC.Role r LEFT JOIN SEC.UserRole ur ON ur.RoleId=r.RoleId AND ur.UserId=@UserId
+  WHERE r.IsActive=1 ORDER BY r.RoleName;
  END');
 
  EXEC(N'
