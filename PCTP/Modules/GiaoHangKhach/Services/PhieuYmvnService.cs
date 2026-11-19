@@ -183,7 +183,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (donHang == null || donHang.Rows.Count == 0)
                 return;
 
-            _phieuRepo.XoaTmpPhieu(_cfg.Delivery.TmpTable);
+            // DOCQRCODE còn dữ liệu => TMP là check time của phiên đang đọc: repo sẽ từ chối xoá.
+            _phieuRepo.XoaTmpPhieuAnToan(_cfg.Delivery.TmpTable, _cfg.Delivery.DocQRTable);
 
             foreach (DataRow row in donHang.Rows)
             {

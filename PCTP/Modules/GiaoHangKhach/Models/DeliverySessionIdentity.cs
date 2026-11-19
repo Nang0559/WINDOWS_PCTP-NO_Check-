@@ -129,7 +129,14 @@ namespace PCTP.Modules.GiaoHangKhach.Models
         {
             string s = (value ?? string.Empty).Trim().Trim('\'');
             int h;
-            return int.TryParse(s, out h) ? h.ToString("00") : s;
+            if (int.TryParse(s, out h)) return h.ToString("00");
+            // YMVN: khung giờ cụ thể "09:00:00" (TMP) phải khớp "09:00" (checklist) — chuẩn hoá về HH:mm.
+            TimeSpan ts;
+            if (s.IndexOf(':') >= 0
+                && TimeSpan.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, out ts)
+                && ts >= TimeSpan.Zero && ts < TimeSpan.FromHours(24))
+                return ts.ToString(@"hh\:mm", System.Globalization.CultureInfo.InvariantCulture);
+            return s;
         }
     }
 }

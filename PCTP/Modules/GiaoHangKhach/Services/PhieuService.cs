@@ -221,9 +221,18 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private static string NormalizeGio(string gio)
         {
             if (string.IsNullOrWhiteSpace(gio)) return "";
-            string s = gio.Replace("H", "").Trim();
+            string s = gio.Replace("H", "").Trim().Trim('\'');
             int colon = s.IndexOf(':');
-            if (colon >= 0) s = s.Substring(0, colon);
+            if (colon >= 0)
+            {
+                // YMVN lưu LUUPHIEUGIAOHANG.GIOGIAO theo khung giờ cụ thể "HH:mm" (vd "09:00+14:10").
+                // Phải giữ phút, nếu cắt về "HH" thì không khớp với checklist giờ (HH:mm) khi dựng lại.
+                TimeSpan ts;
+                if (TimeSpan.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, out ts)
+                    && ts >= TimeSpan.Zero && ts < TimeSpan.FromHours(24))
+                    return ts.ToString(@"hh\:mm", System.Globalization.CultureInfo.InvariantCulture);
+                s = s.Substring(0, colon);
+            }
             int value;
             if (!int.TryParse(s, out value)) return "";
             return value.ToString("00");

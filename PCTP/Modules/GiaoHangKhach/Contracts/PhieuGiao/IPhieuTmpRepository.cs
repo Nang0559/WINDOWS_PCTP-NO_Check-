@@ -31,6 +31,8 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         DataTable LuuVaLoad(PhieuTableSet tables, string tenSP, DataTable donHang,
             string ngayGiao, string nhaMay, string gioFcc, int addNm);
         void XoaTmpPhieu(string tenBan);
+        /// <summary>Xoá TMP nhưng từ chối (ném QrSessionActiveException) khi docQRTable còn dữ liệu.</summary>
+        void XoaTmpPhieuAnToan(string tmpTable, string docQRTable);
         void XoaDocQRCode(string docQRTable);
         TrangThaiBan GetTrangThaiDangBan(PhieuTableSet tables);
         TrangThaiBan GetTrangThaiDangBanSP(PhieuTableSet tables);
@@ -50,7 +52,11 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         /// DELETE và INSERT nằm trong cùng transaction; DataTable rỗng có nghĩa là
         /// xóa sạch snapshot khi người dùng bỏ chọn toàn bộ giờ.
         /// </summary>
-        void ReplaceTmpRows(string tmpTable, DataTable orders);
+        /// <remarks>
+        /// docQRTable: bảng DOCQRCODE cùng phiên (MP/SP) với tmpTable. Còn dòng QR thì TMP là trạng thái
+        /// "check time" của phiên đang đọc và KHÔNG được thay/xoá — ném <see cref="PCTP.Modules.GiaoHangKhach.Repositories.QrSessionActiveException"/>.
+        /// </remarks>
+        void ReplaceTmpRows(string tmpTable, DataTable orders, string docQRTable);
 
         void InsertTmpRow(
             string tmpTable,

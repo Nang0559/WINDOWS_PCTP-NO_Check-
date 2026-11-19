@@ -424,20 +424,35 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             if (checkList == null) return;
             // Called from RunWithLoading (Task.Run) -> must touch CheckGX on the UI thread.
             if (checkList.InvokeRequired) { checkList.Invoke(new Action(() => SetCheckedGiosYMVN(checkedGios))); return; }
-            _deliveredYmvnHours = new HashSet<string>(checkedGios ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            _deliveredYmvnHours = new HashSet<string>(
+                (checkedGios ?? new List<string>()).Select(NormalizeYmvSlot).Where(s => s.Length > 0),
+                StringComparer.OrdinalIgnoreCase);
             UnwireCheckGxEvent();
             try
             {
                 for (int i = 0; i < checkList.Items.Count; i++)
                 {
                     string gio = checkList.Items[i] == null ? string.Empty : checkList.Items[i].ToString();
-                    bool delivered = _deliveredYmvnHours.Contains(gio);
+                    bool delivered = _deliveredYmvnHours.Contains(NormalizeYmvSlot(gio));
                     checkList.SetItemChecked(i, delivered);
                     // Giờ đã giao vẫn được tích sẵn nhưng PHẢI chọn/bỏ chọn được để in lại phiếu theo giờ.
                     checkList.Items[i].Enabled = !_ymvnChecklistLocked;
                 }
             }
             finally { WireCheckGxEvent(); }
+        }
+
+        // Item checklist là "HH:mm:ss" (CONVERT 108) còn TMP/LUUPHIEUGIAOHANG lưu "HH:mm" hoặc "HH:mm:ss":
+        // so khớp chuỗi thô sẽ trượt. Chuẩn hoá về "HH:mm" (hoặc "HH" nếu chỉ có giờ).
+        private static string NormalizeYmvSlot(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+            string text = value.Replace("H", string.Empty).Trim().Trim('\'');
+            TimeSpan time;
+            if (text.IndexOf(':') >= 0 && TimeSpan.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, out time))
+                return time.ToString(@"hh\:mm", System.Globalization.CultureInfo.InvariantCulture);
+            int hour;
+            return int.TryParse(text, out hour) && hour >= 0 && hour <= 23 ? hour.ToString("00") : string.Empty;
         }
 
         public void MarkYmvnHoursDelivered(List<string> deliveredHours)
@@ -493,7 +508,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
                 for (int i = 0; i < checkList.Items.Count; i++)
                 {
                     string gio = checkList.Items[i] == null ? string.Empty : checkList.Items[i].ToString();
-                    bool delivered = _deliveredYmvnHours.Contains(gio);
+                    bool delivered = _deliveredYmvnHours.Contains(NormalizeYmvSlot(gio));
                     checkList.SetItemChecked(i, delivered);
                     checkList.Items[i].Enabled = true;
                 }

@@ -88,7 +88,8 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.WorkingState
         public void ClearTmp(OrderLoadContext context)
         {
             ValidateContext(context);
-            _tmpRepo.XoaTmpPhieu(BuildTables(context).TmpTable);
+            var tables = BuildTables(context);
+            _tmpRepo.XoaTmpPhieuAnToan(tables.TmpTable, tables.DocQRTable);
         }
 
         public void ClearDocQr(OrderLoadContext context)

@@ -70,8 +70,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // This prevents unscanned/unrelated rows from consuming FIFO allocation.
             return EvaluateCurrentQrFifoViolations(tmpTable, docQRTable);
         }
-        public void ReplaceTmpRows(string tmpTable, DataTable orders)
-    => _tmp.ReplaceTmpRows(tmpTable, orders);
+        public void ReplaceTmpRows(string tmpTable, DataTable orders, string docQRTable)
+    => _tmp.ReplaceTmpRows(tmpTable, orders, docQRTable);
         public void ReleaseFifoViolations(string tmpTable, string docQRTable, IReadOnlyList<FifoViolation> violations)
         {
             _db.ValidateTableName(tmpTable);
@@ -112,6 +112,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable GetDonHangHienTai(string tenBan) => _tmp.GetDonHangHienTai(tenBan);
         public DataTable LoadTmpOrderForGear(string tmpTable) => _tmp.LoadTmpOrderForGear(tmpTable);
         public void XoaTmpPhieu(string tenBan) => _tmp.XoaTmpPhieu(tenBan);
+        public void XoaTmpPhieuAnToan(string tmpTable, string docQRTable) => _tmp.XoaTmpPhieuAnToan(tmpTable, docQRTable);
         public void XoaDocQRCode(string docQRTable) => _tmp.XoaDocQRCode(docQRTable);
         public TrangThaiBan GetTrangThaiDangBan(PhieuTableSet tables) => _tmp.GetTrangThaiDangBan(tables);
         public TrangThaiBan GetTrangThaiDangBanSP(PhieuTableSet tables) => _tmp.GetTrangThaiDangBanSP(tables);

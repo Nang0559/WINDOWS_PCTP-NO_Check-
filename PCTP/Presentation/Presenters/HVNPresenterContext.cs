@@ -210,7 +210,14 @@ namespace PCTP.Presentation.Presenters
                 (delivered ?? new List<string>()).Select(NormalizeYmvTime).Where(g => !string.IsNullOrEmpty(g)),
                 StringComparer.OrdinalIgnoreCase);
             var deliveredDisplay = danhSachGio
-                .Where(g => deliveredSet.Contains(NormalizeYmvTime(g)))
+                .Where(g =>
+                {
+                    string slot = NormalizeYmvTime(g);
+                    if (slot.Length == 0) return false;
+                    // Khớp đúng khung giờ HH:mm; dữ liệu cũ chỉ lưu giờ ("09") thì khớp theo giờ.
+                    return deliveredSet.Contains(slot)
+                        || (slot.Length > 2 && deliveredSet.Contains(slot.Substring(0, 2)));
+                })
                 .ToList();
             View.SetCheckedGiosYMVN(deliveredDisplay);
 

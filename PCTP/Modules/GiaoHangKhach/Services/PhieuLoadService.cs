@@ -109,7 +109,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             bool isSP = context.Category == OrderCategory.SP;
             string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
             bool isQrMachine = context.MachineRole == MachineRole.DuocBanQR;
-            if (isQrMachine && context.IsBanQR)
+            // YMVN (CoGear): DOCQRCODE còn dữ liệu thì TMP LÀ trạng thái check time của phiên đang đọc,
+            // luôn trả lại đúng TMP — kể cả khi IsBanQR chưa kịp bật (mở lại form, đổi MP/SP, đổi ngày...).
+            // Không được nạp lại theo checklist hiện tại (có thể rỗng) vì sẽ xoá/ghi đè TMP.
+            if (isQrMachine && (context.IsBanQR || _cfg.Delivery.CoGear))
             {
                 int demQR = _phieuRepo.CountDocQRCode(docQRTable);
                 if (demQR > 0)
@@ -138,7 +141,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 // MP QR/Hoàn thành/Gear validator must all consume the same exact
                 // selected rows displayed in the grid. Replace atomically so a
                 // previous checkbox selection cannot remain in TMP.
-                _phieuRepo.ReplaceTmpRows(_cfg.Delivery.GetTmpTable(false), donHang);
+                _phieuRepo.ReplaceTmpRows(_cfg.Delivery.GetTmpTable(false), donHang, _cfg.Delivery.GetDocQRTable(false));
             }
             else if (_cfg.Delivery.CoGear && !isSP)
             {

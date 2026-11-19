@@ -11,6 +11,26 @@ using System.Linq;
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
     /// <summary>
+    /// Ném khi có thao tác xoá/ghi đè bảng TMP trong lúc bảng DOCQRCODE cùng phiên còn dữ liệu.
+    /// TMP chính là bản ghi "check time" (ngày + nhà máy + các khung giờ) của phiên đang đọc QR.
+    /// </summary>
+    public sealed class QrSessionActiveException : InvalidOperationException
+    {
+        public string TmpTable { get; private set; }
+        public string DocQRTable { get; private set; }
+        public int DocQRRows { get; private set; }
+
+        public QrSessionActiveException(string tmpTable, string docQRTable, int docQRRows)
+            : base("Không được xoá/ghi đè [" + tmpTable + "] khi [" + docQRTable + "] còn " + docQRRows +
+                   " dòng QR. Hãy hoàn thành phiếu hoặc xoá toàn bộ dữ liệu QR trước.")
+        {
+            TmpTable = tmpTable;
+            DocQRTable = docQRTable;
+            DocQRRows = docQRRows;
+        }
+    }
+
+    /// <summary>
     /// Vòng đời bảng TMP đang bắn QR (TMPPHIEUGIAOHANG/DOCQRCODE) — load, lưu (merge upsert),
     /// xoá khi kết thúc phiên, và xác định trạng thái đang bán (trống/đang bán/đã CNK).
     /// Implementation của <see cref="IPhieuTmpRepository"/>, một trong các mảnh được
@@ -197,10 +217,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         /// Giữ schema TMP hiện hữu; không DROP/CREATE bảng vì TMP có thể đang được
         /// các procedure QR và Gear tham chiếu.
         /// </summary>
-        public void ReplaceTmpRows(string tmpTable, DataTable orders)
+        public void ReplaceTmpRows(string tmpTable, DataTable orders, string docQRTable)
         {
             if (orders == null) throw new ArgumentNullException(nameof(orders));
             Db.ValidateTableName(tmpTable);
+            EnsureKhongDangDocQR(tmpTable, docQRTable);
 
             bool ownTransaction = !HasTransaction;
             if (ownTransaction) Uow.Begin();
@@ -390,6 +411,36 @@ ORDER BY TRY_CAST(STT AS INT), STT";
         {
             Db.ValidateTableName(tenBan);
             ExecuteNonQuery($"DELETE FROM [{tenBan}]");
+        }
+
+        public void XoaTmpPhieuAnToan(string tmpTable, string docQRTable)
+        {
+            Db.ValidateTableName(tmpTable);
+            EnsureKhongDangDocQR(tmpTable, docQRTable);
+            ExecuteNonQuery($"DELETE FROM [{tmpTable}]");
+        }
+
+        /// <summary>
+        /// Luật bất biến: DOCQRCODE còn dòng => TMP cùng phiên là trạng thái check time đang đọc,
+        /// không được xoá/ghi đè. Fail-closed: không xác nhận được bảng DOCQR thì cũng từ chối.
+        /// </summary>
+        private void EnsureKhongDangDocQR(string tmpTable, string docQRTable)
+        {
+            if (string.IsNullOrWhiteSpace(docQRTable))
+                throw new ArgumentException("Thiếu docQRTable để kiểm tra phiên đọc QR trước khi xoá TMP.", nameof(docQRTable));
+            Db.ValidateTableName(docQRTable);
+
+            int docQRExists = DbValueHelper.ToInt(ExecuteScalar(
+                "SELECT COUNT(*) FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[" + docQRTable + "]') AND type = 'U'"));
+            if (docQRExists != 1)
+                throw new InvalidOperationException("Không tìm thấy bảng DOCQR [" + docQRTable + "] để kiểm tra phiên đọc QR.");
+
+            int dem = DbValueHelper.ToInt(ExecuteScalar($"SELECT COUNT(*) FROM [{docQRTable}]"));
+            if (dem > 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TMP GUARD] CHẶN xoá/ghi đè [{tmpTable}] — [{docQRTable}] còn {dem} dòng");
+                throw new QrSessionActiveException(tmpTable, docQRTable, dem);
+            }
         }
 
         public void XoaDocQRCode(string docQRTable)

@@ -596,20 +596,28 @@ namespace PCTP.Presentation.Presenters
 
                 if (_c.Cfg.Delivery.CoGear)
                 {
-                    var gs = _c.ParseGioYMVN(tt.GioGiaoFCC);
+                    // YMVN: phiên QR có thể gồm NHIỀU khung giờ (GioGiaoTatCa). Dựng lại đủ các khung này,
+                    // không chỉ giờ nhỏ nhất (GioGiaoFCC) — nếu không checklist thiếu giờ và lưới rỗng.
+                    var gs = (tt.GioGiaoTatCa != null && tt.GioGiaoTatCa.Count > 0)
+                        ? new List<string>(tt.GioGiaoTatCa)
+                        : _c.ParseGioYMVN(tt.GioGiaoFCC);
                     _c.QrSvc.SetCheDoBanSP(false);
                     _c.BeginDeliverySession(
                         ngay.Date,
                         _c.AddNM,
-                        tt.GioGiaoFCC,
+                        string.Join(",", gs),
                         _c.GetNhaMay(),
                         false);
+                    // GioXuatHienTai phải khớp với các khung giờ vừa dựng lại, nếu không
+                    // IsCurrentDeliverySessionValid() thấy UI không có giờ => LoadPhieuHienTai bị BLOCKED.
+                    _c.UpdateGioXuatFromCheckList(gs);
                     _v.SuspendGioXuatChanged();
                     try
                     {
                         _c.YmvnView.SetCheckedGiosYMVN(gs);
-                        // Phiếu đã giao: không khóa danh sách giờ nữa — cho chọn giờ để IN phiếu theo giờ.
-                        _c.YmvnView.EnablePrintHourSelectionYMVN();
+                        // YMVN_DOCQRCODE còn dữ liệu (tt.DangBan) => phiên QR đang mở: khoá checklist giờ,
+                        // không cho chọn sang giờ khác (chỉ mở khoá khi hoàn thành / xoá toàn bộ QR).
+                        _c.YmvnView.LockCheckListYMVN();
                     }
                     finally { _v.ResumeGioXuatChanged(); }
 
