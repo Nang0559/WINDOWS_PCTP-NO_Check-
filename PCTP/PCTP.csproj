@@ -1017,6 +1017,8 @@
     <Compile Include="Shared\MesControls\FvnSiteDateRangeFilterControl.cs" />
     <Compile Include="Shared\MesControls\FvnDepartmentTaskGridControl.cs" />
     <Compile Include="Shared\MesControls\FvnWorkflowTimelineControl.cs" />
+    <Compile Include="Shared\MesControls\FvnFlowStepperControl.cs" />
+    <Compile Include="Shared\MesControls\FvnHoldListControl.cs" />
     <Compile Include="Shared\MesControls\FvnProgressSummaryControl.cs" />
     <Compile Include="Shared\MesControls\FvnScopeBadgeControl.cs" />
     <Compile Include="Shared\Lookup\FvnPartSiteLookupControl.cs">
@@ -1082,6 +1084,7 @@
     <Compile Include="Modules\MesPlanning\IProductionFlowService.cs" />
     <Compile Include="Modules\MesPlanning\ProductionFlowRepository.cs" />
     <Compile Include="Modules\MesPlanning\ProductionFlowService.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionFlowTaskPolicy.cs" />
     <Compile Include="Modules\MesPlanning\MesProductionFlowComposition.cs" />
     <Compile Include="Modules\MesPlanning\UI\FormMesProductionControlTower.cs">
       <SubType>Form</SubType>
