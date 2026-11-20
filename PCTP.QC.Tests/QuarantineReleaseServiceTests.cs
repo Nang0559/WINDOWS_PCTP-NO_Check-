@@ -176,6 +176,7 @@ public sealed class QuarantineReleaseServiceTests
         public string GetLotNo(int slotLotId) => "LOT-Q";
         public string GetItemCode(int slotLotId) => "ITEM-Q";
         public int? GetSlotId(int slotLotId) => 12;
+        public string GetWarehouseNameBySlotId(int slotId) => "TEST-WAREHOUSE";
         public void LockSlotForUpdate(int slotId) { LockCount++; _locked = true; }
         public void DecreaseLotQuantity(int slotLotId, int quantity) => Mutations.Add($"decrease:{slotLotId}:{quantity}");
         public void AddQuantity(int slotId, int quantity, string itemCode) => Mutations.Add($"addqty:{slotId}:{quantity}");
