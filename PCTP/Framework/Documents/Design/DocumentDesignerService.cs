@@ -6,7 +6,7 @@ using System.Linq;
 namespace PCTP.Framework.Documents
 {
     /// <summary>
-    /// Application service behind the Document Designer. It can only change layer-2 presentation of documents that the
+    /// Application service behind PCTP UI Designer. It can only change layer-2 presentation of documents that the
     /// code registry already allows. Every operation is authorized here AND again in the SQL procedure; the client-side
     /// checks exist to fail early with a clear message, the SQL side is the enforcement point.
     /// </summary>
@@ -99,7 +99,7 @@ namespace PCTP.Framework.Documents
             if (session == null) throw new ArgumentNullException("session");
             if (draft == null) throw new ArgumentNullException("draft");
             if (!session.HasMetadata)
-                throw new InvalidOperationException("Chứng từ chưa được khai báo trong SQL. Hãy dùng 'Khai báo / bổ sung' (quyền APPROVE) trước.");
+                throw new InvalidOperationException("Module chưa có cấu hình giao diện trong SQL. Hãy dùng 'Tạo giao diện' (quyền APPROVE) trước.");
             var trusted = session.Trusted;
             if (!string.Equals(draft.ModuleCode, trusted.ModuleCode, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Metadata không thuộc chứng từ đang thiết kế.");
@@ -118,7 +118,7 @@ namespace PCTP.Framework.Documents
         }
 
         /// <summary>
-        /// Declares a code-registered document in SQL, or adds only the rows that are missing. The seed is built from the
+        /// Creates SQL presentation metadata for a C#-registered module, or adds only missing presentation rows. The seed is built from the
         /// trusted registry, never from user input: there is no API that accepts a view, procedure or command name.
         /// </summary>
         public DocumentDesignSaveResult Provision(string moduleCode)
