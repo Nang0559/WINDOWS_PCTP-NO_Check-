@@ -1012,15 +1012,33 @@
     </Compile>
     <Compile Include="Modules\KhoCore\Fuction\CheckInfor.cs" />
     <Compile Include="Shared\Helpers\LotNoHelper.cs" />
-    <Compile Include="Shared\MesControls\FvnKpiStageStripControl.cs" />
-    <Compile Include="Shared\MesControls\FvnHoldAlertControl.cs" />
-    <Compile Include="Shared\MesControls\FvnSiteDateRangeFilterControl.cs" />
-    <Compile Include="Shared\MesControls\FvnDepartmentTaskGridControl.cs" />
-    <Compile Include="Shared\MesControls\FvnWorkflowTimelineControl.cs" />
-    <Compile Include="Shared\MesControls\FvnFlowStepperControl.cs" />
-    <Compile Include="Shared\MesControls\FvnHoldListControl.cs" />
-    <Compile Include="Shared\MesControls\FvnProgressSummaryControl.cs" />
-    <Compile Include="Shared\MesControls\FvnScopeBadgeControl.cs" />
+    <Compile Include="Shared\MesControls\FvnKpiStageStripControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shared\MesControls\FvnHoldAlertControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shared\MesControls\FvnSiteDateRangeFilterControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shared\MesControls\FvnDepartmentTaskGridControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shared\MesControls\FvnWorkflowTimelineControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shared\MesControls\FvnFlowStepperControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shared\MesControls\FvnHoldListControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shared\MesControls\FvnProgressSummaryControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shared\MesControls\FvnScopeBadgeControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Shared\Lookup\FvnPartSiteLookupControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
