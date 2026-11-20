@@ -14,8 +14,8 @@ namespace PCTP.Shared.MesControls
         private readonly LabelControl[] _states = new LabelControl[5];
         private static readonly string[] Names =
         {
-            "01 · KẾ HOẠCH", "02 · CẤP LINH KIỆN", "03 · LỆNH / LOT",
-            "04 · CÔNG ĐOẠN", "05 · HOÀN THÀNH"
+            "01 · KẾ HOẠCH  →", "02 · CẤP LINH KIỆN  →", "03 · LỆNH / LOT  →",
+            "04 · CÔNG ĐOẠN  →", "05 · HOÀN THÀNH"
         };
 
         public FvnFlowStepperControl()
