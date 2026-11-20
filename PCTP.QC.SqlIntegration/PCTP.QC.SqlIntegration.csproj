@@ -7,8 +7,8 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="../SQL/PCTP_DeliveryCommandLedger.sql" Link="Database/PCTP_DeliveryCommandLedger.sql" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/04_Delivery/LegacyCandidates/PCTP_DeliveryCommandLedger.sql" Link="Database/PCTP_DeliveryCommandLedger.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/06_Programmability/LegacyCandidates/QR/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs" Link="QTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Database/PHASE12_PhieuXuLyBatThuong_PhieuTraHangCTId.sql" Link="Database/PHASE12_PhieuXuLyBatThuong_PhieuTraHangCTId.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Database/PHASE13_QTChung_ReworkTables.sql" Link="Database/PHASE13_QTChung_ReworkTables.sql" CopyToOutputDirectory="PreserveNewest" />
