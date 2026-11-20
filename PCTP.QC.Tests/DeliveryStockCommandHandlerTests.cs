@@ -18,6 +18,7 @@ namespace PCTP.QC.Tests
     {
         private sealed class World : IUnitOfWork, IStockMovementService, IDeliveryCommandLedger, IDeliveryPendingGate, IDeliveryPostStockStep
         {
+            public string SiteCode => "TEST";
             public int PostCalls; public bool FailPost; public HashSet<string> PostMarks = new HashSet<string>();
             public void Run(DeliveryStockCommand c)
             {
