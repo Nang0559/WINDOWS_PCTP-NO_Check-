@@ -51,8 +51,8 @@ namespace PCTP.Shared.MesControls
             for (int i = 0; i < values.Length; i++)
             {
                 _states[i].Text = Label(values[i]);
-                _states[i].Appearance.ForeColor = ColorFor(values[i]);
-                _titles[i].Appearance.ForeColor = ColorFor(values[i]);
+                _states[i].Appearance.Font = new Font(_states[i].Appearance.Font,
+                    values[i] == FvnFlowStepState.Hold ? FontStyle.Bold : FontStyle.Regular);
             }
         }
 
@@ -68,16 +68,6 @@ namespace PCTP.Shared.MesControls
             }
         }
 
-        private static Color ColorFor(FvnFlowStepState state)
-        {
-            switch (state)
-            {
-                case FvnFlowStepState.Complete: return Color.ForestGreen;
-                case FvnFlowStepState.Active: return Color.RoyalBlue;
-                case FvnFlowStepState.Hold: return Color.DarkOrange;
-                case FvnFlowStepState.Related: return Color.DimGray;
-                default: return SystemColors.GrayText;
-            }
         }
     }
 }
