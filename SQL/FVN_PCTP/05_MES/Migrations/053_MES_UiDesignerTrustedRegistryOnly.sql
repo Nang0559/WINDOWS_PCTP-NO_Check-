@@ -81,6 +81,7 @@ BEGIN TRY
     IF OBJECT_ID(N'MES.usp_FVN_DocumentDesigner_ListViews', N'P') IS NOT NULL DROP PROCEDURE MES.usp_FVN_DocumentDesigner_ListViews;
     IF OBJECT_ID(N'MES.usp_FVN_DocumentDesigner_ListViewColumns', N'P') IS NOT NULL DROP PROCEDURE MES.usp_FVN_DocumentDesigner_ListViewColumns;
     IF OBJECT_ID(N'MES.usp_FVN_DocumentDesigner_ListFunctions', N'P') IS NOT NULL DROP PROCEDURE MES.usp_FVN_DocumentDesigner_ListFunctions;
+    IF OBJECT_ID(N'MES.fn_FVN_DocumentEditorForType', N'FN') IS NOT NULL DROP FUNCTION MES.fn_FVN_DocumentEditorForType;
 
     IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '053')
         INSERT MES.FVN_SchemaMigration(MigrationVersion, MigrationName)
