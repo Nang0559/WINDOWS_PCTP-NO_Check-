@@ -49,28 +49,28 @@
     <None Include="../PCTP/Modules/XuatKho/FormChuyenHangNoiBo.cs" Link="FormChuyenHangNoiBo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuatKho/FormThuHoiHangNoiBo.cs" Link="FormThuHoiHangNoiBo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shell/Main_APP.Menu.cs" Link="Main_APP.Menu.internal-transfer.source.cs" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/PCTP_InternalTransfer.sql" Link="PCTP_InternalTransfer.source.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/PCTP_InternalTransfer.sql" Link="PCTP_InternalTransfer.source.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_InternalTransfer.sql')" />
     <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataInventory.ps1" Link="Invoke-PctpLiveDataInventory.source.ps1" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataProfile.ps1" Link="Invoke-PctpLiveDataProfile.source.ps1" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/PctpLiveData.Common.ps1" Link="PctpLiveData.Common.source.ps1" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../docs/SCHEMA_COVERAGE_EFFECTIVE.csv" Link="SCHEMA_COVERAGE_EFFECTIVE.csv" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql" Link="Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql" Link="Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql')" />
     <None Include="../SQL/Usp_Qrcode_Update_Stock2405.sql" Link="Usp_Qrcode_Update_Stock2405.sql" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/Usp_Qrcode_Update_Stock_SP.sql" Link="Usp_Qrcode_Update_Stock_SP.sql" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" Link="Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.sql" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/PCTP_QrReaderLock.sql" Link="PCTP_QrReaderLock.sql" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/PCTP_QrReaderLock_MP_SP_Migration.sql" Link="PCTP_QrReaderLock_MP_SP_Migration.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/Usp_Qrcode_Update_Stock_SP.sql" Link="Usp_Qrcode_Update_Stock_SP.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/Usp_Qrcode_Update_Stock_SP.sql')" />
+    <None Include="../SQL/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" Link="Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql')" />
+    <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/Usp_Qrcode_Take_Lot2405.sql')" />
+    <None Include="../SQL/PCTP_QrReaderLock.sql" Link="PCTP_QrReaderLock.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_QrReaderLock.sql')" />
+    <None Include="../SQL/PCTP_QrReaderLock_MP_SP_Migration.sql" Link="PCTP_QrReaderLock_MP_SP_Migration.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_QrReaderLock_MP_SP_Migration.sql')" />
     <None Include="../PCTP/Presentation/Presenters/HVNPresenterContext.cs" Link="HVNPresenterContext.qrlock.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/CustomerQrLockService.cs" Link="CustomerQrLockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/MachinePermissionService.cs" Link="MachinePermissionService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/QrReaderMachineService.cs" Link="QrReaderMachineService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shell/Services/QrLockSummary.cs" Link="QrLockSummary.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Presentation/Presenters/DocQrPresenter.cs" Link="DocQrPresenter.qrlock.source.cs" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/Usp_Qrcode_Take_LotYMVN2405.sql" Link="Usp_Qrcode_Take_LotYMVN2405.sql" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/PCTPStockMovementGuard.sql" Link="PCTPStockMovementGuard.sql" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/PCTP_StockTpIdentityAudit.sql" Link="PCTP_StockTpIdentityAudit.sql" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/PCTP_EnforceUniqueStockTpLot.sql" Link="PCTP_EnforceUniqueStockTpLot.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/Usp_Qrcode_Take_LotYMVN2405.sql" Link="Usp_Qrcode_Take_LotYMVN2405.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/Usp_Qrcode_Take_LotYMVN2405.sql')" />
+    <None Include="../SQL/PCTPStockMovementGuard.sql" Link="PCTPStockMovementGuard.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTPStockMovementGuard.sql')" />
+    <None Include="../SQL/PCTP_StockTpIdentityAudit.sql" Link="PCTP_StockTpIdentityAudit.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_StockTpIdentityAudit.sql')" />
+    <None Include="../SQL/PCTP_EnforceUniqueStockTpLot.sql" Link="PCTP_EnforceUniqueStockTpLot.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_EnforceUniqueStockTpLot.sql')" />
     <None Include="../PCTP/Modules/NhapKho/Repository/StockTpImportGuardRepository.cs" Link="StockTpImportGuardRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/NhapKho/Services/NhapTpReceivingService.cs" Link="NhapTpReceivingService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/NhapKho/Repository/StockTPRepository.cs" Link="StockTPRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
@@ -104,7 +104,7 @@
     <None Include="../PCTP/PCTP.csproj" Link="PCTP.csproj.source.xml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Contracts/PhieuGiao/IPhieuGiaoDBRepository.cs" Link="IPhieuGiaoDBRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Presentation/Presenters/PhieuPresenter.cs" Link="PhieuPresenter.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/PCTP_GiaoDB_DocQrCode_DB.sql" Link="PCTP_GiaoDB_DocQrCode_DB.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/PCTP_GiaoDB_DocQrCode_DB.sql" Link="PCTP_GiaoDB_DocQrCode_DB.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_GiaoDB_DocQrCode_DB.sql')" />
     <None Include="../PCTP/Infrastructure/Repositories/DocQRRepository.cs" Link="DocQRRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Presentation/Presenters/DocQrPresenter.cs" Link="DocQrPresenter.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/journeys/g6/g6-delivery-hvn.json" Link="g6-delivery-hvn.json" CopyToOutputDirectory="PreserveNewest" />
@@ -123,8 +123,8 @@
     <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.source.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Take_LotYMVN2405.sql" Link="Usp_Qrcode_Take_LotYMVN2405.source.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs" Link="PhieuXuLyBatThuongRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/sp_GetCurrentStockStatus.sql" Link="sp_GetCurrentStockStatus.sql" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../SQL/PCTP_vNhapTP.sql" Link="PCTP_vNhapTP.source.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/sp_GetCurrentStockStatus.sql" Link="sp_GetCurrentStockStatus.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/sp_GetCurrentStockStatus.sql')" />
+    <None Include="../SQL/PCTP_vNhapTP.sql" Link="PCTP_vNhapTP.source.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_vNhapTP.sql')" />
     <None Include="../PCTP/Modules/NhapKho/ReceivingWorklistFilter.cs" Link="ReceivingWorklistFilter.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/NhapKho/NhapKhoDashboardRepository.cs" Link="NhapKhoDashboardRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/NhapKho/Repository/StockTpProductionRepository.cs" Link="StockTpProductionRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
