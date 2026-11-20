@@ -319,7 +319,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void ConfigureColumns()
         {
-            string[] hidden = { "ProductionPlanLineId", "ProductionPlanId", "ProductionOrderId", "LatestProductionLotId", "ComponentDemandId", "PlanWorkflowStatusCode", "OrderWorkflowStatusCode" };
+            string[] hidden = { "ProductionPlanLineId", "ProductionPlanId", "ProductionOrderId", "LatestProductionLotId", "ComponentDemandId", "PlanWorkflowStatusCode", "OrderWorkflowStatusCode", "TaskCode" };
             foreach (var name in hidden)
                 if (_taskGrid.View.Columns[name] != null) _taskGrid.View.Columns[name].Visible = false;
             SetCaption("IsRelatedDepartment", "Phạm vi");
