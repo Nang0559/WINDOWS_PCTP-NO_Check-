@@ -16,7 +16,7 @@ namespace PCTP.Shared.MesControls
             Height = 58;
             Dock = DockStyle.Top;
             Padding = new Padding(8, 4, 8, 4);
-            BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.Simple;
+            BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             _title.Dock = DockStyle.Top;
             _title.Height = 21;
 
