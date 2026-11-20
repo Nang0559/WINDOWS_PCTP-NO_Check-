@@ -1,4 +1,4 @@
-# PCTP Document Runtime
+# PCTP UI Runtime
 
 ## Three layers
 
@@ -39,18 +39,18 @@ Modules/MesPlanning/Documents/  ComponentDemandDefinition, MesDocumentModule
   workflow-engine entity. A command with `RequiresWorkflowTransition` fails closed without an
   `IDocumentWorkflowGate`.
 
-## Document Designer (layer-2 UI)
+## PCTP UI Designer (layer-2 UI)
 
-Menu: **Công cụ → Thiết kế chứng từ (Document Designer)**, visible with `ADMIN.DOCUMENT_DESIGNER` VIEW. Code:
+Menu: **Công cụ → Thiết kế giao diện (PCTP UI Designer)**, visible with `ADMIN.DOCUMENT_DESIGNER` VIEW. Code:
 `Design/DocumentDesignerService` (rules), `Design/SqlDocumentMetadataWriter` (calls migration 051), `UI/DocumentDesignerForm`.
 
 | Action | Permission | What it can do |
 |---|---|---|
 | Open / preview / audit | VIEW | list documents registered in code, see SQL metadata, drift against the registry, change history |
 | Lưu | EDIT | caption, order, width, display format, visibility of header/detail columns, commands and the two regions |
-| Khai báo / bổ sung | APPROVE | create the SQL definition of a code-registered document, or only its missing rows (fields start read-only) |
+| Tạo giao diện | APPROVE | create SQL presentation configuration from an already C#-registered module; never creates a module or business operation |
 
-What it deliberately cannot do: add a document, view, procedure, command, field or editor; make a field editable; change
+What it deliberately cannot do: add a screen/module, view, procedure, command, field or editor; make a field editable; change
 workflow or status restriction. A new document or field is a code release (layer 1) plus a seed migration. The same limits
 are enforced again in SQL, together with RBAC, `ConfigVersion` conflict detection and audit.
 After a save the runtime revalidates; other running clients pick the change up at next sign-in.
@@ -86,7 +86,7 @@ Hardening added on top of that:
 - **Metadata** - `RequiredStatusCode` is interpreted as a restriction (button enabled only when the header `StatusField` equals it)
   and is rejected when the definition registers no `StatusField`. `LookupCode` is accepted only on a LOOKUP editor with a safe code.
 - **UI** - `DocumentListForm` pages (100/page), filters one registered header field and shows the total; menu entry
-  "Chứng từ yêu cầu linh kiện (Document Runtime)" under Kho (permission `MES.COMPONENT_DEMAND`);
+  "Màn hình yêu cầu linh kiện" under Kho (permission `MES.COMPONENT_DEMAND`);
   `ComponentDemandIssueInputProvider` picks LOT/slot, WIP slot and quantity via the existing `IComponentDemandService`.
 
 Not done / known limits:
@@ -111,3 +111,10 @@ Not done / known limits:
 - No SQL integration test yet for `SqlDocumentSchemaProbe` / `SqlDocumentDataProvider`; only the pure builder and validator are tested.
 - Header editing and save are out of scope for v1: all header editors are read-only.
 - Migration 050 replaces `UQ_FVN_DocumentField_Code` with a per-region unique key so key/site columns can appear in both regions.
+
+
+## UI Designer hardening — migration 053
+
+Migration 052's SQL-created screen declaration flow is retired because SQL must not extend the trusted screen catalogue. Run `053_MES_UiDesignerTrustedRegistryOnly.sql` after 051/052. It quarantines module codes created through the retired SQL declaration path, removes the declaration procedures/table, and makes menu metadata reference only existing `MES.FVN_DocumentDefinition` entries. The new `MES.usp_FVN_UiScreenMenu_List` and `MES.usp_FVN_UiScreenMenu_Save` procedures configure menu placement only for registered screen metadata; they cannot create views, fields, commands, procedures or workflows.
+
+The UI action **Tạo giao diện** provisions presentation metadata for a module already registered in the C# Trusted Registry. It does not create a new business module. A genuinely new screen data contract still requires a C# definition and schema/seed migration.
