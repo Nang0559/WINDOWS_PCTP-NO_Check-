@@ -1,55 +1,58 @@
 # PCTP Document Runtime
 
-## Architecture boundary
+## Three layers
 
-The Document Runtime separates trusted executable bindings from editable
-presentation metadata.
+| Layer | Where | Owns | Cannot do |
+|---|---|---|---|
+| 1. Trusted Registry | C# `Framework/Documents/Contracts` + `Registry`, per-module definition (e.g. `Modules/MesPlanning/Documents/ComponentDemandDefinition.cs`) | module code, header/detail views, registered columns and editor types, commands, procedures and their typed parameters, workflow binding, RBAC function/action | be changed without a release |
+| 2. Approved Metadata | SQL migration 039 tables (`MES.FVN_Document*`) | captions, order, width, display format, region captions/visibility, command caption/visibility | add a field, view, procedure, command, editor outside the allow-list, or make a read-only field editable (restrict-only) |
+| 3. Enforcement | SQL procedures + existing `AuthorizationGuard` | RBAC and data scope, workflow transition, preconditions, document state, transaction/concurrency, audit | n/a - this is the security boundary |
 
-- `DocumentRegistry` is populated only by application startup code.
-- A registered definition is the allow-list for module, header/detail read
-  views, workflow code and command bindings.
-- SQL document metadata may change captions, field order, dimensions,
-  visibility, read-only presentation and approved editor codes.
-- SQL metadata must never supply SQL text, arbitrary object names,
-  procedure names, C# type names, expressions or executable callbacks.
-- A configured definition must match its trusted C# definition exactly;
-  mismatch is a fail-closed configuration error.
-- Hiding a command in DevExpress is not authorization. Every command must
-  still pass the existing SEC/RBAC and data-scope checks, then the shared
-  workflow transition service and the SQL business guard.
+Hiding or disabling a DevExpress button is **never** authorization. Every command goes through
+`DocumentCommandDispatcher` (RBAC action + SITE scope), the shared workflow gate when the command
+requires a transition, and finally the registered stored procedure's own guards.
 
-## Current implementation
+## Layout
 
-`DocumentFormDefinition.cs` currently provides:
+```
+Framework/Documents/
+  Contracts/  DocumentFormDefinition, DocumentFieldDefinition, DocumentCommandDefinition(+parameters),
+              DocumentMetadata (plain SQL-metadata models), DocumentIdentifiers (strict validators)
+  Registry/   IDocumentRegistry, DocumentRegistry, DocumentDefinitionValidator (fail-closed metadata check)
+  Runtime/    DocumentLayoutResolver -> ResolvedDocument, DocumentCommandDispatcher, SessionDocumentAuthorizer,
+              SqlDocumentMetadataRepository, SqlDocumentDataProvider, SqlDocumentCommandExecutor,
+              DocumentRuntimeServices (composition)
+  UI/         DocumentListForm, DocumentEditorForm, DocumentDetailControl, DocumentGridConfigurator,
+              IDocumentCommandInputProvider (module-supplied special editors)
+Modules/MesPlanning/Documents/  ComponentDemandDefinition, MesDocumentModule
+```
 
-- immutable document and command contracts;
-- a duplicate-rejecting, case-insensitive application registry;
-- identifier validation for schema-qualified SQL object names;
-- command membership checks;
-- `DocumentMetadataGuard.DemandMatchesRegistry` for fail-closed
-  comparison of SQL metadata with the application allow-list.
+## Rules
 
-Migration 039 adds SQL presentation metadata tables. It deliberately does
-not create a second workflow engine or seed unverified MES view/procedure
-names.
+- Metadata never carries SQL text, expressions, type names, procedure names or callbacks.
+- Parameter source is fixed in code: `Input` (caller, undeclared keys rejected), `Actor` (always the
+  signed-in user), `Site` (the authorized site), `IdempotencyKey` (generated).
+- Views, columns and procedures are bracket-quoted two-part names validated at registration time.
+- A mismatch between SQL metadata and the registry throws; there is no silent fallback to SQL values.
+  Missing metadata falls back to code defaults (visible, read-only, captioned by field code).
+- `WorkflowCode = NONE` marks documents whose state machine is a SQL status check rather than a
+  workflow-engine entity. A command with `RequiresWorkflowTransition` fails closed without an
+  `IDocumentWorkflowGate`.
 
-## Required next integration steps
+## Status
 
-1. Register verified module definitions during application startup.
-2. Implement a metadata repository using parameterized SQL and read-only
-   access for normal runtime users.
-3. Load metadata and call `DocumentMetadataGuard` before building any UI.
-4. Implement the DevExpress list/editor renderer from approved field/layout
-   metadata; custom QR/LOT editors remain registered C# controls.
-5. Implement command dispatch by resolving a command code only through the
-   trusted definition. Reuse existing AuthorizationGuard/SEC and
-   IWorkflowTransitionService; do not create a parallel permission or
-   workflow engine.
-6. Route every mutation to a fixed stored procedure binding, with server-side
-   authorization, data scope, state, concurrency and audit checks.
-7. Add integration tests for unknown modules, mismatched views, unknown
-   commands, unauthorized scope, invalid transition and stale rowversion.
+Done: contracts, registry, validator, resolver, dispatcher, SQL metadata/data/command bindings,
+DevExpress list/editor/detail, COMPONENT_DEMAND definition, migration 050 (views + seed), contract tests
+(`PCTP.QC.Tests/DocumentRuntimeTests.cs`).
 
-Until those steps are completed, existing forms remain the operational
-entry points. Do not switch production forms to metadata-driven execution
-merely because migration 039 has been applied.
+Not done / known limits:
+
+- Read views are filtered by SITE in the application only (`SqlDocumentDataProvider`); department-level
+  data scope is not applied to reads yet.
+- Header editing and save are out of scope for v1: all header editors are read-only.
+- `ISSUE_COMPONENT` needs a module-supplied `IDocumentCommandInputProvider` (LOT/slot picker). Until one is
+  written the button stays disabled and `FormYeuCauVaXuatLinhKien` remains the entry point.
+- No `IDocumentWorkflowGate` implementation yet (needed before registering a command that requires a transition).
+- `LayoutJson`, `LookupCode` and `RequiredStatusCode` are stored but not interpreted.
+- No menu entry: existing forms stay the operational entry points until acceptance tests pass on DB57.
+- Migration 050 replaces `UQ_FVN_DocumentField_Code` with a per-region unique key so key/site columns can appear in both regions.

@@ -1297,7 +1297,36 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <Compile Include="Framework\Documents\DocumentFormDefinition.cs" />
+    <Compile Include="Framework\Documents\Contracts\DocumentIdentifiers.cs" />
+    <Compile Include="Framework\Documents\Contracts\DocumentFieldDefinition.cs" />
+    <Compile Include="Framework\Documents\Contracts\DocumentCommandDefinition.cs" />
+    <Compile Include="Framework\Documents\Contracts\DocumentFormDefinition.cs" />
+    <Compile Include="Framework\Documents\Contracts\DocumentMetadata.cs" />
+    <Compile Include="Framework\Documents\Registry\IDocumentRegistry.cs" />
+    <Compile Include="Framework\Documents\Registry\DocumentRegistry.cs" />
+    <Compile Include="Framework\Documents\Registry\DocumentDefinitionValidator.cs" />
+    <Compile Include="Framework\Documents\Runtime\ResolvedDocument.cs" />
+    <Compile Include="Framework\Documents\Runtime\DocumentLayoutResolver.cs" />
+    <Compile Include="Framework\Documents\Runtime\DocumentRuntimeContracts.cs" />
+    <Compile Include="Framework\Documents\Runtime\DocumentCommandDispatcher.cs" />
+    <Compile Include="Framework\Documents\Runtime\SessionDocumentAuthorizer.cs" />
+    <Compile Include="Framework\Documents\Runtime\SqlDocumentMetadataRepository.cs" />
+    <Compile Include="Framework\Documents\Runtime\SqlDocumentDataProvider.cs" />
+    <Compile Include="Framework\Documents\Runtime\SqlDocumentCommandExecutor.cs" />
+    <Compile Include="Framework\Documents\Runtime\DocumentRuntimeServices.cs" />
+    <Compile Include="Framework\Documents\UI\IDocumentCommandInputProvider.cs" />
+    <Compile Include="Framework\Documents\UI\DocumentGridConfigurator.cs" />
+    <Compile Include="Framework\Documents\UI\DocumentDetailControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Framework\Documents\UI\DocumentEditorForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Framework\Documents\UI\DocumentListForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\MesPlanning\Documents\ComponentDemandDefinition.cs" />
+    <Compile Include="Modules\MesPlanning\Documents\MesDocumentModule.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
