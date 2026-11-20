@@ -32,9 +32,9 @@ namespace PCTP.Shared.MesControls
                 layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
                 var tile = new PanelControl { Dock = DockStyle.Fill, Margin = new Padding(3), Padding = new Padding(5) };
                 _titles[i] = new LabelControl { Dock = DockStyle.Top, Height = 28, Text = Names[i] };
-                _titles[i].Appearance.Font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
+                _titles[i].Appearance.Font = new Font(_titles[i].Appearance.Font, FontStyle.Bold);
                 _states[i] = new LabelControl { Dock = DockStyle.Fill, Text = "Chưa đến" };
-                _states[i].Appearance.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+                _states[i].Appearance.Font = new Font(_states[i].Appearance.Font, FontStyle.Bold);
                 tile.Controls.Add(_states[i]);
                 tile.Controls.Add(_titles[i]);
                 layout.Controls.Add(tile, i, 0);
@@ -66,8 +66,6 @@ namespace PCTP.Shared.MesControls
                 case FvnFlowStepState.Related: return "↗ Bộ phận liên quan";
                 default: return "○ Chưa đến";
             }
-        }
-
         }
     }
 }
