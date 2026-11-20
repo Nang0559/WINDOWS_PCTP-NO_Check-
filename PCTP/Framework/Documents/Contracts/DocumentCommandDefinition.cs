@@ -61,17 +61,22 @@ namespace PCTP.Framework.Documents
         /// <summary>Bracket-quoted two-part procedure name registered in code.</summary>
         public string ProcedureName { get; private set; }
         public bool RequiresWorkflowTransition { get; private set; }
+        /// <summary>Target status of the workflow transition. Required by the workflow gate (fail-closed when null).</summary>
+        public int? WorkflowTargetStatus { get; private set; }
         public IReadOnlyList<DocumentParameterDefinition> Parameters { get; private set; }
 
         public DocumentCommandDefinition(string commandCode, string permissionCode, string actionCode,
             string procedureName, bool requiresWorkflowTransition,
-            IEnumerable<DocumentParameterDefinition> parameters)
+            IEnumerable<DocumentParameterDefinition> parameters, int? workflowTargetStatus = null)
         {
             CommandCode = DocumentIdentifiers.Code(commandCode, "CommandCode");
             PermissionCode = DocumentIdentifiers.FunctionCode(permissionCode, "PermissionCode");
             ActionCode = DocumentIdentifiers.Code(actionCode, "ActionCode");
             ProcedureName = DocumentIdentifiers.SqlObject(procedureName, "ProcedureName");
             RequiresWorkflowTransition = requiresWorkflowTransition;
+            if (workflowTargetStatus.HasValue && !requiresWorkflowTransition)
+                throw new ArgumentException("workflowTargetStatus requires requiresWorkflowTransition.", "workflowTargetStatus");
+            WorkflowTargetStatus = workflowTargetStatus;
 
             var items = (parameters ?? Enumerable.Empty<DocumentParameterDefinition>()).ToList();
             if (items.Any(p => p == null)) throw new ArgumentException("Null parameter definition.", "parameters");

@@ -137,13 +137,20 @@ namespace PCTP.Framework.Documents.UI
         private void BuildCommands()
         {
             _commandPanel.Controls.Clear();
+            DataRow headerRow = _headerTable != null && _headerTable.Rows.Count > 0 ? _headerTable.Rows[0] : null;
+            string statusField = _document.Definition.StatusField;
+            object status = headerRow != null && statusField != null ? headerRow[statusField] : null;
             foreach (var command in _document.Commands.Where(c => c.IsVisible))
             {
                 bool allowed = _runtime.Authorizer.IsCommandAllowed(_document.Definition, command.Definition, _siteCode);
+                bool statusOk = command.IsAvailableFor(status);
+                allowed = allowed && statusOk;
                 bool hasInput = _inputProvider != null;
                 var button = new SimpleButton { Text = command.Caption, Width = 170, Height = 32, Tag = command };
                 button.Enabled = allowed && hasInput;
-                button.ToolTip = !allowed
+                button.ToolTip = !statusOk
+                    ? "Thao tác này không áp dụng ở trạng thái hiện tại của chứng từ."
+                    : !allowed
                     ? "Bạn chỉ được xem; không có quyền thực hiện thao tác này."
                     : !hasInput
                         ? "Thao tác này cần màn hình nhập liệu riêng; hiện dùng màn hình nghiệp vụ hiện có."

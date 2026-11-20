@@ -43,16 +43,47 @@ Modules/MesPlanning/Documents/  ComponentDemandDefinition, MesDocumentModule
 
 Done: contracts, registry, validator, resolver, dispatcher, SQL metadata/data/command bindings,
 DevExpress list/editor/detail, COMPONENT_DEMAND definition, migration 050 (views + seed), contract tests
-(`PCTP.QC.Tests/DocumentRuntimeTests.cs`).
+(`PCTP.QC.Tests/DocumentRuntimeTests.cs`, `DocumentRuntimeHardeningTests.cs`).
+
+Hardening added on top of that:
+
+- **Schema validation** - `DocumentDefinitionValidator.DemandMatchesSchema` checks the trusted registry against the
+  real SQL objects through `IDocumentSchemaProbe` (`SqlDocumentSchemaProbe`: sys.columns / sys.parameters). Views must exist
+  and expose every registered column with a compatible type; every command procedure must exist and its parameter list must
+  match the declared one exactly (name, type, decimal precision/scale, no undeclared parameter).
+- **Startup validation** - `MesDocumentModule.Initialize()` (called from `Program.cs` after sign-in, in the background, never
+  throws) runs `DocumentRuntimeServices.ValidateAll()`: SQL metadata vs registry, then registry vs real schema.
+  `MesDocumentModule.GetRuntime(module)` refuses to return a runtime when validation did not pass, so the menu entry fails closed
+  with the reason.
+- **Reads** - `DocumentListQuery` (paging, ordering, up to 8 filters on registered header fields) is turned into SQL by the pure
+  `DocumentSqlBuilder`: identifiers come from the registry, values are always parameters, `LIKE` input is escaped, page size <= 500.
+  The old `TOP 5000` path is gone (`ListHeaders(..., top)` now delegates to a single page).
+- **Department data scope** - a definition may register `DepartmentField`. `SessionDocumentAuthorizer.GetDataScope` resolves the
+  user's DEPARTMENT scopes with the same rules as `ProductionFlowService` (USER policy is a complete allow-list; SITE/ALL or
+  DEPARTMENT `*` means every department). A scoped document with no granted department returns nothing (fail-closed); the detail
+  view is scoped through its header row. `COMPONENT_DEMAND` registers no `DepartmentField`, so its behaviour is unchanged.
+- **Workflow gate** - `DocumentWorkflowGate` implements `IDocumentWorkflowGate`: current status from `IDocumentStatusReader`
+  (`SqlDocumentStatusReader`, reads `StatusField`), target status from `DocumentCommandDefinition.WorkflowTargetStatus`, decision
+  from `IDocumentTransitionPolicy` (`WorkflowTransitionPolicyAdapter` over the shared `IWorkflowTransitionService`). No workflow,
+  no target, no status field, or no key parameter all throw. Convention: a gated command declares one `Input` parameter whose
+  `sourceFieldCode` is the document key. Not wired into `CreateRuntime()` because COMPONENT_DEMAND uses `NONE`.
+- **Metadata** - `RequiredStatusCode` is interpreted as a restriction (button enabled only when the header `StatusField` equals it)
+  and is rejected when the definition registers no `StatusField`. `LookupCode` is accepted only on a LOOKUP editor with a safe code.
+- **UI** - `DocumentListForm` pages (100/page), filters one registered header field and shows the total; menu entry
+  "Chứng từ yêu cầu linh kiện (Document Runtime)" under Kho (permission `MES.COMPONENT_DEMAND`);
+  `ComponentDemandIssueInputProvider` picks LOT/slot, WIP slot and quantity via the existing `IComponentDemandService`.
 
 Not done / known limits:
 
-- Read views are filtered by SITE in the application only (`SqlDocumentDataProvider`); department-level
-  data scope is not applied to reads yet.
+- **Not built or run on a real machine.** The non-UI code compiles and its 23 contract tests pass against stubs in a sandbox;
+  the DevExpress UI files, `Program.cs`, `Main_APP.Menu.cs` and every SQL path need a Windows build and an acceptance run on DB57.
+- `LayoutJson` is still stored but not read or interpreted. `LookupCode` is validated but no lookup editor consumes it yet.
+- Department scope is applied to reads only. Commands are still authorized by RBAC action + SITE scope, and the SQL procedure
+  remains the department/state enforcement point.
+- `ISSUE_COMPONENT` input provider assumes source area `PART` (the detail view has no SupplyMode/SourceAreaCode); a MAKE
+  component is rejected by the procedure.
+- The menu entry takes the first Site in the user's data scopes (same approach as the Control Tower); users with only an ALL
+  scope and no Site are told to be assigned one.
+- No SQL integration test yet for `SqlDocumentSchemaProbe` / `SqlDocumentDataProvider`; only the pure builder and validator are tested.
 - Header editing and save are out of scope for v1: all header editors are read-only.
-- `ISSUE_COMPONENT` needs a module-supplied `IDocumentCommandInputProvider` (LOT/slot picker). Until one is
-  written the button stays disabled and `FormYeuCauVaXuatLinhKien` remains the entry point.
-- No `IDocumentWorkflowGate` implementation yet (needed before registering a command that requires a transition).
-- `LayoutJson`, `LookupCode` and `RequiredStatusCode` are stored but not interpreted.
-- No menu entry: existing forms stay the operational entry points until acceptance tests pass on DB57.
 - Migration 050 replaces `UQ_FVN_DocumentField_Code` with a per-region unique key so key/site columns can appear in both regions.

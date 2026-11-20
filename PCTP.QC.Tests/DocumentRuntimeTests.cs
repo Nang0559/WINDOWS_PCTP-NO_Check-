@@ -22,6 +22,7 @@ public sealed class DocumentRuntimeTests
         public void DemandView(DocumentFormDefinition document, string siteCode) { if (Deny) throw new UnauthorizedAccessException(); }
         public void DemandCommand(DocumentFormDefinition document, DocumentCommandDefinition command, string siteCode) { if (Deny) throw new UnauthorizedAccessException(); }
         public bool IsCommandAllowed(DocumentFormDefinition document, DocumentCommandDefinition command, string siteCode) => !Deny;
+        public DocumentDataScope GetDataScope(DocumentFormDefinition document, string siteCode) => DocumentDataScope.AllDepartments;
     }
 
     private sealed class FakeExecutor : IDocumentCommandExecutor

@@ -28,6 +28,24 @@ namespace PCTP.Framework.Documents
         public int SequenceNo { get; internal set; }
         public bool IsVisible { get; internal set; }
         public int? RequiredStatusCode { get; internal set; }
+
+        /// <summary>
+        /// Usability aid only (the SQL procedure and workflow gate stay authoritative): false when SQL metadata
+        /// requires a status and the document is not in it, or its status cannot be read.
+        /// </summary>
+        public bool IsAvailableFor(object statusValue)
+        {
+            if (!RequiredStatusCode.HasValue) return true;
+            if (statusValue == null || statusValue == DBNull.Value) return false;
+            try
+            {
+                return Convert.ToInt32(statusValue, System.Globalization.CultureInfo.InvariantCulture) == RequiredStatusCode.Value;
+            }
+            catch (Exception ex) when (ex is FormatException || ex is InvalidCastException || ex is OverflowException)
+            {
+                return false;
+            }
+        }
     }
 
     /// <summary>Trusted definition merged with validated presentation metadata, ready for a renderer.</summary>

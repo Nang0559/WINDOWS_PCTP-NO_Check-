@@ -30,6 +30,10 @@
     <Compile Include="../PCTP/Framework/Documents/Runtime/DocumentLayoutResolver.cs" Link="Framework/Documents/DocumentLayoutResolver.cs" />
     <Compile Include="../PCTP/Framework/Documents/Runtime/DocumentRuntimeContracts.cs" Link="Framework/Documents/DocumentRuntimeContracts.cs" />
     <Compile Include="../PCTP/Framework/Documents/Runtime/DocumentCommandDispatcher.cs" Link="Framework/Documents/DocumentCommandDispatcher.cs" />
+    <Compile Include="../PCTP/Framework/Documents/Runtime/DocumentListQuery.cs" Link="Framework/Documents/DocumentListQuery.cs" />
+    <Compile Include="../PCTP/Framework/Documents/Runtime/DocumentSqlBuilder.cs" Link="Framework/Documents/DocumentSqlBuilder.cs" />
+    <Compile Include="../PCTP/Framework/Documents/Runtime/DocumentWorkflowGate.cs" Link="Framework/Documents/DocumentWorkflowGate.cs" />
+    <Compile Include="../PCTP/Framework/Documents/Runtime/DocumentStartupReport.cs" Link="Framework/Documents/DocumentStartupReport.cs" />
     <Compile Include="../PCTP/Modules/MesPlanning/Documents/ComponentDemandDefinition.cs" Link="Framework/Documents/ComponentDemandDefinition.cs" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/050_MES_ComponentDemandDocumentViewsAndMetadata.sql" Link="050_MES_ComponentDemandDocumentViewsAndMetadata.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/047_MES_ProductionFlowControlTower.sql" Link="047_MES_ProductionFlowControlTower.sql" CopyToOutputDirectory="PreserveNewest" />

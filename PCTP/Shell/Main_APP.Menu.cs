@@ -73,6 +73,7 @@ namespace PCTP
             _menuKho.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
             _menuKho.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
             _menuKho.Elements.Add(CreateMenuItem("menuYeuCauXuatLinhKien", "Yêu cầu / Xuất linh kiện PART → WIP", OpenYeuCauXuatLinhKien));
+            _menuKho.Elements.Add(CreateMenuItem("menuChungTuYeuCauLinhKien", "Chứng từ yêu cầu linh kiện (Document Runtime)", OpenChungTuYeuCauLinhKien));
             _menuKho.Elements.Add(_menuKhoTonTP);
 
             _menuKho.Elements.Add(CreateMenuItem(
@@ -162,6 +163,7 @@ namespace PCTP
                 ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
                 ["menuDieuHanhSanXuat"] = "MES.PRODUCTION_EXECUTION",
                 ["menuYeuCauXuatLinhKien"] = "MES.COMPONENT_DEMAND",
+                ["menuChungTuYeuCauLinhKien"] = "MES.COMPONENT_DEMAND",
                 ["menuDieuChinhTonKhoLot"] = "WAREHOUSE.STOCK_ADJUST",
                 ["menuHangChoGiao"] = "SHIPPING.DISPATCH",
                 ["menuIfsMasterDataSync"] = "MASTERDATA.IFS_SYNC",
@@ -467,6 +469,32 @@ namespace PCTP
                 this,
                 () => new PCTP.Modules.MesPlanning.UI.FormYeuCauVaXuatLinhKien()),
                 "Yêu cầu / Xuất linh kiện");
+        }
+
+        private void OpenChungTuYeuCauLinhKien(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                const string module = PCTP.Modules.MesPlanning.Documents.ComponentDemandDefinition.ModuleCode;
+                // Throws with the validation reason when startup validation failed (the screen stays closed, fail-closed).
+                var runtime = PCTP.Modules.MesPlanning.Documents.MesDocumentModule.GetRuntime(module);
+                string site = ResolveDocumentSite("MES.COMPONENT_DEMAND");
+                FormWindowManager.ShowSingle(this, () => new PCTP.Framework.Documents.UI.DocumentListForm(
+                    runtime, module, site,
+                    new PCTP.Modules.MesPlanning.Documents.ComponentDemandIssueInputProvider()));
+            }, "Chứng từ yêu cầu linh kiện");
+        }
+
+        private static string ResolveDocumentSite(string functionCode)
+        {
+            var session = UserSession.Current ?? throw new UnauthorizedAccessException("Chưa đăng nhập.");
+            var scope = session.DataScopes.FirstOrDefault(x =>
+                x.IsAllowed && !string.IsNullOrWhiteSpace(x.SiteCode) &&
+                (string.IsNullOrWhiteSpace(x.FunctionCode) ||
+                 string.Equals(x.FunctionCode, functionCode, StringComparison.OrdinalIgnoreCase)));
+            if (scope == null)
+                throw new UnauthorizedAccessException("Tài khoản chưa được gán Site cho chức năng " + functionCode + ".");
+            return scope.SiteCode.Trim();
         }
 
         private void OpenHangChoGiao(object sender, EventArgs e)

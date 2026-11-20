@@ -25,12 +25,23 @@ namespace PCTP.Framework.Documents
         public string KeyField { get; private set; }
         /// <summary>Column present in both views used for the Site data-scope filter.</summary>
         public string SiteField { get; private set; }
+        /// <summary>
+        /// Optional header column holding the department code. When set, reads are additionally limited
+        /// to the DEPARTMENT data scopes granted to the user (a user with SITE/ALL scope sees every department).
+        /// </summary>
+        public string DepartmentField { get; private set; }
+        /// <summary>
+        /// Optional header column holding a numeric workflow status. Needed before SQL metadata may use
+        /// RequiredStatusCode and before the workflow gate can read the current state.
+        /// </summary>
+        public string StatusField { get; private set; }
         public IReadOnlyList<DocumentFieldDefinition> Fields { get; private set; }
         public IReadOnlyCollection<DocumentCommandDefinition> Commands { get; private set; }
 
         public DocumentFormDefinition(string moduleCode, string headerView, string detailView,
             string workflowCode, string viewFunctionCode, string keyField, string siteField,
-            IEnumerable<DocumentFieldDefinition> fields, IEnumerable<DocumentCommandDefinition> commands)
+            IEnumerable<DocumentFieldDefinition> fields, IEnumerable<DocumentCommandDefinition> commands,
+            string departmentField = null, string statusField = null)
         {
             ModuleCode = DocumentIdentifiers.Code(moduleCode, "ModuleCode");
             HeaderView = DocumentIdentifiers.SqlObject(headerView, "HeaderView");
@@ -54,6 +65,8 @@ namespace PCTP.Framework.Documents
                         throw new ArgumentException("Field '" + required + "' must be registered in the " + region + " region.", "fields");
                 }
             }
+            DepartmentField = RegisteredHeaderField(fieldItems, departmentField, "departmentField");
+            StatusField = RegisteredHeaderField(fieldItems, statusField, "statusField");
             Fields = new ReadOnlyCollection<DocumentFieldDefinition>(fieldItems);
 
             var items = (commands ?? Enumerable.Empty<DocumentCommandDefinition>()).ToList();
@@ -63,6 +76,17 @@ namespace PCTP.Framework.Documents
             if (items.GroupBy(x => x.CommandCode, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
                 throw new ArgumentException("Duplicate command code in document definition.", "commands");
             Commands = new ReadOnlyCollection<DocumentCommandDefinition>(items);
+        }
+
+        private static string RegisteredHeaderField(List<DocumentFieldDefinition> fields, string code, string name)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return null;
+            string checkedCode = DocumentIdentifiers.Identifier(code, name);
+            var field = fields.FirstOrDefault(f => f.Region == DocumentRegion.Header &&
+                string.Equals(f.FieldCode, checkedCode, StringComparison.OrdinalIgnoreCase));
+            if (field == null)
+                throw new ArgumentException("Field '" + checkedCode + "' must be registered in the Header region.", name);
+            return field.FieldCode;
         }
 
         public IEnumerable<DocumentFieldDefinition> FieldsOf(DocumentRegion region)

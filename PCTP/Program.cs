@@ -46,6 +46,23 @@ namespace PCTP
                     return;
             }
 
+            // Validate every registered document (SQL metadata + real schema) once per session. Never throws: a failure
+            // only disables the document screens, and MesDocumentModule.GetRuntime reports the reason when one is opened.
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    var report = PCTP.Modules.MesPlanning.Documents.MesDocumentModule.Initialize();
+                    System.Diagnostics.Trace.TraceInformation("Document Runtime startup validation:" + Environment.NewLine +
+                        (report == null ? PCTP.Modules.MesPlanning.Documents.MesDocumentModule.DescribeProblem(
+                            PCTP.Modules.MesPlanning.Documents.ComponentDemandDefinition.ModuleCode) : report.ToString()));
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Trace.TraceError("Document Runtime startup validation failed: " + ex);
+                }
+            });
+
             Application.Run(new Main_APP());
             UserSession.SignOut();
             // Application.Run(new UF_QRCodeERR());

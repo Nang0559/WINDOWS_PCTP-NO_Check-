@@ -22,6 +22,11 @@ namespace PCTP.Framework.Documents
             _definitions = new ReadOnlyDictionary<string, DocumentFormDefinition>(map);
         }
 
+        public IEnumerable<DocumentFormDefinition> All
+        {
+            get { return _definitions.Values.ToList(); }
+        }
+
         public DocumentFormDefinition GetRequired(string moduleCode)
         {
             DocumentFormDefinition definition;
