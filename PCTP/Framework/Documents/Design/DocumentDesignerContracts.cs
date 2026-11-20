@@ -4,15 +4,15 @@ using System.Data;
 
 namespace PCTP.Framework.Documents
 {
-    /// <summary>RBAC vocabulary of the Document Designer. Enforced again inside SQL (migration 051).</summary>
+    /// <summary>RBAC vocabulary of PCTP UI Designer. Enforced again inside SQL (migration 051).</summary>
     public static class DocumentDesignerPermissions
     {
         public const string FunctionCode = "ADMIN.DOCUMENT_DESIGNER";
         /// <summary>Open the designer, read metadata and its audit history.</summary>
         public const string View = "VIEW";
-        /// <summary>Change presentation of an already declared document.</summary>
+        /// <summary>Change presentation of an already registered screen.</summary>
         public const string Edit = "EDIT";
-        /// <summary>Declare a code-registered document in SQL, or complete its missing metadata rows.</summary>
+        /// <summary>Create SQL presentation configuration for a C#-registered screen, or complete missing presentation rows.</summary>
         public const string Approve = "APPROVE";
     }
 
