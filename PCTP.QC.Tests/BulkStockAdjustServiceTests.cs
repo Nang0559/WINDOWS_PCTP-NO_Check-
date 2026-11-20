@@ -264,6 +264,7 @@ namespace PCTP.QC.Tests
 
         private sealed class FakeMovement : IStockMovementService
         {
+            public string SiteCode => "TEST";
             public List<StockMovementRequest> Picks { get; } = new List<StockMovementRequest>();
             public int? FailSlotId { get; set; }
             public int? ConsumedQuantityOverride { get; set; }
