@@ -467,3 +467,37 @@ trigger is the final guard and rejects an order insert if the FIRM plan line has
 no active component-demand header or any component line still has
 `NetRequiredQty > IssuedQty`. It does not post inventory or change the demand;
 the existing PART → WIP issue workflow must fulfill it first.
+
+
+## Migration 049 — Control Tower BOM visibility and change-version polling
+
+Run `049_MES_ProductionFlowChangeVersionAndBomVisibility.sql` after 047.
+This is intentionally an ALTER migration: it replaces the dashboard procedure
+for databases where 047 is already registered, removes the invalid outer-alias
+reference from the PlanFlow CTE, and derives upstream department visibility
+from effective IFS BOM rows without requiring a ComponentDemandHeader.
+
+It also creates `MES.FVN_ProductionFlowChangeVersion` and change triggers for
+plan, plan-line, component demand/header lines, production order, LOT,
+operation workflow and workflow events. The desktop client polls only this
+single version value every five seconds and reloads the dashboard projection
+only when the value changes. This is database-backed cross-machine signaling;
+it is not a push channel. It intentionally avoids per-client full stored
+procedure refreshes on every timer tick.
+
+DB57 verification after applying 049:
+
+```sql
+SELECT ChangeVersion, ChangedAtUtc
+FROM MES.FVN_ProductionFlowChangeVersion
+WHERE ChangeVersionId=1;
+
+EXEC MES.usp_FVN_ProductionFlow_Dashboard
+    @SiteCode = N'<SITE>',
+    @FromDate = NULL,
+    @ToDate = NULL,
+    @DepartmentScopeXml = N'<Scopes><Department>*</Department></Scopes>';
+```
+
+Use a real Site and a least-privilege department scope when verifying access.
+Do not use the wildcard in production role tests.
