@@ -24,7 +24,7 @@ namespace PCTP.Framework.Documents.UI
         private readonly ComboBoxEdit _modules = new ComboBoxEdit();
         private readonly LabelControl _status = new LabelControl();
         private readonly SimpleButton _reload = new SimpleButton { Text = "TẢI LẠI", Width = 100, Height = 30, Dock = DockStyle.Left };
-        private readonly SimpleButton _provision = new SimpleButton { Text = "KHAI BÁO / BỔ SUNG", Width = 170, Height = 30, Dock = DockStyle.Left };
+        private readonly SimpleButton _provision = new SimpleButton { Text = "TẠO GIAO DIỆN", Width = 150, Height = 30, Dock = DockStyle.Left };
         private readonly SimpleButton _save = new SimpleButton { Text = "LƯU", Width = 100, Height = 30, Dock = DockStyle.Right };
         private readonly SimpleButton _moveUp = new SimpleButton { Text = "▲ Lên", Width = 80, Height = 30, Dock = DockStyle.Left };
         private readonly SimpleButton _moveDown = new SimpleButton { Text = "▼ Xuống", Width = 80, Height = 30, Dock = DockStyle.Left };
@@ -52,7 +52,7 @@ namespace PCTP.Framework.Documents.UI
         {
             if (service == null) throw new ArgumentNullException("service");
             _service = service;
-            Text = "Thiết kế chứng từ (Document Designer)";
+            Text = "PCTP UI Designer – Thiết kế giao diện";
             StartPosition = FormStartPosition.CenterParent;
             Size = new Size(1180, 720);
             MinimumSize = new Size(960, 560);
@@ -142,7 +142,7 @@ namespace PCTP.Framework.Documents.UI
                 var broken = items.Where(i => i.Problem != null).ToList();
                 if (_modules.Properties.Items.Count > 0) OpenSelected();
                 if (broken.Count > 0)
-                    SetStatus("Chứng từ cấu hình không hợp lệ: " + string.Join("; ", broken.Select(b => b.ModuleCode + " — " + b.Problem)), true);
+                    SetStatus("Cấu hình màn hình không hợp lệ: " + string.Join("; ", broken.Select(b => b.ModuleCode + " — " + b.Problem)), true);
             }
             catch (Exception ex)
             {
@@ -166,11 +166,11 @@ namespace PCTP.Framework.Documents.UI
                 UpdateButtons();
                 string missing = _session.MissingFields.Count + _session.MissingCommands.Count > 0
                     ? " Còn " + _session.MissingFields.Count + " cột và " + _session.MissingCommands.Count +
-                      " lệnh đã đăng ký trong code nhưng chưa có metadata — dùng 'Khai báo / bổ sung'."
+                      " lệnh đã đăng ký trong code nhưng chưa có metadata — dùng 'Tạo giao diện'."
                     : string.Empty;
                 SetStatus(_session.HasMetadata
                     ? "ConfigVersion " + _session.LoadedConfigVersion + ". Chỉ sửa được tiêu đề, thứ tự, độ rộng, định dạng, hiển thị." + missing
-                    : "Chứng từ đã đăng ký trong code nhưng chưa khai báo trong SQL." + missing, !_session.HasMetadata);
+                    : "Module đã được đăng ký trong C# nhưng chưa có cấu hình giao diện trong SQL." + missing, !_session.HasMetadata);
                 LoadAuditIfVisible();
             }
             catch (Exception ex)
@@ -318,7 +318,7 @@ namespace PCTP.Framework.Documents.UI
             _provision.Enabled = incomplete && _service.CanApprove;
             _provision.Visible = _service.CanApprove;
             _save.Visible = _service.CanEdit;
-            Text = "Thiết kế chứng từ (Document Designer)" + (_dirty ? " *" : string.Empty);
+            Text = "PCTP UI Designer – Thiết kế giao diện" + (_dirty ? " *" : string.Empty);
         }
 
         private void SaveChanges()
@@ -332,13 +332,13 @@ namespace PCTP.Framework.Documents.UI
                 SetStatus(result.ChangedCount == 0
                     ? "Không có thay đổi nào để lưu."
                     : "Đã lưu " + result.ChangedCount + " thay đổi, ConfigVersion " + result.ConfigVersion +
-                      ". Chứng từ đang mở sẽ dùng cấu hình mới sau khi mở lại; máy khác nhận ở lần đăng nhập kế tiếp.", false);
+                      ". Màn hình đang mở sẽ dùng cấu hình mới sau khi mở lại; máy khác nhận ở lần đăng nhập kế tiếp.", false);
                 OpenSelected();
             }
             catch (DocumentConfigConflictException ex)
             {
                 XtraMessageBox.Show(this, ex.Message + Environment.NewLine + "Màn hình sẽ tải lại cấu hình mới nhất; thay đổi chưa lưu của bạn sẽ mất.",
-                    "Document Designer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    "PCTP UI Designer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _dirty = false;
                 OpenSelected();
             }
@@ -354,13 +354,13 @@ namespace PCTP.Framework.Documents.UI
             if (string.IsNullOrEmpty(moduleCode)) return;
             if (!ConfirmDiscard()) return;
             if (XtraMessageBox.Show(this,
-                "Khai báo trong SQL chứng từ " + moduleCode + " từ danh sách đã đăng ký trong code (view, cột, lệnh)?" + Environment.NewLine +
-                "Chỉ tạo các dòng còn thiếu, không ghi đè cấu hình đã có. Mọi cột được tạo ở trạng thái chỉ-đọc.",
+                "Tạo cấu hình giao diện cho Module " + moduleCode + " đã đăng ký trong C# Trusted Registry?" + Environment.NewLine +
+                "Chỉ khởi tạo cấu hình còn thiếu; không tạo View, trường, thao tác, Workflow hoặc quyền mới.",
                 "Document Designer", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             try
             {
                 var result = _service.Provision(moduleCode);
-                SetStatus("Đã khai báo/bổ sung " + result.ChangedCount + " dòng, ConfigVersion " + result.ConfigVersion + ".", false);
+                SetStatus("Đã tạo/bổ sung cấu hình giao diện " + result.ChangedCount + " dòng, ConfigVersion " + result.ConfigVersion + ".", false);
                 OpenSelected();
             }
             catch (Exception ex)
