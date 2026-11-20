@@ -501,3 +501,8 @@ EXEC MES.usp_FVN_ProductionFlow_Dashboard
 
 Use a real Site and a least-privilege department scope when verifying access.
 Do not use the wildcard in production role tests.
+
+
+## Migration 050 — Component Demand Document views and metadata
+
+Run `050_MES_ComponentDemandDocumentViewsAndMetadata.sql` after 049 and 039. It creates read-only Component Demand header/detail views and seeds approved presentation metadata for `COMPONENT_DEMAND`. Before running 050, verify all five metadata tables created by 039 exist. If migration 039 is already recorded but one or more tables are missing, rerun `039_MES_DocumentMetadataRegistry.sql`; the repair-safe script recreates missing tables without duplicating the migration ledger row. Migration 050 does not grant arbitrary SQL execution rights or replace the C# Trusted Registry.
