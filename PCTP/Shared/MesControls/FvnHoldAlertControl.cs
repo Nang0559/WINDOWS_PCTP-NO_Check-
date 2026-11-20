@@ -32,7 +32,7 @@ namespace PCTP.Shared.MesControls
             waitingAt = (waitingAt ?? string.Empty).Trim();
             reason = (reason ?? string.Empty).Trim();
             Visible = waitingAt.Length > 0 || reason.Length > 0;
-            _title.Text = waitingAt.Length == 0 ? "ĐIỂM CHỜ / HOLD" : "ĐANG CHỜ TẠI: " + waitingAt;
+            _title.Text = waitingAt.Length == 0 ? "ĐIỂM CHẶN / CẦN XỬ LÝ" : "ĐANG CHỜ TẠI: " + waitingAt;
             _reason.Text = reason.Length == 0 ? "Chưa có mô tả nguyên nhân." : reason;
             _title.Appearance.Font = new Font(_title.Appearance.Font, FontStyle.Bold);
         }
