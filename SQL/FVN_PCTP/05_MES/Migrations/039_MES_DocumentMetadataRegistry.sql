@@ -14,8 +14,8 @@ IF OBJECT_ID(N'MES.FVN_SchemaMigration', N'U') IS NULL
     THROW 53901, 'MES migration registry is missing.', 1;
 IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '038')
     THROW 53902, 'Migration 038 must be applied before 039.', 1;
-IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '039')
-    RETURN;
+-- Repair missing metadata tables even when migration 039 is already recorded.
+-- This makes the migration ledger recoverable from partial/manual schema drift.
 
 BEGIN TRY
     BEGIN TRANSACTION;
@@ -129,8 +129,9 @@ BEGIN TRY
             ON MES.FVN_DocumentConfigAudit(ModuleCode, OccurredAtUtc);
     END;
 
-    INSERT MES.FVN_SchemaMigration(MigrationVersion, MigrationName)
-    VALUES ('039', N'Trusted document runtime presentation metadata');
+    IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '039')
+        INSERT MES.FVN_SchemaMigration(MigrationVersion, MigrationName)
+        VALUES ('039', N'Trusted document runtime presentation metadata');
 
     COMMIT TRANSACTION;
 END TRY
