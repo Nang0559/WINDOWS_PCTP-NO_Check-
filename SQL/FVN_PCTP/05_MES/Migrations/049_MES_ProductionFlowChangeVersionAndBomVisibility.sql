@@ -223,7 +223,8 @@ BEGIN TRY
  IF OBJECT_ID(N'MES.tr_FVN_FlowVersion_LotCodeMap','TR') IS NOT NULL DROP TRIGGER MES.tr_FVN_FlowVersion_LotCodeMap;
  EXEC(N'CREATE TRIGGER MES.tr_FVN_FlowVersion_LotCodeMap ON MES.FVN_ProductionLotCodeMap AFTER INSERT,UPDATE,DELETE AS BEGIN SET NOCOUNT ON; UPDATE MES.FVN_ProductionFlowChangeVersion SET ChangeVersion=ChangeVersion+1,ChangedAtUtc=SYSUTCDATETIME() WHERE ChangeVersionId=1; END');
  IF OBJECT_ID(N'MES.tr_FVN_FlowVersion_Bom','TR') IS NOT NULL DROP TRIGGER MES.tr_FVN_FlowVersion_Bom;
- EXEC(N'CREATE TRIGGER MES.tr_FVN_FlowVersion_Bom ON IFS.FVN_BomComponent AFTER INSERT,UPDATE,DELETE AS BEGIN SET NOCOUNT ON; UPDATE MES.FVN_ProductionFlowChangeVersion SET ChangeVersion=ChangeVersion+1,ChangedAtUtc=SYSUTCDATETIME() WHERE ChangeVersionId=1; END');
+ IF OBJECT_ID(N'IFS.tr_FVN_FlowVersion_Bom','TR') IS NOT NULL DROP TRIGGER IFS.tr_FVN_FlowVersion_Bom;
+ EXEC(N'CREATE TRIGGER IFS.tr_FVN_FlowVersion_Bom ON IFS.FVN_BomComponent AFTER INSERT,UPDATE,DELETE AS BEGIN SET NOCOUNT ON; UPDATE MES.FVN_ProductionFlowChangeVersion SET ChangeVersion=ChangeVersion+1,ChangedAtUtc=SYSUTCDATETIME() WHERE ChangeVersionId=1; END');
  IF OBJECT_ID(N'MES.tr_FVN_FlowVersion_DepartmentRelation','TR') IS NOT NULL DROP TRIGGER MES.tr_FVN_FlowVersion_DepartmentRelation;
  EXEC(N'CREATE TRIGGER MES.tr_FVN_FlowVersion_DepartmentRelation ON MES.FVN_ProductionDepartmentRelation AFTER INSERT,UPDATE,DELETE AS BEGIN SET NOCOUNT ON; UPDATE MES.FVN_ProductionFlowChangeVersion SET ChangeVersion=ChangeVersion+1,ChangedAtUtc=SYSUTCDATETIME() WHERE ChangeVersionId=1; END');
  IF OBJECT_ID(N'MES.tr_FVN_FlowVersion_Event','TR') IS NOT NULL DROP TRIGGER MES.tr_FVN_FlowVersion_Event;
