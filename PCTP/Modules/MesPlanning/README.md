@@ -219,3 +219,33 @@ assignment, due dates, escalation or explicit HOLD ownership, those must be
 connected to the existing approval/task assignment source (or a formally
 configured workflow task model); they must not be guessed from department
 membership.
+
+
+## MES Flow Control Tower — typed tasks, flow strip and change-version
+
+The Control Tower is a read-only projection. Task classification now lives in
+`ProductionFlowTaskPolicy` and returns `ProductionFlowTaskCode` plus
+`ProductionFlowAccessMode`; the form renders `TaskLabel` and routes by enum,
+never by comparing translated Vietnamese text. The policy is covered by
+`PCTP.QC.Tests/ProductionFlowTaskPolicyTests.cs`.
+
+Shared display components:
+- `FvnFlowStepperControl`: five stages (plan, components, order/LOT,
+  operations, completion), with complete/active/pending/HOLD/related states.
+- `FvnHoldListControl`: multiple derived blockers for the selected flow row.
+  These are derived blockers, not manually maintained hold records. A future
+  controlled HOLD register can be added without changing the task policy.
+- `FvnWorkflowTimelineControl`: shared read-only workflow history. Double-click
+  a flow row to open the latest LOT timeline, otherwise order or plan timeline.
+
+The client polls the database change-version every five seconds. It only reloads
+the dashboard projection when the version changes. This works across multiple
+PCTP processes/machines because the signal is stored in SQL; it is polling, not
+push. Migration 049 must be applied for this behavior.
+
+Upstream department visibility is derived from effective IFS BOM and
+`FVN_ProductionLotCodeMap` department mapping, so it does not wait for
+`ComponentDemandHeader` to be created. The explicit
+`FVN_ProductionDepartmentRelation` table remains available for non-BOM or
+special dependencies; it must be populated with real plant relationships
+before those additional links can appear.
