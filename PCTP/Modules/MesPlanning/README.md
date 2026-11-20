@@ -227,7 +227,7 @@ The Control Tower is a read-only projection. Task classification now lives in
 `ProductionFlowTaskPolicy` and returns `ProductionFlowTaskCode` plus
 `ProductionFlowAccessMode`; the form renders `TaskLabel` and routes by enum,
 never by comparing translated Vietnamese text. The policy is covered by
-`PCTP.QC.Tests/ProductionFlowTaskPolicyTests.cs`.
+`PCTP.QC.Tests/ProductionFlowTaskPolicyTests.cs`, `ProductionFlowUiContractTests.cs` and `ProductionFlowSqlContractTests.cs` cover task permissions, Control Tower wiring and SQL source invariants. These are source/unit tests; they do not replace a WinForms interactive run or execution of migration 049 on DB57.
 
 Shared display components:
 - `FvnFlowStepperControl`: five stages (plan, components, order/LOT,
