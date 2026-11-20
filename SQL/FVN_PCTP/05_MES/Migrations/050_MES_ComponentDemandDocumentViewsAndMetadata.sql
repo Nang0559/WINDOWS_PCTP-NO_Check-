@@ -17,6 +17,16 @@ IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '0
     THROW 54003, 'Migration 049 must be applied before 050.', 1;
 IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '039')
     THROW 54004, 'Migration 039 (document metadata tables) must be applied before 050.', 1;
+IF OBJECT_ID(N'MES.FVN_DocumentDefinition', N'U') IS NULL
+    THROW 54005, 'Missing MES.FVN_DocumentDefinition. Re-run migration 039 to repair document metadata tables.', 1;
+IF OBJECT_ID(N'MES.FVN_DocumentField', N'U') IS NULL
+    THROW 54006, 'Missing MES.FVN_DocumentField. Re-run migration 039 to repair document metadata tables.', 1;
+IF OBJECT_ID(N'MES.FVN_DocumentCommand', N'U') IS NULL
+    THROW 54007, 'Missing MES.FVN_DocumentCommand. Re-run migration 039 to repair document metadata tables.', 1;
+IF OBJECT_ID(N'MES.FVN_DocumentLayout', N'U') IS NULL
+    THROW 54008, 'Missing MES.FVN_DocumentLayout. Re-run migration 039 to repair document metadata tables.', 1;
+IF OBJECT_ID(N'MES.FVN_DocumentConfigAudit', N'U') IS NULL
+    THROW 54009, 'Missing MES.FVN_DocumentConfigAudit. Re-run migration 039 to repair document metadata tables.', 1;
 IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '050')
     RETURN;
 
