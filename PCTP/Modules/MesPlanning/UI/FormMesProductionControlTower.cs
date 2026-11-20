@@ -454,6 +454,7 @@ namespace PCTP.Modules.MesPlanning.UI
             var complete = PCTP.Shared.MesControls.FvnFlowStepState.Complete;
             var active = PCTP.Shared.MesControls.FvnFlowStepState.Active;
             var hold = PCTP.Shared.MesControls.FvnFlowStepState.Hold;
+            var blocked = PCTP.Shared.MesControls.FvnFlowStepState.Blocked;
             string stage = Convert.ToString(row["FlowStage"]);
             string planStatus = Convert.ToString(row["PlanStatus"]);
             bool demandExists = !string.IsNullOrWhiteSpace(Convert.ToString(row["DemandStatus"]));
@@ -464,10 +465,10 @@ namespace PCTP.Modules.MesPlanning.UI
             int paused = SafeInt(row["PausedOperationCount"]);
             bool orderExists = row["ProductionOrderId"] != DBNull.Value;
             var plan = planStatus == "FIRM" ? complete : stage == "PLAN" ? active : pending;
-            var components = !demandExists ? (stage == "COMPONENTS" ? hold : pending) :
-                outstanding > 0m ? hold : complete;
-            var order = orderExists ? (lots > 0 ? complete : active) :
-                (stage == "ORDER" ? active : pending);
+            var components = !demandExists ? (stage == "COMPONENTS" ? blocked : pending) :
+                outstanding > 0m ? blocked : complete;
+            var order = orderExists ? (lots > 0 ? complete : blocked) :
+                (stage == "ORDER" ? blocked : pending);
             var production = paused > 0 ? hold :
                 operations > 0 && completed >= operations ? complete :
                 lots > 0 ? active : pending;
