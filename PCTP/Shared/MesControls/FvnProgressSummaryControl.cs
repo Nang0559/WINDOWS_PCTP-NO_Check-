@@ -43,7 +43,7 @@ namespace PCTP.Shared.MesControls
             return new LabelControl
             {
                 Text = text, Dock = DockStyle.Fill,
-                Appearance = { Font = new Font("Arial", 8f, FontStyle.Bold) }
+
             };
         }
         private static ProgressBarControl Configure(ProgressBarControl control)
