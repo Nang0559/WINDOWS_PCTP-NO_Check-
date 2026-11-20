@@ -23,12 +23,6 @@ namespace PCTP.Shared.MesControls
                 Dock = DockStyle.Fill, ColumnCount = 5, RowCount = 1,
                 Padding = new Padding(0, 4, 0, 4), BackColor = Color.Transparent
             };
-            Color[] backgrounds =
-            {
-                Color.FromArgb(239,246,255), Color.FromArgb(255,248,230),
-                Color.FromArgb(244,246,249), Color.FromArgb(235,243,255),
-                Color.FromArgb(232,247,238)
-            };
             for (int i = 0; i < 5; i++)
             {
                 layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
@@ -37,17 +31,15 @@ namespace PCTP.Shared.MesControls
                     Dock = DockStyle.Fill, Margin = new Padding(4),
                     BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.Simple
                 };
-                card.Appearance.BackColor = backgrounds[i];
-                card.Appearance.Options.UseBackColor = true;
                 var caption = new LabelControl
                 {
                     Dock = DockStyle.Top, Height = 27, Text = Captions[i],
-                    Appearance = { ForeColor = Color.FromArgb(95,107,122), Font = new Font("Segoe UI", 8.5f, FontStyle.Bold) }
+                    Appearance = { Font = new Font("Arial", 8.5f, FontStyle.Bold) }
                 };
                 _values[i] = new LabelControl
                 {
                     Dock = DockStyle.Fill, Text = "0",
-                    Appearance = { ForeColor = Color.FromArgb(28,48,73), Font = new Font("Segoe UI Semibold", 21f, FontStyle.Bold) }
+                    Appearance = { Font = new Font("Arial", 21f, FontStyle.Bold) }
                 };
                 card.Controls.Add(_values[i]);
                 card.Controls.Add(caption);
