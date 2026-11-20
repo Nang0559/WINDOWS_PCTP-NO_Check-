@@ -16,6 +16,7 @@ namespace PCTP.Modules.MesPlanning
         public ProductionFlowTaskCode TaskCode { get; private set; }
         public ProductionFlowAccessMode AccessMode { get; private set; }
         public string TaskLabel { get; private set; }
+        public bool IsActionable { get { return AccessMode == ProductionFlowAccessMode.Actionable; } }
 
         public ProductionFlowTaskDecision(ProductionFlowTaskCode code, string label)
         {
