@@ -133,8 +133,6 @@ BEGIN TRY
         ON component.SiteCode=ownerLine.SiteCode
         AND component.PartNo=ownerLine.ProductPartNo
         AND component.ComponentPartNo=l.ProductPartNo
-        AND component.EngChgLevel=demand.BomEngChgLevel
-        AND component.BomTypeDb=demand.BomTypeDb
        WHERE ownerPlan.SiteCode=p.SiteCode
         AND
         (
