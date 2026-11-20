@@ -64,14 +64,14 @@ namespace PCTP.Framework.Documents
     public sealed class DocumentDesignerSession
     {
         public DocumentFormDefinition Trusted { get; internal set; }
-        /// <summary>SQL metadata exactly as loaded (the baseline Save compares against); null when the document is not declared yet.</summary>
+        /// <summary>SQL UI metadata exactly as loaded (the baseline Save compares against); null when the screen has not been provisioned yet.</summary>
         public DocumentMetadata Loaded { get; internal set; }
         public int LoadedConfigVersion { get; internal set; }
         public bool HasMetadata { get { return Loaded != null; } }
         /// <summary>A separate copy the UI may edit freely; Save only accepts changes to presentation columns.</summary>
         public DocumentMetadata CreateEditableCopy()
         {
-            if (Loaded == null) throw new InvalidOperationException("Chứng từ chưa có metadata trong SQL.");
+            if (Loaded == null) throw new InvalidOperationException("Màn hình chưa có cấu hình giao diện trong SQL.");
             return DocumentDesignerService.Clone(Loaded);
         }
         public IReadOnlyList<string> MissingFields { get; internal set; }
