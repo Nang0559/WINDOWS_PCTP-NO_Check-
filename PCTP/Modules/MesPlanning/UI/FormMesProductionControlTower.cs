@@ -218,7 +218,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _onlyMyTasks.Dock = DockStyle.Left;
             _onlyMyTasks.Width = 130;
             _onlyMyTasks.CheckedChanged += (s, e) =>
-                _taskGrid.View.ActiveFilterString = _onlyMyTasks.Checked ? "[TaskCode] <> 0" : string.Empty;
+                _taskGrid.View.ActiveFilterString = _onlyMyTasks.Checked ? "[IsActionable] = true" : string.Empty;
             _status.Dock = DockStyle.Fill;
             _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _refreshStamp.Dock = DockStyle.Right;
@@ -319,7 +319,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void ConfigureColumns()
         {
-            string[] hidden = { "ProductionPlanLineId", "ProductionPlanId", "ProductionOrderId", "LatestProductionLotId", "ComponentDemandId", "PlanWorkflowStatusCode", "OrderWorkflowStatusCode", "TaskCode" };
+            string[] hidden = { "ProductionPlanLineId", "ProductionPlanId", "ProductionOrderId", "LatestProductionLotId", "ComponentDemandId", "PlanWorkflowStatusCode", "OrderWorkflowStatusCode", "TaskCode", "IsActionable" };
             foreach (var name in hidden)
                 if (_taskGrid.View.Columns[name] != null) _taskGrid.View.Columns[name].Visible = false;
             SetCaption("IsRelatedDepartment", "Phạm vi");
