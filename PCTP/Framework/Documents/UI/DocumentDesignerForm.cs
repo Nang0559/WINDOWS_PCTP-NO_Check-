@@ -166,7 +166,7 @@ namespace PCTP.Framework.Documents.UI
                 UpdateButtons();
                 string missing = _session.MissingFields.Count + _session.MissingCommands.Count > 0
                     ? " Còn " + _session.MissingFields.Count + " cột và " + _session.MissingCommands.Count +
-                      " lệnh đã đăng ký trong code nhưng chưa có metadata — dùng 'Tạo giao diện'."
+                      " thao tác đã đăng ký trong C# nhưng chưa có cấu hình — dùng 'Tạo giao diện'."
                     : string.Empty;
                 SetStatus(_session.HasMetadata
                     ? "ConfigVersion " + _session.LoadedConfigVersion + ". Chỉ sửa được tiêu đề, thứ tự, độ rộng, định dạng, hiển thị." + missing
@@ -356,7 +356,7 @@ namespace PCTP.Framework.Documents.UI
             if (XtraMessageBox.Show(this,
                 "Tạo cấu hình giao diện cho Module " + moduleCode + " đã đăng ký trong C# Trusted Registry?" + Environment.NewLine +
                 "Chỉ khởi tạo cấu hình còn thiếu; không tạo View, trường, thao tác, Workflow hoặc quyền mới.",
-                "Document Designer", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+                "PCTP UI Designer", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             try
             {
                 var result = _service.Provision(moduleCode);
