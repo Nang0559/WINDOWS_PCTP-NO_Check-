@@ -179,6 +179,7 @@ internal static class DeliveryCommandSqlScenario
     private sealed class FixtureStock : IStockMovementService
     {
         private readonly IUnitOfWork _uow; private readonly string _stock, _slot;
+        public string SiteCode => "TEST";
         public FixtureStock(IUnitOfWork uow, string stock, string slot) { _uow = uow; _stock = stock; _slot = slot; }
         public StockMovementResult Export(StockMovementRequest r)
         {
