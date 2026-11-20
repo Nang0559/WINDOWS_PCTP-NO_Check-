@@ -137,7 +137,12 @@ namespace PCTP.Modules.MesPlanning.UI
 
             var kpis = _stageStrip;
 
-            var split = new SplitContainerControl { Dock = DockStyle.Fill, Horizontal = false, SplitterPosition = 840 };
+            var split = new SplitContainerControl { Dock = DockStyle.Fill, Horizontal = false };
+            split.SizeChanged += (s, e) =>
+            {
+                int available = split.ClientSize.Width;
+                if (available > 700) split.SplitterPosition = Math.Max(420, (int)(available * 0.68));
+            };
             _taskGrid.Dock = DockStyle.Fill;
             _taskGrid.View.RowCellStyle += View_RowCellStyle;
             _taskGrid.View.CustomColumnDisplayText += (s, e) =>
@@ -182,7 +187,7 @@ namespace PCTP.Modules.MesPlanning.UI
             var detailTitle = new LabelControl
             {
                 Dock = DockStyle.Top, Height = 28, Text = "CHI TIẾT DÒNG CHẢY / ĐIỂM CHỜ",
-                Appearance = { Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = Color.FromArgb(45, 65, 88) }
+                Appearance = { Font = new Font("Arial", 9f, FontStyle.Bold) }
             };
             _scopeBadge.Dock = DockStyle.Top;
             _holdAlert.Dock = DockStyle.Top;
