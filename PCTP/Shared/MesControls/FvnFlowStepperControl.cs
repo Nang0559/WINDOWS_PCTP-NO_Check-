@@ -5,7 +5,7 @@ using DevExpress.XtraEditors;
 
 namespace PCTP.Shared.MesControls
 {
-    public enum FvnFlowStepState { Pending, Active, Complete, Hold, Related }
+    public enum FvnFlowStepState { Pending, Active, Complete, Blocked, Hold, Related }
 
     /// <summary>Reusable five-stage flow strip. The caller supplies authorized facts; this control is display-only.</summary>
     public sealed class FvnFlowStepperControl : XtraUserControl
@@ -52,7 +52,7 @@ namespace PCTP.Shared.MesControls
             {
                 _states[i].Text = Label(values[i]);
                 _states[i].Appearance.Font = new Font(_states[i].Appearance.Font,
-                    values[i] == FvnFlowStepState.Hold ? FontStyle.Bold : FontStyle.Regular);
+                    (values[i] == FvnFlowStepState.Hold || values[i] == FvnFlowStepState.Blocked) ? FontStyle.Bold : FontStyle.Regular);
             }
         }
 
@@ -62,6 +62,7 @@ namespace PCTP.Shared.MesControls
             {
                 case FvnFlowStepState.Complete: return "✓ Hoàn thành";
                 case FvnFlowStepState.Active: return "● Đang xử lý";
+                case FvnFlowStepState.Blocked: return "⚠ Đang chờ";
                 case FvnFlowStepState.Hold: return "Ⅱ HOLD";
                 case FvnFlowStepState.Related: return "↗ Bộ phận liên quan";
                 default: return "○ Chưa đến";
