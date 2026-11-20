@@ -8,6 +8,7 @@ using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
+using DevExpress.XtraLayout;
 using PCTP.Infrastructure.Security;
 using PCTP.Security;
 
@@ -203,7 +204,14 @@ namespace PCTP.Modules.MesPlanning.UI
             detailPanel.Controls.Add(_scopeBadge);
             detailPanel.Controls.Add(detailTitle);
             split.Panel1.Controls.Add(_taskGrid);
-            split.Panel2.Controls.Add(detailPanel);
+            var detailLayout = new LayoutControl { Dock = DockStyle.Fill };
+            var detailGroup = new LayoutControlGroup { GroupBordersVisible = false };
+            detailLayout.Root = detailGroup;
+            detailLayout.Controls.Add(detailPanel);
+            var detailItem = detailGroup.AddItem();
+            detailItem.Control = detailPanel;
+            detailItem.TextVisible = false;
+            split.Panel2.Controls.Add(detailLayout);
 
             var footer = new PanelControl { Dock = DockStyle.Fill, BorderStyle = BorderStyles.NoBorder };
             _onlyMyTasks.Text = "Chỉ việc của tôi";
