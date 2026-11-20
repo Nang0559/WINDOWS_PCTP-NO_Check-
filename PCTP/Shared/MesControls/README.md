@@ -45,3 +45,14 @@ in the Application Service / repository / SQL command boundary.
 3. Keep workflow transitions in existing Application Services and shared workflow/approval engine.
 4. Related-department content is always read-only, including double-click and context-menu actions.
 5. Prefer small composition controls over a giant all-purpose MES UserControl.
+
+
+### Production Flow Control Tower
+
+- `FvnFlowStepperControl`: five-stage horizontal flow with pending, active,
+  complete, blocked, true HOLD (paused) and related-department states.
+- `FvnHoldListControl`: reusable read-only grid for multiple blockers. Current
+  Control Tower supplies derived blockers; it does not pretend they are manually
+  registered HOLD records.
+- The owning module service supplies task/access enums and the controls remain
+  presentation-only. No workflow transition or stock-posting method is exposed.
