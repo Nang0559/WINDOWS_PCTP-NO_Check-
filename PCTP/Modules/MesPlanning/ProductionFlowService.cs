@@ -49,6 +49,7 @@ namespace PCTP.Modules.MesPlanning
             if (!table.Columns.Contains("TaskCode")) table.Columns.Add("TaskCode", typeof(ProductionFlowTaskCode));
             if (!table.Columns.Contains("AccessMode")) table.Columns.Add("AccessMode", typeof(ProductionFlowAccessMode));
             if (!table.Columns.Contains("TaskLabel")) table.Columns.Add("TaskLabel", typeof(string));
+            if (!table.Columns.Contains("IsActionable")) table.Columns.Add("IsActionable", typeof(bool));
             foreach (DataRow row in table.Rows)
             {
                 var decision = ProductionFlowTaskPolicy.Evaluate(row,
@@ -57,6 +58,7 @@ namespace PCTP.Modules.MesPlanning
                 row["TaskCode"] = decision.TaskCode;
                 row["AccessMode"] = decision.AccessMode;
                 row["TaskLabel"] = decision.TaskLabel;
+                row["IsActionable"] = decision.IsActionable;
             }
         }
 
