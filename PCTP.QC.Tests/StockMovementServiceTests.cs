@@ -402,6 +402,7 @@ public sealed class StockMovementServiceTests
         public string GetLotNo(int slotLotId) => LotNo;
         public string GetItemCode(int slotLotId) => ItemCode;
         public int? GetSlotId(int slotLotId) => 1;
+        public string GetWarehouseNameBySlotId(int slotId) => "TEST-WAREHOUSE";
         public void LockSlotForUpdate(int slotId) { }
         public void DecreaseLotQuantity(int slotLotId, int quantity) => DecreaseCalls++;
         public void AddQuantity(int slotId, int quantity, string itemCode) { }
