@@ -75,7 +75,7 @@ namespace PCTP.Shared.MesControls
             {
                 Text = text, AutoSizeMode = LabelAutoSizeMode.None, Width = width, Height = 30,
                 Padding = new Padding(2, 7, 2, 0),
-                Appearance = { Font = new Font("Arial", 8f, FontStyle.Bold) }
+
             };
         }
 
