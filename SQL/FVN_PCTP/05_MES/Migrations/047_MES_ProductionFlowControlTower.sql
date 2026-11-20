@@ -136,6 +136,20 @@ BEGIN TRY
         AND component.EngChgLevel=demand.BomEngChgLevel
         AND component.BomTypeDb=demand.BomTypeDb
        WHERE ownerPlan.SiteCode=p.SiteCode
+        AND
+        (
+         NOT EXISTS
+          (SELECT 1 FROM MES.FVN_ComponentDemandHeader selectedDemand
+           WHERE selectedDemand.ProductionPlanLineId=ownerLine.ProductionPlanLineId
+            AND selectedDemand.Status<>N''CANCELLED'')
+         OR EXISTS
+          (SELECT 1 FROM MES.FVN_ComponentDemandHeader selectedDemand
+           WHERE selectedDemand.ProductionPlanLineId=ownerLine.ProductionPlanLineId
+            AND selectedDemand.Status<>N''CANCELLED''
+            AND selectedDemand.BomEngChgLevel=component.EngChgLevel
+            AND selectedDemand.BomTypeDb=component.BomTypeDb
+            AND selectedDemand.AlternativeNo=component.AlternativeNo)
+        )
         AND ownerPlan.Status NOT IN(''CANCELLED'',''CLOSED'')
         AND (@FromDate IS NULL OR ISNULL(ownerLine.ProductionDate,ownerPlan.PlanDate)>=@FromDate)
         AND (@ToDate IS NULL OR ISNULL(ownerLine.ProductionDate,ownerPlan.PlanDate)<=@ToDate)
