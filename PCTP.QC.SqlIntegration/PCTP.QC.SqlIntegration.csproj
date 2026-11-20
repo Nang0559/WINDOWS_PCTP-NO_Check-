@@ -23,6 +23,10 @@
     <Compile Include="../PCTP/Shared/Common/IUnitOfWork.cs" Link="Production/IUnitOfWork.cs" />
     <Compile Include="../PCTP/Shared/Common/UnitOfWork.cs" Link="Production/UnitOfWork.cs" />
     <Compile Include="../PCTP/Shared/Common/SqlConnectionRetryPolicy.cs" Link="Production/SqlConnectionRetryPolicy.cs" />
+    <Compile Include="../PCTP/Shared/Common/ISiteContext.cs" Link="Production/ISiteContext.cs" />
+    <Compile Include="../PCTP/Security/UserSession.cs" Link="Production/UserSession.cs" />
+    <Compile Include="../PCTP/Infrastructure/Security/AuthorizationGuard.cs" Link="Production/AuthorizationGuard.cs" />
+
     <Compile Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="Production/SqlRepositoryBase.cs" />
     <Compile Include="../PCTP/Infrastructure/Stock/StockReceivingRepository.cs" Link="Production/StockReceivingRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockReceivingRepository.cs" Link="Production/IStockReceivingRepository.cs" />
