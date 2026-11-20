@@ -34,12 +34,12 @@ namespace PCTP.Shared.MesControls
                 var caption = new LabelControl
                 {
                     Dock = DockStyle.Top, Height = 27, Text = Captions[i],
-                    Appearance = { Font = new Font("Arial", 8.5f, FontStyle.Bold) }
+
                 };
                 _values[i] = new LabelControl
                 {
                     Dock = DockStyle.Fill, Text = "0",
-                    Appearance = { Font = new Font("Arial", 21f, FontStyle.Bold) }
+
                 };
                 card.Controls.Add(_values[i]);
                 card.Controls.Add(caption);
