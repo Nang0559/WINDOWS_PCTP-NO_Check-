@@ -411,6 +411,7 @@ namespace PCTP.Modules.MesPlanning.UI
                     PCTP.Shared.MesControls.FvnFlowStepState.Pending,
                     PCTP.Shared.MesControls.FvnFlowStepState.Pending,
                     PCTP.Shared.MesControls.FvnFlowStepState.Pending);
+                _flowStepper.SetDetails(null, null, null, null, null);
                 _holdList.Bind(new DataTable());
                 return;
             }
@@ -482,6 +483,19 @@ namespace PCTP.Modules.MesPlanning.UI
                 if (done != complete) done = relatedState;
             }
             _flowStepper.SetStates(plan, components, order, production, done);
+            decimal requiredQty = SafeDecimal(row["RequiredComponentQty"]);
+            decimal issuedQty = SafeDecimal(row["IssuedComponentQty"]);
+            string suffix = related ? " (chỉ xem)" : string.Empty;
+            _flowStepper.SetDetails(
+                Convert.ToString(row["PlanNo"]) + " · " + planStatus,
+                demandExists ? "Đã cấp " + issuedQty.ToString("#,##0.##") + "/" + requiredQty.ToString("#,##0.##") +
+                    (outstanding > 0m ? Environment.NewLine + "Còn thiếu " + outstanding.ToString("#,##0.##") : string.Empty)
+                    : "Chưa có yêu cầu linh kiện",
+                orderExists ? Convert.ToString(row["OrderNo"]) + " · " + Convert.ToString(row["OrderStatus"]) +
+                    Environment.NewLine + "LOT: " + lots : "Chưa tạo lệnh",
+                operations > 0 ? completed + "/" + operations + " công đoạn" +
+                    (paused > 0 ? Environment.NewLine + "Tạm dừng: " + paused : string.Empty) : "Chưa có công đoạn",
+                "SL đã SX: " + SafeDecimal(row["ProducedQty"]).ToString("#,##0.##") + suffix);
         }
 
         private static DataTable BuildHoldRows(DataRow row, bool related)
