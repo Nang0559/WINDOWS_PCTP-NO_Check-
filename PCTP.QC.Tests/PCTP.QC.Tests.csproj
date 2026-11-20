@@ -173,6 +173,9 @@
     <Compile Include="../PCTP/Modules/KhoCore/Application/Services/StockMovementService.cs" Link="Sut/StockMovementService.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Services/QuarantineReleaseService.cs" Link="Sut/QuarantineReleaseService.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockMovementService.cs" Link="Sut/IStockMovementService.cs" />
+    <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockLotKey.cs" Link="Sut/StockLotKey.cs" />
+    <Compile Include="../PCTP/Security/UserSession.cs" Link="Sut/UserSession.cs" />
+    <Compile Include="../PCTP/Infrastructure/Security/AuthorizationGuard.cs" Link="Sut/AuthorizationGuard.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockBalanceRepository.cs" Link="Sut/IStockBalanceRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockSlotRepository.cs" Link="Sut/IStockSlotRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockReceivingRepository.cs" Link="Sut/IStockReceivingRepository.cs" />
