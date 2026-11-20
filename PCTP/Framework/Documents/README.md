@@ -39,6 +39,22 @@ Modules/MesPlanning/Documents/  ComponentDemandDefinition, MesDocumentModule
   workflow-engine entity. A command with `RequiresWorkflowTransition` fails closed without an
   `IDocumentWorkflowGate`.
 
+## Document Designer (layer-2 UI)
+
+Menu: **Công cụ → Thiết kế chứng từ (Document Designer)**, visible with `ADMIN.DOCUMENT_DESIGNER` VIEW. Code:
+`Design/DocumentDesignerService` (rules), `Design/SqlDocumentMetadataWriter` (calls migration 051), `UI/DocumentDesignerForm`.
+
+| Action | Permission | What it can do |
+|---|---|---|
+| Open / preview / audit | VIEW | list documents registered in code, see SQL metadata, drift against the registry, change history |
+| Lưu | EDIT | caption, order, width, display format, visibility of header/detail columns, commands and the two regions |
+| Khai báo / bổ sung | APPROVE | create the SQL definition of a code-registered document, or only its missing rows (fields start read-only) |
+
+What it deliberately cannot do: add a document, view, procedure, command, field or editor; make a field editable; change
+workflow or status restriction. A new document or field is a code release (layer 1) plus a seed migration. The same limits
+are enforced again in SQL, together with RBAC, `ConfigVersion` conflict detection and audit.
+After a save the runtime revalidates; other running clients pick the change up at next sign-in.
+
 ## Status
 
 Done: contracts, registry, validator, resolver, dispatcher, SQL metadata/data/command bindings,
@@ -74,6 +90,14 @@ Hardening added on top of that:
   `ComponentDemandIssueInputProvider` picks LOT/slot, WIP slot and quantity via the existing `IComponentDemandService`.
 
 Not done / known limits:
+
+- **Designer is not built or run on a real machine.** The service and the migration text are covered by contract tests
+  (`DocumentDesignerTests.cs`); `DocumentDesignerForm`, `SqlDocumentMetadataWriter` and migration 051 need a Windows build and an
+  acceptance run on a non-production DB (grant the function, save, conflict from two sessions, audit rows).
+- No draft/approve workflow for layout changes: EDIT applies immediately (audited). A two-step approval needs a draft table.
+- Editors, read-only/required flags, `LookupCode` and `RequiredStatusCode` are not editable in the designer.
+- Layout of columns inside a region (tabs, groups, positions) is not modelled yet; `LayoutJson` is still not read.
+- No rollback-to-version screen; the audit tab shows before/after JSON to revert by hand.
 
 - **Not built or run on a real machine.** The non-UI code compiles and its 23 contract tests pass against stubs in a sandbox;
   the DevExpress UI files, `Program.cs`, `Main_APP.Menu.cs` and every SQL path need a Windows build and an acceptance run on DB57.

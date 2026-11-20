@@ -1332,6 +1332,13 @@
     <Compile Include="Framework\Documents\UI\DocumentListForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Framework\Documents\Design\DocumentDesignerContracts.cs" />
+    <Compile Include="Framework\Documents\Design\DocumentDesignerService.cs" />
+    <Compile Include="Framework\Documents\Design\SqlDocumentMetadataWriter.cs" />
+    <Compile Include="Framework\Documents\Design\SessionDocumentDesignerAuthorizer.cs" />
+    <Compile Include="Framework\Documents\UI\DocumentDesignerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\MesPlanning\Documents\ComponentDemandDefinition.cs" />
     <Compile Include="Modules\MesPlanning\Documents\MesDocumentModule.cs" />
     <Compile Include="Modules\MesPlanning\Documents\ComponentDemandIssueInputProvider.cs" />

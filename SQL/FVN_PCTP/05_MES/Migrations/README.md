@@ -506,3 +506,9 @@ Do not use the wildcard in production role tests.
 ## Migration 050 — Component Demand Document views and metadata
 
 Run `050_MES_ComponentDemandDocumentViewsAndMetadata.sql` after 049 and 039. It creates read-only Component Demand header/detail views and seeds approved presentation metadata for `COMPONENT_DEMAND`. Before running 050, verify all five metadata tables created by 039 exist. If migration 039 is already recorded but one or more tables are missing, rerun `039_MES_DocumentMetadataRegistry.sql`; the repair-safe script recreates missing tables without duplicating the migration ledger row. Migration 050 does not grant arbitrary SQL execution rights or replace the C# Trusted Registry.
+
+## Migration 051 — Document Designer (metadata write path)
+
+Run `051_MES_DocumentDesignerMetadataWrite.sql` after 050. It adds the RBAC function `ADMIN.DOCUMENT_DESIGNER` (VIEW = open/read/audit, EDIT = save presentation, APPROVE = declare a code-registered document or complete missing rows) and three procedures: `MES.usp_FVN_DocumentMetadata_Save`, `_Provision`, `_ListAudit`. Every procedure re-checks the actor's permission in SQL through `MES.fn_FVN_DocumentDesigner_HasAction` (role grants + user overrides), so hiding a button is never the control. No role is granted automatically: grant the function in the security administration screen first.
+
+`Save` is update-only (caption, sequence, width, display format, visibility), uses `ConfigVersion` optimistic concurrency under `UPDLOCK, HOLDLOCK`, requires every field to be a real column of the registered view and writes before/after JSON to `MES.FVN_DocumentConfigAudit`. It cannot add fields/commands/layouts or change editor, read-only, required, lookup, status restriction, view or workflow. `Provision` only accepts `MES.vw_FVN_*` views that exist, seeds fields read-only and never overwrites existing rows. The C# registry remains the allow-list: a mismatch still disables the document at startup.

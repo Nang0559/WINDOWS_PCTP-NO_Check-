@@ -28,6 +28,20 @@ namespace PCTP.Modules.MesPlanning.Documents
         }
 
         /// <summary>
+        /// Document Designer over the same trusted registry. After a save the runtime is rebuilt and revalidated, so a
+        /// presentation change that disagrees with the registry disables the screen instead of being applied silently.
+        /// </summary>
+        public static DocumentDesignerService CreateDesigner()
+        {
+            return new DocumentDesignerService(
+                new DocumentRegistry(Definitions()),
+                new SqlDocumentMetadataRepository(),
+                new SqlDocumentMetadataWriter(),
+                new SessionDocumentDesignerAuthorizer(),
+                () => Initialize());
+        }
+
+        /// <summary>
         /// Builds and validates the runtime. Safe to call at startup after sign-in: it never throws, so a bad
         /// document configuration disables the document screens without stopping the application.
         /// </summary>

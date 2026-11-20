@@ -97,6 +97,10 @@ namespace PCTP
                 "Quản trị tài khoản & phân quyền",
                 OpenSecurityAdministration));
             accordionControlElement20.Elements.Add(CreateMenuItem(
+                "menuDocumentDesigner",
+                "Thiết kế chứng từ (Document Designer)",
+                OpenDocumentDesigner));
+            accordionControlElement20.Elements.Add(CreateMenuItem(
                 "menuChangePassword",
                 "Đổi mật khẩu đăng nhập",
                 OpenChangePassword));
@@ -164,6 +168,7 @@ namespace PCTP
                 ["menuDieuHanhSanXuat"] = "MES.PRODUCTION_EXECUTION",
                 ["menuYeuCauXuatLinhKien"] = "MES.COMPONENT_DEMAND",
                 ["menuChungTuYeuCauLinhKien"] = "MES.COMPONENT_DEMAND",
+                ["menuDocumentDesigner"] = "ADMIN.DOCUMENT_DESIGNER",
                 ["menuDieuChinhTonKhoLot"] = "WAREHOUSE.STOCK_ADJUST",
                 ["menuHangChoGiao"] = "SHIPPING.DISPATCH",
                 ["menuIfsMasterDataSync"] = "MASTERDATA.IFS_SYNC",
@@ -298,6 +303,15 @@ namespace PCTP
             }
             OpenFromMenu(() => FormWindowManager.ShowSingle(this,
                 () => new FormSecurityAdministration()), "Quản trị tài khoản & phân quyền");
+        }
+
+        private void OpenDocumentDesigner(object sender, EventArgs e)
+        {
+            // VIEW is checked by the menu map; EDIT / APPROVE are demanded again by DocumentDesignerService and by SQL.
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this,
+                () => new PCTP.Framework.Documents.UI.DocumentDesignerForm(
+                    PCTP.Modules.MesPlanning.Documents.MesDocumentModule.CreateDesigner())),
+                "Thiết kế chứng từ");
         }
 
         private void OpenChangePassword(object sender, EventArgs e)
