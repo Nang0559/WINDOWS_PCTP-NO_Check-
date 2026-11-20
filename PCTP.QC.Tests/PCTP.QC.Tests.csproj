@@ -20,6 +20,9 @@
     <Compile Include="../PCTP/Modules/MesPlanning/ProductionFlowTaskPolicy.cs" Link="ProductionFlowTaskPolicy.source.cs" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/047_MES_ProductionFlowControlTower.sql" Link="047_MES_ProductionFlowControlTower.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/049_MES_ProductionFlowChangeVersionAndBomVisibility.sql" Link="049_MES_ProductionFlowChangeVersionAndBomVisibility.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/MesPlanning/UI/FormMesProductionControlTower.cs" Link="FormMesProductionControlTower.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Shared/MesControls/FvnFlowStepperControl.cs" Link="FvnFlowStepperControl.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Shared/MesControls/FvnHoldListControl.cs" Link="FvnHoldListControl.source.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <None Update="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
