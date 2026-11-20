@@ -102,7 +102,7 @@ namespace PCTP.Framework.Documents
                 throw new InvalidOperationException("Module chưa có cấu hình giao diện trong SQL. Hãy dùng 'Tạo giao diện' (quyền APPROVE) trước.");
             var trusted = session.Trusted;
             if (!string.Equals(draft.ModuleCode, trusted.ModuleCode, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Metadata không thuộc chứng từ đang thiết kế.");
+                throw new InvalidOperationException("Cấu hình không thuộc màn hình đang thiết kế.");
 
             // The designer edits presentation only. Anything else must equal what was loaded.
             DemandOnlyPresentationChanged(session.Loaded, draft);
