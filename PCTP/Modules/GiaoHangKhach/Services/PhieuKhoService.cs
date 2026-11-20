@@ -32,6 +32,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string tmpTable = _cfg.Delivery.GetTmpTable(isSP, useGiaoDbTables);
             string docQrTable = _cfg.Delivery.GetDocQRTable(isSP, useGiaoDbTables);
 
+            // PHASE 0: tổng SL LOT của một dòng không được vượt SL đơn hàng (vd. đơn 200 nhưng LOT chọn 450).
+            // Fail closed: không gọi bất kỳ lệnh cập nhật kho nào khi còn dòng vượt.
+            var vuotSl = LotQuantityGuard.FindOver(_phieuRepo.GetDonHangHienTai(tmpTable));
+            if (vuotSl.Count > 0)
+            {
+                _bus.Publish(new KhoUpdatedEvent(0, LotQuantityGuard.ToErrorTable(vuotSl)));
+                return;
+            }
+
             // PHASE 1: FIFO is a hard business gate. Nothing that can update stock
             // is allowed to execute before this phase has completed successfully.
             List<FifoViolation> fifoViolations =

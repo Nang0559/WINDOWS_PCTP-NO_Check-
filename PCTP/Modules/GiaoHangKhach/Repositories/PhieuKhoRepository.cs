@@ -311,10 +311,37 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" }));
                 if (nNg == 0)
                 {
-                    // Đã xử lý trước đó (hoặc không còn): KHÔNG trừ kho lần 2 và KHÔNG báo lỗi — trả false không kèm lỗi
-                    // để presenter tải lại lưới và hiển thị đúng trạng thái.
+                    int nTong = Convert.ToInt32(ExecuteScalar(
+                        $"SELECT COUNT(*) FROM [{tmpTable}] WHERE STT = @stt AND MAHANG = @maHang",
+                        new SqlParameter("@stt", SqlDbType.Int) { Value = stt },
+                        new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" }));
                     Uow.Rollback();
+
+                    // TMP đã OK: đã cập nhật kho trước đó, lưới chỉ là ảnh cũ → bỏ qua êm (không trừ kho lần 2), lưới sẽ tải lại.
+                    if (nTong > 0)
+                        return false;
+
+                    // TMP KHÔNG có dòng này: lưới lệch TMP, dòng chưa được cập nhật kho → phải báo, không được bỏ qua âm thầm.
+                    error = new DS_ERR_CNK { MH = maHang, LOT = lotSl, SLC = 0, SLTK = 0, SLT = 0,
+                        Ms = $"STT={stt} không có trong {tmpTable} (lưới lệch TMP) - CHƯA cập nhật kho. Bấm 'Xem MP' để tải lại rồi quét/cập nhật lại dòng này." };
                     return false;
+                }
+                if (nNg == 1)
+                {
+                    object slDon = ExecuteScalar(
+                        $"SELECT TOP 1 SOLUONG FROM [{tmpTable}] WHERE STT = @stt AND MAHANG = @maHang AND STATUS = 'NG'",
+                        new SqlParameter("@stt", SqlDbType.Int) { Value = stt },
+                        new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" });
+                    int tongLot = 0;
+                    foreach (var l in lotsToProcess) tongLot += l.SoLuong;
+                    if (slDon != null && slDon != DBNull.Value
+                        && int.TryParse(Convert.ToString(slDon).Trim(), out int soLuongDon) && tongLot > soLuongDon)
+                    {
+                        error = new DS_ERR_CNK { MH = maHang, LOT = lotSl, SLC = soLuongDon, SLTK = tongLot, SLT = tongLot - soLuongDon,
+                            Ms = $"STT={stt}: tổng SL LOT ({tongLot:n0}) lớn hơn SL đơn hàng ({soLuongDon:n0}). Chưa cập nhật kho." };
+                        Uow.Rollback();
+                        return false;
+                    }
                 }
                 if (nNg > 1)
                 {

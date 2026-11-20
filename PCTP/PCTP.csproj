@@ -413,6 +413,7 @@
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuLotService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuYmvnService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\LotQuantityGuard.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\YmvnGearQuantityValidator.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\YmvnPrintHelpers.cs" />
     <Compile Include="Modules\GiaoHangKhach\SubForm\FormItemFifoConfig.cs">

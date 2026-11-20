@@ -452,7 +452,7 @@ namespace PCTP.Presentation.Presenters
             // during FormLoaded.
             XetTrangThai();
         }
-        private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan);
+        private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; try { _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan); } catch (InvalidOperationException ex) { _v.ShowWarning(ex.Message); return; }
             _v.RefreshLotRow(e.Stt, r.LotGhep);
             _c.IsBanQR = true;
             bool isSpSession = _c.Cfg.Delivery.CoLoaiSP && _v.IsLoaiSP;
@@ -800,6 +800,8 @@ namespace PCTP.Presentation.Presenters
                     }
 
                     _v.ShowLoiCapNhapKho(e.Errors);
+                    // Các dòng khác có thể đã cập nhật kho thành công / lưới lệch TMP: tải lại để lưới khớp TMP.
+                    _c.LoadPhieuHienTai();
                     return;
                 }
                 _c.LoadPhieuHienTai();

@@ -48,6 +48,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             // after explicit user confirmation and are then excluded by STT.
             string tmpTable = _cfg.Delivery.TmpTable;
             string docQrTable = _cfg.Delivery.DocQRTable;
+
+            // Tổng SL LOT của một dòng không được vượt SL đơn hàng: chặn trước mọi thao tác trừ kho.
+            var vuotSl = LotQuantityGuard.FindOver(_phieuRepo.GetDonHangHienTai(tmpTable));
+            if (vuotSl.Count > 0)
+            {
+                _bus.Publish(new KhoUpdatedEvent(0, LotQuantityGuard.ToErrorTable(vuotSl)));
+                return;
+            }
+
             List<FifoViolation> fifoViolations =
                 _phieuRepo.EvaluateFifoViolations(tmpTable, docQrTable)
                 ?? new List<FifoViolation>();

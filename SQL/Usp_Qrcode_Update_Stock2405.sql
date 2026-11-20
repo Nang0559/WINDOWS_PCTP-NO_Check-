@@ -97,7 +97,9 @@ BEGIN
         @LotThuc       NVARCHAR(500),
         @LockResource  NVARCHAR(255),
         @LockResult    INT,
-        @StockRowsUpdated INT;  
+        @StockRowsUpdated INT,
+        @_SLDon        INT,
+        @_SumLot       INT;  
   
     --------------------------------------------------------------------  
     -- 3. XÓA TEMP TABLE CŨ  
@@ -438,6 +440,47 @@ BEGIN
                 INSERT INTO #SplitResult  
                 SELECT *  
                 FROM dbo.Split(@_LOT, ',');  
+
+                --------------------------------------------------------
+                -- 6.3b. TỔNG SL CÁC LOT KHÔNG ĐƯỢC VƯỢT SL ĐƠN HÀNG
+                --       (vd. đơn 200 nhưng chọn LOT thủ công 450 => trừ kho dư).
+                --       Ghi lỗi và bỏ trống #SplitResult để dòng này KHÔNG bị trừ kho;
+                --       bước 8 thấy #STNG có dữ liệu sẽ rollback toàn bộ.
+                --------------------------------------------------------
+                SET @_SLDon = NULL;
+                SET @_SumLot = NULL;
+
+                SET @sql = N'SELECT @SlDon = TRY_CONVERT(INT, SOLUONG)
+                             FROM [' + @TMPTABLE + N']
+                             WHERE STT = @STT AND (STATUS <> ''OK'' OR STATUS IS NULL);';
+                EXEC sp_executesql @sql,
+                    N'@STT INT, @SlDon INT OUTPUT',
+                    @STT = @STT,
+                    @SlDon = @_SLDon OUTPUT;
+
+                SELECT @_SumLot = SUM(
+                    TRY_CAST(RIGHT(LotTach, LEN(LotTach) - CHARINDEX('-', LotTach)) AS INT))
+                FROM #SplitResult
+                WHERE CHARINDEX('-', LotTach) > 1;
+
+                IF @_SLDon IS NOT NULL AND @_SumLot IS NOT NULL AND @_SumLot > @_SLDon
+                BEGIN
+                    INSERT INTO #STNG (MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS)
+                    VALUES
+                    (
+                        @MH,
+                        @_LOT,
+                        @_SLDon,
+                        @_SumLot,
+                        @_SumLot - @_SLDon,
+                        LEFT(N'STT ' + CONVERT(NVARCHAR(20), @STT)
+                             + N': tổng SL LOT (' + CONVERT(NVARCHAR(20), @_SumLot)
+                             + N') lớn hơn SL đơn hàng (' + CONVERT(NVARCHAR(20), @_SLDon)
+                             + N'). Chưa cập nhật kho.', 500)
+                    );
+
+                    DELETE FROM #SplitResult;
+                END;
   
                 DECLARE LOT_IN_PGH CURSOR LOCAL FAST_FORWARD FOR  
                     SELECT LotTach  

@@ -245,7 +245,17 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
                 return;
             }
 
-            if (tongChon != _soLuongCan)
+            // Vượt số lượng đơn hàng là sai nghiệp vụ (xuất dư làm lệch tồn kho): CHẶN, không cho xác nhận.
+            if (tongChon > _soLuongCan)
+            {
+                XtraMessageBox.Show(
+                    $"Tổng số lượng chọn ({tongChon:n0}) lớn hơn số lượng cần xuất ({_soLuongCan:n0}).\n" +
+                    $"Vui lòng giảm {tongChon - _soLuongCan:n0} để không vượt số lượng đơn hàng.",
+                    "Vượt số lượng", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (tongChon < _soLuongCan)
             {
                 var rs = XtraMessageBox.Show(
                     $"Tổng số lượng chọn ({tongChon}) khác số lượng cần xuất ({_soLuongCan}).\nBạn có muốn tiếp tục?",

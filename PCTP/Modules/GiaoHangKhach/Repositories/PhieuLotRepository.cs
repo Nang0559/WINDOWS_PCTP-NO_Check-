@@ -144,6 +144,21 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             if (stt <= 0 || string.IsNullOrWhiteSpace(lot)) return;
             Db.ValidateTableName(tenBan);
+
+            // Chốt chặn phía dữ liệu: tổng SL các LOT không được vượt SL đơn hàng của dòng (không tin riêng UI).
+            DataTable don = Db.LoadData(
+                $"SELECT TOP 1 SOLUONG FROM [{tenBan}] WHERE STT = @stt",
+                new SqlParameter("@stt", stt));
+            if (don != null && don.Rows.Count > 0
+                && int.TryParse(Convert.ToString(don.Rows[0]["SOLUONG"]).Trim(), out int soLuongDon)
+                && PCTP.Modules.GiaoHangKhach.Services.LotQuantityGuard.TryParseTotal(lot, out int tongLot)
+                && tongLot > soLuongDon)
+            {
+                throw new InvalidOperationException(
+                    "Tổng số lượng LOT (" + tongLot.ToString("n0") + ") lớn hơn số lượng đơn hàng ("
+                    + soLuongDon.ToString("n0") + ") của STT " + stt + ".");
+            }
+
             Db.ExecuteNonQuery(
                 $"UPDATE [{tenBan}] SET LOT = @lot WHERE STT = @stt",
                 new SqlParameter("@lot", lot),
