@@ -30,11 +30,11 @@ namespace PCTP.Shared.MesControls
         public void Bind(DataTable holds)
         {
             _grid.DataSource = holds ?? new DataTable();
-            if (_view.Columns["HoldType"] != null) _view.Columns["HoldType"].Caption = "Loại chặn";
+            if (_view.Columns["HoldType"] != null) _view.Columns["HoldType"].Caption = "Điểm chặn";
             if (_view.Columns["OwnerDepartment"] != null) _view.Columns["OwnerDepartment"].Caption = "Bộ phận xử lý";
             if (_view.Columns["BlockedDepartment"] != null) _view.Columns["BlockedDepartment"].Caption = "Bộ phận bị chặn";
             if (_view.Columns["Reason"] != null) _view.Columns["Reason"].Caption = "Nguyên nhân";
-            if (_view.Columns["HoldStatus"] != null) _view.Columns["HoldStatus"].Caption = "Trạng thái";
+            if (_view.Columns["HoldStatus"] != null) _view.Columns["HoldStatus"].Caption = "Trạng thái điểm chặn";
             if (_view.Columns["IsRelated"] != null) _view.Columns["IsRelated"].Caption = "Phạm vi";
             _view.BestFitColumns();
         }
