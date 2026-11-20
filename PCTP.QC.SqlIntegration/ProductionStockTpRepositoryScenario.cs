@@ -236,35 +236,5 @@ internal static class ProductionStockTpRepositoryScenario
 
 }
 
-// Minimal compile-time DTOs isolate the production repository from unrelated
-// desktop/UI model dependencies. SQL behavior and repository implementation are production code.
-namespace PCTP.Shared.Models
-{
-    public sealed class StockItem
-    {
-        public string Lot { get; set; } = string.Empty;
-        public string Part { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string Model { get; set; } = string.Empty;
-        public int? SlNhap { get; set; }
-        public int? SlConLai { get; set; }
-        public int? SlXuat { get; set; }
-        public short? Satus { get; set; }
-        public short? CaSX { get; set; }
-        public DateTime? NgaySX { get; set; }
-        public DateTime? NgayNhap { get; set; }
-    }
 
-    public sealed class NhapKhoItem
-    {
-        public string Lot { get; set; } = string.Empty;
-        public string Model { get; set; } = string.Empty;
-        public string Part { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public short CaSX { get; set; }
-        public int SlSanXuat { get; set; }
-        public int SlNhap { get; set; }
-        public DateTime? NgaySX { get; set; }
-    }
-}
 
