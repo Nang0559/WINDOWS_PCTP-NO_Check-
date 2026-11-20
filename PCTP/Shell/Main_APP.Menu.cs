@@ -73,7 +73,7 @@ namespace PCTP
             _menuKho.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
             _menuKho.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
             _menuKho.Elements.Add(CreateMenuItem("menuYeuCauXuatLinhKien", "Yêu cầu / Xuất linh kiện PART → WIP", OpenYeuCauXuatLinhKien));
-            _menuKho.Elements.Add(CreateMenuItem("menuChungTuYeuCauLinhKien", "Chứng từ yêu cầu linh kiện (Document Runtime)", OpenChungTuYeuCauLinhKien));
+            _menuKho.Elements.Add(CreateMenuItem("menuChungTuYeuCauLinhKien", "Màn hình yêu cầu linh kiện", OpenChungTuYeuCauLinhKien));
             _menuKho.Elements.Add(_menuKhoTonTP);
 
             _menuKho.Elements.Add(CreateMenuItem(
@@ -98,7 +98,7 @@ namespace PCTP
                 OpenSecurityAdministration));
             accordionControlElement20.Elements.Add(CreateMenuItem(
                 "menuDocumentDesigner",
-                "Thiết kế chứng từ (Document Designer)",
+                "Thiết kế giao diện (PCTP UI Designer)",
                 OpenDocumentDesigner));
             accordionControlElement20.Elements.Add(CreateMenuItem(
                 "menuChangePassword",
@@ -311,7 +311,7 @@ namespace PCTP
             OpenFromMenu(() => FormWindowManager.ShowSingle(this,
                 () => new PCTP.Framework.Documents.UI.DocumentDesignerForm(
                     PCTP.Modules.MesPlanning.Documents.MesDocumentModule.CreateDesigner())),
-                "Thiết kế chứng từ");
+                "Thiết kế giao diện");
         }
 
         private void OpenChangePassword(object sender, EventArgs e)
@@ -496,7 +496,7 @@ namespace PCTP
                 FormWindowManager.ShowSingle(this, () => new PCTP.Framework.Documents.UI.DocumentListForm(
                     runtime, module, site,
                     new PCTP.Modules.MesPlanning.Documents.ComponentDemandIssueInputProvider()));
-            }, "Chứng từ yêu cầu linh kiện");
+            }, "Màn hình yêu cầu linh kiện");
         }
 
         private static string ResolveDocumentSite(string functionCode)
