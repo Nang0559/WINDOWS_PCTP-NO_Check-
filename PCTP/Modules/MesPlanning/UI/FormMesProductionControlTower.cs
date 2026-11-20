@@ -187,7 +187,7 @@ namespace PCTP.Modules.MesPlanning.UI
             var detailTitle = new LabelControl
             {
                 Dock = DockStyle.Top, Height = 28, Text = "CHI TIẾT DÒNG CHẢY / ĐIỂM CHỜ",
-                Appearance = { Font = new Font("Arial", 9f, FontStyle.Bold) }
+
             };
             _scopeBadge.Dock = DockStyle.Top;
             _holdAlert.Dock = DockStyle.Top;
