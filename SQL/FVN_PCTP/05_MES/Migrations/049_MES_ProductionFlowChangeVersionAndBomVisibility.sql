@@ -104,7 +104,6 @@ BEGIN TRY
         AND component.ComponentPartNo=l.ProductPartNo
         AND component.EngChgLevel=demand.BomEngChgLevel
         AND component.BomTypeDb=demand.BomTypeDb
-        AND component.AlternativeNo IS NOT NULL
        WHERE ownerPlan.SiteCode=p.SiteCode
         AND ownerPlan.Status NOT IN(''CANCELLED'',''CLOSED'')
         AND (@FromDate IS NULL OR ISNULL(ownerLine.ProductionDate,ownerPlan.PlanDate)>=@FromDate)
