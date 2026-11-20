@@ -79,7 +79,10 @@ namespace PCTP.Modules.MesPlanning.UI
             {
                 if (string.IsNullOrWhiteSpace(_filters.SiteCode))
                 {
-                    var scope = UserSession.Current.DataScopes.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.SiteCode));
+                    var scope = UserSession.Current.DataScopes.FirstOrDefault(x =>
+                        !string.IsNullOrWhiteSpace(x.SiteCode) &&
+                        (string.IsNullOrWhiteSpace(x.FunctionCode) ||
+                         string.Equals(x.FunctionCode, "MES.PRODUCTION_FLOW", StringComparison.OrdinalIgnoreCase)));
                     if (scope != null) _filters.SiteCode = scope.SiteCode;
                 }
                 LoadFlow();
@@ -484,7 +487,7 @@ namespace PCTP.Modules.MesPlanning.UI
             string department = Convert.ToString(row["DepartmentCode"]);
             string blocked = related ? "Bộ phận của tôi" : "Dòng chảy kế tiếp";
             Action<string, string> add = (type, reason) =>
-                table.Rows.Add(type, department, blocked, reason, "OPEN",
+                table.Rows.Add(type, department, blocked, reason, "Đang chặn",
                     related ? "Chỉ xem" : "Trong phạm vi");
             if (Convert.ToString(row["PlanStatus"]) != "FIRM" &&
                 Convert.ToString(row["FlowStage"]) == "PLAN")
@@ -537,7 +540,7 @@ namespace PCTP.Modules.MesPlanning.UI
             bool hasRow = row != null;
             if (!_selectionMode)
             {
-                _openTimeline.Enabled = hasRow && UserSession.Current.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW");
+                _openTimeline.Enabled = hasRow && UserSession.Current.HasPermission("MES.PRODUCTION_FLOW", "VIEW");
                 _openTask.Enabled = hasRow && row["TaskCode"] != DBNull.Value &&
                     (ProductionFlowTaskCode)row["TaskCode"] != ProductionFlowTaskCode.None;
             }
