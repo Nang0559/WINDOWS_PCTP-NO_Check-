@@ -6,7 +6,7 @@ using System.Data.SqlClient;
 
 namespace PCTP.Framework.Documents
 {
-    public sealed class SqlDocumentMenuStore : IDocumentMenuStore
+    public sealed class SqlDocumentMenuStore : IDocumentMenuStore, IDocumentMenuRuntimeStore
     {
         private const int ConfigVersionConflict = 55131;
         private readonly string _connectionString;
@@ -17,6 +17,29 @@ namespace PCTP.Framework.Documents
                 ConfigurationManager.ConnectionStrings["FVN_PCTP"]?.ConnectionString;
             if (string.IsNullOrWhiteSpace(_connectionString))
                 throw new InvalidOperationException("Thiếu connection string FVN_PCTP.");
+        }
+
+        public IReadOnlyList<DocumentMenuEntry> ListConfigured()
+        {
+            var list = new List<DocumentMenuEntry>();
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("MES.usp_FVN_UiScreenMenu_Runtime", cn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandTimeout = 30;
+                cn.Open();
+                using (var rd = cmd.ExecuteReader())
+                    while (rd.Read())
+                        list.Add(new DocumentMenuEntry
+                        {
+                            ModuleCode = rd.GetString(rd.GetOrdinal("ModuleCode")),
+                            MenuGroup = rd.GetString(rd.GetOrdinal("MenuGroup")),
+                            MenuText = rd.GetString(rd.GetOrdinal("MenuText")),
+                            SequenceNo = rd.GetInt32(rd.GetOrdinal("SequenceNo")),
+                            IsActive = rd.GetBoolean(rd.GetOrdinal("IsActive"))
+                        });
+            }
+            return list;
         }
 
         public IReadOnlyList<DocumentMenuEntry> List(long actorUserId)
