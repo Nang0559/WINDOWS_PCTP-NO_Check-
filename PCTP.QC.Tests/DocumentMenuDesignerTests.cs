@@ -101,6 +101,8 @@ public sealed class DocumentMenuDesignerTests
         Assert.True(b >= 0);
         string save = sql.Substring(b);
         Assert.Contains("@ExpectedConfigVersion", save);
+        Assert.Contains("@MenuExists", save);
+        Assert.Contains("IF @MenuExists = 1", save);
         Assert.Contains("UPDLOCK, HOLDLOCK", save);
         Assert.Contains("55131", save);
         Assert.Contains("fn_FVN_DocumentDesigner_HasAction(@ActorUserId, 'EDIT')", save);
