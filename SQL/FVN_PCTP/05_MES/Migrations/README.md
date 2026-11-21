@@ -521,3 +521,8 @@ Run `053_MES_UiDesignerTrustedRegistryOnly.sql` after 051 and, if already applie
 ## Migration 054 — menu configuration concurrency
 
 Run `054_MES_UiDesignerMenuConcurrency.sql` after 053. It replaces the menu-save procedure with optimistic concurrency on `FVN_DocumentDefinition.ConfigVersion`, under `UPDLOCK, HOLDLOCK`. A stale designer receives SQL error 55131, which the C# menu store maps to `DocumentConfigConflictException`; changed menu metadata increments the shared configuration version and writes before/after audit. The migration changes presentation-only menu columns and cannot expand the Trusted Registry. Apply on DB57 after 053, then test with two designer sessions: save from the first, and verify the second must reload before saving.
+
+
+## Migration 055 — shell runtime menu configuration
+
+Run `055_MES_UiMenuRuntimeList.sql` after 054. It adds the read-only `MES.usp_FVN_UiScreenMenu_Runtime` procedure used by the desktop shell. It returns only configured menu placement and visibility for active, non-quarantined definitions. The C# `DocumentMenuProvider` applies a second allow-list check against registered modules and each screen's VIEW permission; SQL cannot create a shell item or supply an event handler. If the procedure is unavailable or the query fails, the shell keeps its standard navigation. After applying 055 on DB57, sign in with users who have and do not have the relevant screen VIEW permission, then verify menu visibility, group and sequence.
