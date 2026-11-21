@@ -517,3 +517,7 @@ Run `051_MES_DocumentDesignerMetadataWrite.sql` after 050. It adds the RBAC func
 ## Migration 053 — PCTP UI Designer / Trusted Registry enforcement
 
 Run `053_MES_UiDesignerTrustedRegistryOnly.sql` after 051 and, if already applied, 052. Migration 052 introduced a SQL-created screen declaration route; that route is retired because SQL metadata must not expand the C# Trusted Registry. Migration 053 quarantines module codes created through that route, removes its create/list-view/list-function procedures and declaration table, and changes menu metadata to reference only the existing seeded `MES.FVN_DocumentDefinition` catalogue. It adds `MES.usp_FVN_UiScreenMenu_List` and `MES.usp_FVN_UiScreenMenu_Save` for presentation-only menu placement. It does not register new screens or authorize arbitrary views/procedures/workflows.
+
+## Migration 054 — menu configuration concurrency
+
+Run `054_MES_UiDesignerMenuConcurrency.sql` after 053. It replaces the menu-save procedure with optimistic concurrency on `FVN_DocumentDefinition.ConfigVersion`, under `UPDLOCK, HOLDLOCK`. A stale designer receives SQL error 55131, which the C# menu store maps to `DocumentConfigConflictException`; changed menu metadata increments the shared configuration version and writes before/after audit. The migration changes presentation-only menu columns and cannot expand the Trusted Registry. Apply on DB57 after 053, then test with two designer sessions: save from the first, and verify the second must reload before saving.
