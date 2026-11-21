@@ -54,7 +54,8 @@ BEGIN
         THROW 55423, 'Thông tin menu không hợp lệ.', 1;
 
     DECLARE @Before nvarchar(max), @After nvarchar(max), @Changed int = 0,
-            @Version int, @NewVersion int, @Now datetime2(3) = SYSUTCDATETIME();
+            @MenuExists bit = 0, @Version int, @NewVersion int,
+            @Now datetime2(3) = SYSUTCDATETIME();
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -66,8 +67,13 @@ BEGIN
         IF @Version <> @ExpectedConfigVersion
             THROW 55131, 'Cấu hình giao diện đã bị người khác thay đổi (ConfigVersion). Hãy tải lại rồi sửa lại.', 1;
 
+        SELECT @MenuExists = 1
+        FROM MES.FVN_DocumentMenu WITH (UPDLOCK, HOLDLOCK)
+        WHERE ModuleCode = @ModuleCode;
+        SET @MenuExists = ISNULL(@MenuExists, 0);
+
         SELECT @Before = (SELECT MenuGroup, MenuText, SequenceNo, IsActive
-                          FROM MES.FVN_DocumentMenu WITH (UPDLOCK, HOLDLOCK)
+                          FROM MES.FVN_DocumentMenu
                           WHERE ModuleCode = @ModuleCode FOR JSON PATH, WITHOUT_ARRAY_WRAPPER);
 
         SET @After = (SELECT @MenuGroup AS MenuGroup, LTRIM(RTRIM(@MenuText)) AS MenuText,
@@ -76,7 +82,7 @@ BEGIN
 
         IF ISNULL(@Before, N'') <> ISNULL(@After, N'')
         BEGIN
-            IF @Before IS NOT NULL
+            IF @MenuExists = 1
                 UPDATE MES.FVN_DocumentMenu
                 SET MenuGroup = @MenuGroup, MenuText = LTRIM(RTRIM(@MenuText)), SequenceNo = @SequenceNo,
                     IsActive = @IsActive, UpdatedAtUtc = @Now, UpdatedBy = @ActorCode
@@ -88,7 +94,7 @@ BEGIN
             SET @Changed = 1;
             INSERT MES.FVN_DocumentConfigAudit(ModuleCode, ConfigObject, ConfigKey, ActionCode, BeforeValue, AfterValue, ActorCode)
             VALUES (@ModuleCode, 'UI_MENU', @ModuleCode,
-                    CASE WHEN @Before IS NULL THEN 'CREATE' ELSE 'UPDATE' END, @Before, @After, @ActorCode);
+                    CASE WHEN @MenuExists = 0 THEN 'CREATE' ELSE 'UPDATE' END, @Before, @After, @ActorCode);
 
             SET @NewVersion = @Version + 1;
             UPDATE MES.FVN_DocumentDefinition
