@@ -27,7 +27,7 @@ namespace PCTP.Framework.Documents
             foreach (var e in store.ListConfigured())
             {
                 DocumentFormDefinition def;
-                if (e == null || !DocumentMenuGroups.IsAllowed(e.MenuGroup)) continue;
+                if (e == null || string.IsNullOrWhiteSpace(e.ModuleCode) || !DocumentMenuGroups.IsAllowed(e.MenuGroup)) continue;
                 if (string.IsNullOrWhiteSpace(e.MenuText)) continue;
                 if (!registry.TryGet(e.ModuleCode, out def)) continue;
                 if (!canView(def.ViewFunctionCode)) continue;
