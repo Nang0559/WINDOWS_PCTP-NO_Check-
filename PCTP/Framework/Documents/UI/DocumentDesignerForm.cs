@@ -612,6 +612,7 @@ namespace PCTP.Framework.Documents.UI
                 LoadMenu();
                 SetStatus(saved == 0 ? "Không có thay đổi menu nào để lưu."
                     : "Đã lưu " + saved + " mục menu. Máy khác nhận menu mới ở lần đăng nhập kế tiếp.", false);
+                if (saved > 0) OpenSelectedIfClean();
             }
             catch (DocumentConfigConflictException ex)
             {
@@ -621,6 +622,13 @@ namespace PCTP.Framework.Documents.UI
                 LoadMenu();
             }
             catch (Exception ex) { ShowError(ex); }
+        }
+
+        // Menu save increments the same ConfigVersion used by the field editor.
+        // Reload the selected screen when its draft is clean; never discard unsaved field edits.
+        private void OpenSelectedIfClean()
+        {
+            if (!_dirty) OpenSelected();
         }
 
         private void SetStatus(string text, bool warning)
