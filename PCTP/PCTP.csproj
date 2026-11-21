@@ -1336,6 +1336,8 @@
     <Compile Include="Framework\Documents\Design\DocumentDesignerService.cs" />
     <Compile Include="Framework\Documents\Design\SqlDocumentMetadataWriter.cs" />
     <Compile Include="Framework\Documents\Design\SessionDocumentDesignerAuthorizer.cs" />
+    <Compile Include="Framework\Documents\Design\DocumentMenuDesigner.cs" />
+    <Compile Include="Framework\Documents\Design\SqlDocumentMenuStore.cs" />
     <Compile Include="Framework\Documents\UI\DocumentDesignerForm.cs">
       <SubType>Form</SubType>
     </Compile>
