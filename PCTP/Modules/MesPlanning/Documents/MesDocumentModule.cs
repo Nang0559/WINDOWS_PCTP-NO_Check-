@@ -41,6 +41,33 @@ namespace PCTP.Modules.MesPlanning.Documents
                 () => Initialize());
         }
 
+        /// <summary>Menu placement designer over the same C# Trusted Registry (presentation only).</summary>
+        public static DocumentMenuDesignerService CreateMenuDesigner()
+        {
+            return new DocumentMenuDesignerService(
+                new DocumentRegistry(Definitions()),
+                new SqlDocumentMenuStore(),
+                new SessionDocumentDesignerAuthorizer());
+        }
+
+        /// <summary>
+        /// Menu entries the shell may apply. SQL supplies placement only; registry and per-screen VIEW permission
+        /// are checked in C#. On failure the shell retains its standard menu.
+        /// </summary>
+        public static IReadOnlyList<DocumentMenuEntry> ResolveShellMenu(Func<string, bool> canView)
+        {
+            try
+            {
+                return DocumentMenuProvider.Resolve(
+                    new DocumentRegistry(Definitions()), new SqlDocumentMenuStore(), canView);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("Document menu configuration skipped: " + ex.GetBaseException().Message);
+                return new DocumentMenuEntry[0];
+            }
+        }
+
         /// <summary>
         /// Builds and validates the runtime. Safe to call at startup after sign-in: it never throws, so a bad
         /// document configuration disables the document screens without stopping the application.
