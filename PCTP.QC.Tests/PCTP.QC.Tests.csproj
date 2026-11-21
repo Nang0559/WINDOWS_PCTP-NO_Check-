@@ -40,6 +40,7 @@
     <Compile Include="../PCTP/Framework/Documents/Design/DocumentMenuDesigner.cs" Link="Framework/Documents/DocumentMenuDesigner.cs" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/050_MES_ComponentDemandDocumentViewsAndMetadata.sql" Link="050_MES_ComponentDemandDocumentViewsAndMetadata.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/051_MES_DocumentDesignerMetadataWrite.sql" Link="051_MES_DocumentDesignerMetadataWrite.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/054_MES_UiDesignerMenuConcurrency.sql" Link="054_MES_UiDesignerMenuConcurrency.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/047_MES_ProductionFlowControlTower.sql" Link="047_MES_ProductionFlowControlTower.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/049_MES_ProductionFlowChangeVersionAndBomVisibility.sql" Link="049_MES_ProductionFlowChangeVersionAndBomVisibility.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/UI/FormMesProductionControlTower.cs" Link="FormMesProductionControlTower.source.cs" CopyToOutputDirectory="PreserveNewest" />
