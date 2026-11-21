@@ -310,7 +310,8 @@ namespace PCTP
             // VIEW is checked by the menu map; EDIT / APPROVE are demanded again by DocumentDesignerService and by SQL.
             OpenFromMenu(() => FormWindowManager.ShowSingle(this,
                 () => new PCTP.Framework.Documents.UI.DocumentDesignerForm(
-                    PCTP.Modules.MesPlanning.Documents.MesDocumentModule.CreateDesigner())),
+                    PCTP.Modules.MesPlanning.Documents.MesDocumentModule.CreateDesigner(),
+                    PCTP.Modules.MesPlanning.Documents.MesDocumentModule.CreateMenuDesigner())),
                 "Thiết kế giao diện");
         }
 
@@ -497,6 +498,77 @@ namespace PCTP
                     runtime, module, site,
                     new PCTP.Modules.MesPlanning.Documents.ComponentDemandIssueInputProvider()));
             }, "Màn hình yêu cầu linh kiện");
+        }
+
+        // SQL menu metadata can only reposition this explicit C# allow-list of existing shell items.
+        // A database row cannot create a new navigation target or supply an event handler.
+        private static readonly Dictionary<string, string> DocumentMenuItemMap =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [PCTP.Modules.MesPlanning.Documents.ComponentDemandDefinition.ModuleCode] = "menuChungTuYeuCauLinhKien"
+            };
+
+        private AccordionControlElement ResolveMenuGroup(string menuGroup)
+        {
+            switch (menuGroup)
+            {
+                case "NHAPKHO": return NHAccordionControlElement;
+                case "KHO": return _menuKho;
+                case "GIAOHANG": return accordionControlElement22;
+                case "BAOCAO": return accordionControlElement28;
+                case "CONGCU": return accordionControlElement20;
+                default: return null;
+            }
+        }
+
+        private static AccordionControlElement FindMenuItem(IEnumerable<AccordionControlElement> elements, string name)
+        {
+            foreach (AccordionControlElement element in elements)
+            {
+                if (string.Equals(element.Name, name, StringComparison.OrdinalIgnoreCase)) return element;
+                var child = FindMenuItem(element.Elements.Cast<AccordionControlElement>(), name);
+                if (child != null) return child;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Applies presentation configuration only to known C# menu items and preserves the prior authorization result.
+        /// </summary>
+        private void ApplyDocumentMenuConfiguration()
+        {
+            var session = UserSession.Current;
+            if (session == null) return;
+            var entries = PCTP.Modules.MesPlanning.Documents.MesDocumentModule.ResolveShellMenu(
+                functionCode => session.HasPermission(functionCode, "VIEW"));
+            var touched = new Dictionary<AccordionControlElement, List<KeyValuePair<AccordionControlElement, int>>>();
+            foreach (var entry in entries)
+            {
+                string itemName;
+                if (!DocumentMenuItemMap.TryGetValue(entry.ModuleCode, out itemName)) continue;
+                var item = FindMenuItem(accordionControl.Elements.Cast<AccordionControlElement>(), itemName);
+                var target = ResolveMenuGroup(entry.MenuGroup);
+                if (item == null || target == null) continue;
+
+                // Never turn a hidden (unauthorized) item visible again.
+                item.Visible = item.Visible && entry.IsActive;
+                if (item.OwnerElement != target)
+                {
+                    if (item.OwnerElement != null) item.OwnerElement.Elements.Remove(item);
+                    target.Elements.Add(item);
+                }
+                List<KeyValuePair<AccordionControlElement, int>> groupItems;
+                if (!touched.TryGetValue(target, out groupItems))
+                    touched[target] = groupItems = new List<KeyValuePair<AccordionControlElement, int>>();
+                groupItems.Add(new KeyValuePair<AccordionControlElement, int>(item, entry.SequenceNo));
+            }
+
+            foreach (var group in touched)
+                foreach (var item in group.Value.OrderBy(x => x.Value))
+                {
+                    group.Key.Elements.Remove(item.Key);
+                    group.Key.Elements.Add(item.Key);
+                }
         }
 
         private static string ResolveDocumentSite(string functionCode)
