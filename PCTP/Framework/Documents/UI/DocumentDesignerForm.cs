@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Repository;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
@@ -41,6 +42,34 @@ namespace PCTP.Framework.Documents.UI
         private readonly XtraTabPage _previewPage = new XtraTabPage { Text = "Xem trước" };
         private readonly XtraTabPage _auditPage = new XtraTabPage { Text = "Nhật ký thay đổi" };
 
+        // Menu placement is independent from field layout and has its own ConfigVersion check.
+        private readonly DocumentMenuDesignerService _menuService;
+        private readonly GridControl _menuGrid = new GridControl();
+        private readonly XtraTabPage _menuPage = new XtraTabPage { Text = "Menu" };
+        private readonly SimpleButton _menuSave = new SimpleButton { Text = "LƯU MENU", Width = 110, Height = 30, Dock = DockStyle.Left };
+        private readonly SimpleButton _menuReload = new SimpleButton { Text = "TẢI LẠI MENU", Width = 130, Height = 30, Dock = DockStyle.Left };
+        private List<MenuRow> _menuRows = new List<MenuRow>();
+        private bool _menuDirty;
+
+        private sealed class MenuRow
+        {
+            public string ModuleCode { get; set; }
+            public string DisplayName { get; set; }
+            public string MenuGroup { get; set; }
+            public string MenuText { get; set; }
+            public int SequenceNo { get; set; }
+            public bool IsActive { get; set; }
+            public int ConfigVersion { get; set; }
+            public string Original { get; set; }
+            public string Snapshot()
+            {
+                string group = MenuGroup ?? string.Empty;
+                string caption = MenuText ?? string.Empty;
+                return group.Length + ":" + group + caption.Length + ":" + caption + SequenceNo + ":" + IsActive;
+            }
+            public bool Changed { get { return Snapshot() != Original; } }
+        }
+
         private DocumentDesignerSession _session;
         private DocumentMetadata _draft;
         private List<DocumentFieldMetadata> _headerRows = new List<DocumentFieldMetadata>();
@@ -48,10 +77,13 @@ namespace PCTP.Framework.Documents.UI
         private bool _dirty;
         private bool _loading;
 
-        public DocumentDesignerForm(DocumentDesignerService service)
+        public DocumentDesignerForm(DocumentDesignerService service) : this(service, null) { }
+
+        public DocumentDesignerForm(DocumentDesignerService service, DocumentMenuDesignerService menuService)
         {
             if (service == null) throw new ArgumentNullException("service");
             _service = service;
+            _menuService = menuService;
             Text = "PCTP UI Designer – Thiết kế giao diện";
             StartPosition = FormStartPosition.CenterParent;
             Size = new Size(1180, 720);
@@ -103,6 +135,8 @@ namespace PCTP.Framework.Documents.UI
             previewBody.Controls.Add(detailPanel);
             _previewPage.Controls.Add(previewBody);
             _tabs.TabPages.Add(_previewPage);
+
+            if (_menuService != null) BuildMenuPage();
 
             _auditGrid.Dock = DockStyle.Fill;
             _auditPage.Controls.Add(_auditGrid);
@@ -197,7 +231,8 @@ namespace PCTP.Framework.Documents.UI
             SetupFieldGrid(_detailGrid, _detailRows);
             SetupCommandGrid(_draft == null ? new List<DocumentCommandMetadata>() : _draft.Commands.OrderBy(c => c.SequenceNo).ToList());
             SetupLayoutGrid(_draft == null ? new List<DocumentLayoutMetadata>() : _draft.Layouts.OrderBy(l => l.SequenceNo).ToList());
-            if (_tabs.SelectedTabPage == _previewPage) RefreshPreview();
+            if (_tabs.SelectedTabPage == _menuPage) LoadMenuIfNeeded();
+            else if (_tabs.SelectedTabPage == _previewPage) RefreshPreview();
         }
 
         private static bool IsRegion(string code, string region)
@@ -381,7 +416,8 @@ namespace PCTP.Framework.Documents.UI
 
         private void OnTabChanged()
         {
-            if (_tabs.SelectedTabPage == _previewPage) RefreshPreview();
+            if (_tabs.SelectedTabPage == _menuPage) LoadMenuIfNeeded();
+            else if (_tabs.SelectedTabPage == _previewPage) RefreshPreview();
             else if (_tabs.SelectedTabPage == _auditPage) LoadAuditIfVisible();
         }
 
@@ -473,7 +509,118 @@ namespace PCTP.Framework.Documents.UI
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             if (!ConfirmDiscard()) e.Cancel = true;
+            else if (_menuDirty && XtraMessageBox.Show(this, "Menu có thay đổi chưa lưu. Bỏ thay đổi?", "PCTP UI Designer",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) e.Cancel = true;
             base.OnFormClosing(e);
+        }
+
+        private void BuildMenuPage()
+        {
+            var view = new GridView(_menuGrid);
+            _menuGrid.MainView = view;
+            _menuGrid.ViewCollection.Add(view);
+            _menuGrid.Dock = DockStyle.Fill;
+            view.OptionsView.ShowGroupPanel = false;
+            view.OptionsView.ColumnAutoWidth = false;
+            view.OptionsBehavior.Editable = true;
+            view.CellValueChanged += (s, e) => { if (!_loading) { _menuDirty = true; UpdateMenuButtons(); } };
+
+            _menuSave.Click += (s, e) => SaveMenu();
+            _menuReload.Click += (s, e) =>
+            {
+                if (_menuDirty && XtraMessageBox.Show(this, "Bỏ thay đổi menu chưa lưu?", "PCTP UI Designer",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+                LoadMenu();
+            };
+            var bar = new Panel { Dock = DockStyle.Top, Height = 44, Padding = new Padding(6) };
+            bar.Controls.Add(_menuReload);
+            bar.Controls.Add(_menuSave);
+            _menuSave.Visible = _service.CanEdit;
+            _menuPage.Controls.Add(_menuGrid);
+            _menuPage.Controls.Add(bar);
+            _tabs.TabPages.Add(_menuPage);
+        }
+
+        private void UpdateMenuButtons()
+        {
+            _menuSave.Enabled = _menuDirty && _service.CanEdit;
+        }
+
+        private void LoadMenuIfNeeded()
+        {
+            if (_menuRows.Count == 0 && !_menuDirty) LoadMenu();
+        }
+
+        private void LoadMenu()
+        {
+            if (_menuService == null) return;
+            try
+            {
+                _loading = true;
+                _menuRows = _menuService.List().Select(e => new MenuRow
+                {
+                    ModuleCode = e.ModuleCode, DisplayName = e.DisplayName, MenuGroup = e.MenuGroup,
+                    MenuText = string.IsNullOrWhiteSpace(e.MenuText) ? e.DisplayName : e.MenuText,
+                    SequenceNo = e.SequenceNo, IsActive = e.IsActive, ConfigVersion = e.ConfigVersion
+                }).ToList();
+                foreach (var row in _menuRows) row.Original = row.Snapshot();
+                _menuGrid.DataSource = null;
+                _menuGrid.DataSource = _menuRows;
+                var view = ViewOf(_menuGrid);
+                view.PopulateColumns();
+                Configure(view, "ModuleCode", "Mã màn hình", 0, false, 190);
+                Configure(view, "DisplayName", "Tên đăng ký", 1, false, 200);
+                Configure(view, "MenuGroup", "Nhóm menu", 2, _service.CanEdit, 130);
+                Configure(view, "MenuText", "Tên hiển thị", 3, _service.CanEdit, 260);
+                Configure(view, "SequenceNo", "Thứ tự", 4, _service.CanEdit, 80);
+                Configure(view, "IsActive", "Hiển thị", 5, _service.CanEdit, 80);
+                foreach (var hidden in new[] { "ConfigVersion", "Original", "Changed" })
+                    if (view.Columns[hidden] != null) view.Columns[hidden].Visible = false;
+                var groups = new RepositoryItemComboBox { TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor };
+                groups.Items.AddRange(DocumentMenuGroups.All.ToArray());
+                _menuGrid.RepositoryItems.Add(groups);
+                if (view.Columns["MenuGroup"] != null) view.Columns["MenuGroup"].ColumnEdit = groups;
+                _menuDirty = false;
+                UpdateMenuButtons();
+                SetStatus("Menu chỉ áp dụng cho màn hình đã đăng ký trong C#. Lưu menu làm tăng ConfigVersion của màn hình đó.", false);
+            }
+            catch (Exception ex) { ShowError(ex); }
+            finally { _loading = false; }
+        }
+
+        private void SaveMenu()
+        {
+            try
+            {
+                var view = ViewOf(_menuGrid);
+                view.CloseEditor();
+                view.UpdateCurrentRow();
+                int saved = 0;
+                foreach (var row in _menuRows.Where(r => r.Changed).ToList())
+                {
+                    var result = _menuService.Save(new DocumentMenuEntry
+                    {
+                        ModuleCode = row.ModuleCode, DisplayName = row.DisplayName, MenuGroup = row.MenuGroup,
+                        MenuText = row.MenuText, SequenceNo = row.SequenceNo, IsActive = row.IsActive,
+                        ConfigVersion = row.ConfigVersion
+                    });
+                    row.ConfigVersion = result.ConfigVersion;
+                    row.Original = row.Snapshot();
+                    saved++;
+                }
+                _menuDirty = false;
+                LoadMenu();
+                SetStatus(saved == 0 ? "Không có thay đổi menu nào để lưu."
+                    : "Đã lưu " + saved + " mục menu. Máy khác nhận menu mới ở lần đăng nhập kế tiếp.", false);
+            }
+            catch (DocumentConfigConflictException ex)
+            {
+                XtraMessageBox.Show(this, ex.Message + Environment.NewLine + "Menu sẽ được tải lại; thay đổi chưa lưu sẽ mất.",
+                    "PCTP UI Designer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _menuDirty = false;
+                LoadMenu();
+            }
+            catch (Exception ex) { ShowError(ex); }
         }
 
         private void SetStatus(string text, bool warning)
