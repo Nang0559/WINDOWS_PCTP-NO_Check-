@@ -10,6 +10,7 @@ using System.Linq;
 
 using PCTP.Modules.KhoCore.UI;
 
+using PCTP.Framework.Documents;
 using PCTP.Modules.MesPlanning.UI;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
@@ -494,6 +495,7 @@ namespace PCTP
                 // Throws with the validation reason when startup validation failed (the screen stays closed, fail-closed).
                 var runtime = PCTP.Modules.MesPlanning.Documents.MesDocumentModule.GetRuntime(module);
                 string site = ResolveDocumentSite("MES.COMPONENT_DEMAND");
+                if (site == null) return; // user cancelled the site chooser
                 FormWindowManager.ShowSingle(this, () => new PCTP.Framework.Documents.UI.DocumentListForm(
                     runtime, module, site,
                     new PCTP.Modules.MesPlanning.Documents.ComponentDemandIssueInputProvider()));
@@ -571,16 +573,71 @@ namespace PCTP
                 }
         }
 
-        private static string ResolveDocumentSite(string functionCode)
+        private readonly Dictionary<string, string> _documentSiteChoice =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Site to open a document for: the only site the user may read, or the one chosen from a short list. Returns null when
+        /// the user cancels the chooser. Reads site from SiteCode, from ScopeValue of SITE scopes, and expands ALL scopes
+        /// to the active sites (see <see cref="DocumentSiteResolver"/>).
+        /// </summary>
+        private string ResolveDocumentSite(string functionCode)
         {
             var session = UserSession.Current ?? throw new UnauthorizedAccessException("Chưa đăng nhập.");
-            var scope = session.DataScopes.FirstOrDefault(x =>
-                x.IsAllowed && !string.IsNullOrWhiteSpace(x.SiteCode) &&
-                (string.IsNullOrWhiteSpace(x.FunctionCode) ||
-                 string.Equals(x.FunctionCode, functionCode, StringComparison.OrdinalIgnoreCase)));
-            if (scope == null)
-                throw new UnauthorizedAccessException("Tài khoản chưa được gán Site cho chức năng " + functionCode + ".");
-            return scope.SiteCode.Trim();
+            var sites = DocumentSiteResolver.Candidates(session, functionCode, LoadActiveSites);
+            if (sites.Count == 0)
+                throw new UnauthorizedAccessException("Tài khoản chưa được gán Site cho chức năng " + functionCode +
+                    ". Cần cấp phạm vi dữ liệu SITE (hoặc ALL) cho chức năng này ở màn hình phân quyền.");
+            if (sites.Count == 1) return sites[0];
+
+            string remembered;
+            if (_documentSiteChoice.TryGetValue(functionCode, out remembered) &&
+                sites.Contains(remembered, StringComparer.OrdinalIgnoreCase))
+                return remembered;
+            string chosen = PickSite(sites, functionCode);
+            if (chosen != null) _documentSiteChoice[functionCode] = chosen;
+            return chosen;
+        }
+
+        private static IEnumerable<string> LoadActiveSites()
+        {
+            string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["FVN_PCTP"]?.ConnectionString;
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new InvalidOperationException("Thiếu connection string FVN_PCTP.");
+            var sites = new List<string>();
+            using (var cn = new System.Data.SqlClient.SqlConnection(connectionString))
+            using (var cmd = new System.Data.SqlClient.SqlCommand(
+                "SELECT SiteCode FROM dbo.FVN_PCTPSite WHERE IsActive = 1 ORDER BY SiteCode", cn))
+            {
+                cn.Open();
+                using (var rd = cmd.ExecuteReader())
+                    while (rd.Read()) sites.Add(rd.GetString(0));
+            }
+            return sites;
+        }
+
+        private string PickSite(IReadOnlyList<string> sites, string functionCode)
+        {
+            using (var dialog = new XtraForm())
+            {
+                dialog.Text = "Chọn Site";
+                dialog.StartPosition = FormStartPosition.CenterParent;
+                dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dialog.MaximizeBox = false;
+                dialog.MinimizeBox = false;
+                dialog.ClientSize = new System.Drawing.Size(360, 130);
+                var label = new LabelControl { Text = "Chọn Site cho " + functionCode + ":", Left = 14, Top = 14, AutoSizeMode = LabelAutoSizeMode.Default };
+                var combo = new ComboBoxEdit { Left = 14, Top = 40, Width = 330 };
+                combo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+                foreach (var site in sites) combo.Properties.Items.Add(site);
+                combo.SelectedIndex = 0;
+                var ok = new SimpleButton { Text = "MỞ", Left = 154, Top = 84, Width = 90, Height = 30, DialogResult = DialogResult.OK };
+                var cancel = new SimpleButton { Text = "HỦY", Left = 254, Top = 84, Width = 90, Height = 30, DialogResult = DialogResult.Cancel };
+                dialog.Controls.AddRange(new Control[] { label, combo, ok, cancel });
+                dialog.AcceptButton = ok;
+                dialog.CancelButton = cancel;
+                return dialog.ShowDialog(this) == DialogResult.OK ? combo.SelectedItem as string : null;
+            }
         }
 
         private void OpenHangChoGiao(object sender, EventArgs e)

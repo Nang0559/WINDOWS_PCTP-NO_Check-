@@ -37,6 +37,7 @@
     <Compile Include="../PCTP/Modules/MesPlanning/Documents/ComponentDemandDefinition.cs" Link="Framework/Documents/ComponentDemandDefinition.cs" />
     <Compile Include="../PCTP/Framework/Documents/Design/DocumentDesignerContracts.cs" Link="Framework/Documents/DocumentDesignerContracts.cs" />
     <Compile Include="../PCTP/Framework/Documents/Design/DocumentDesignerService.cs" Link="Framework/Documents/DocumentDesignerService.cs" />
+    <Compile Include="../PCTP/Framework/Documents/Runtime/DocumentSiteResolver.cs" Link="Framework/Documents/DocumentSiteResolver.cs" />
     <Compile Include="../PCTP/Framework/Documents/Design/DocumentMenuDesigner.cs" Link="Framework/Documents/DocumentMenuDesigner.cs" />
     <Compile Include="../PCTP/Framework/Documents/Design/DocumentMenuProvider.cs" Link="Framework/Documents/DocumentMenuProvider.cs" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/050_MES_ComponentDemandDocumentViewsAndMetadata.sql" Link="050_MES_ComponentDemandDocumentViewsAndMetadata.sql" CopyToOutputDirectory="PreserveNewest" />

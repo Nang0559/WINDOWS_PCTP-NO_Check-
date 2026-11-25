@@ -1318,6 +1318,7 @@
     <Compile Include="Framework\Documents\Runtime\DocumentSqlBuilder.cs" />
     <Compile Include="Framework\Documents\Runtime\DocumentWorkflowGate.cs" />
     <Compile Include="Framework\Documents\Runtime\DocumentStartupReport.cs" />
+    <Compile Include="Framework\Documents\Runtime\DocumentSiteResolver.cs" />
     <Compile Include="Framework\Documents\Runtime\SqlDocumentSchemaProbe.cs" />
     <Compile Include="Framework\Documents\Runtime\SqlDocumentStatusReader.cs" />
     <Compile Include="Framework\Documents\Runtime\WorkflowTransitionPolicyAdapter.cs" />
