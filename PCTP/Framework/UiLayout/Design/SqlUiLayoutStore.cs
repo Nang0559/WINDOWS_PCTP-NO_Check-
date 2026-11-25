@@ -55,7 +55,7 @@ namespace PCTP.Framework.UiLayout
                 p.Add("@ActorUserId", SqlDbType.BigInt).Value = actorUserId;
                 p.Add("@SourceCode", SqlDbType.VarChar, 60).Value = sourceCode;
             });
-            return ToColumns(table.Rows.Cast<DataRow>());
+            return ToColumns(table.Rows.Cast<DataRow>()).ToList();
         }
 
         public IList<string> ListCandidateViews(long actorUserId)

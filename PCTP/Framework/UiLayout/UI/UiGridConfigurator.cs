@@ -33,8 +33,8 @@ namespace PCTP.Framework.UiLayout
                 if (item.IsVisible) column.VisibleIndex = index++;
                 if (item.Width.HasValue) column.Width = item.Width.Value;
                 var align = ToAlignment(item.Align);
-                column.AppearanceCell.TextOptions.HorizontalAlignment = align;
-                column.AppearanceHeader.TextOptions.HorizontalAlignment = align;
+                column.AppearanceCell.TextOptions.HAlignment = align;
+                column.AppearanceHeader.TextOptions.HAlignment = align;
                 if (!string.IsNullOrEmpty(item.DisplayFormat))
                 {
                     column.DisplayFormat.FormatType = item.DisplayFormat.StartsWith("N", StringComparison.Ordinal)
