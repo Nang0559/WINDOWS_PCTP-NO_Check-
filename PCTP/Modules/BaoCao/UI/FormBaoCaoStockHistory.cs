@@ -1,4 +1,4 @@
-using DevExpress.XtraEditors;
+﻿using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.BaoCao.Application.Contracts;
@@ -455,7 +455,7 @@ namespace PCTP.Modules.BaoCao.UI
         /// thì thêm các dòng "DOI_SOAT_GIAO_HANG" (hướng "Khác", KHÔNG cộng vào SL nhập/xuất) vào lưới để thấy từng lần giao
         /// (vd 93 pcs) mà lịch sử kho còn thiếu dòng xuất. Không nằm trong luồng tra cứu vì truy vấn phiếu giao chậm.
         /// </summary>
-        private async Task ReconcileGridWithDeliveriesAsync(string lot, string part, IReadOnlyList<DeliveryTraceRow> hits)
+        private void ReconcileGridWithDeliveries(string lot, string part, IReadOnlyList<DeliveryTraceRow> hits)
         {
             try
             {
@@ -512,6 +512,12 @@ namespace PCTP.Modules.BaoCao.UI
             }
             catch (OperationCanceledException) { }
             catch (Exception) { /* đối soát chỉ là thông tin bổ sung */ }
+        }
+
+        private Task ReconcileGridWithDeliveriesAsync(string lot, string part, IReadOnlyList<DeliveryTraceRow> hits)
+        {
+            ReconcileGridWithDeliveries(lot, part, hits);   // toàn bộ xử lý đồng bộ trên UI thread, như trước
+            return Task.CompletedTask;
         }
 
         private async Task LoadCurrentStockAsync()

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -311,15 +311,15 @@ namespace PCTP.Framework.Documents.UI
             if (_session == null || _draft == null) return;
             var page = _tabs.SelectedTabPage;
             if (page == null) return;
-            if (page.Controls.Contains(_headerGrid)) Move(_headerGrid, _headerRows, delta, f => f.SequenceNo, (f, v) => f.SequenceNo = v);
-            else if (page.Controls.Contains(_detailGrid)) Move(_detailGrid, _detailRows, delta, f => f.SequenceNo, (f, v) => f.SequenceNo = v);
+            if (page.Controls.Contains(_headerGrid)) MoveRow(_headerGrid, _headerRows, delta, f => f.SequenceNo, (f, v) => f.SequenceNo = v);
+            else if (page.Controls.Contains(_detailGrid)) MoveRow(_detailGrid, _detailRows, delta, f => f.SequenceNo, (f, v) => f.SequenceNo = v);
             else if (page.Controls.Contains(_commandGrid))
-                Move(_commandGrid, (List<DocumentCommandMetadata>)_commandGrid.DataSource, delta, c => c.SequenceNo, (c, v) => c.SequenceNo = v);
+                MoveRow(_commandGrid, (List<DocumentCommandMetadata>)_commandGrid.DataSource, delta, c => c.SequenceNo, (c, v) => c.SequenceNo = v);
             else if (page.Controls.Contains(_layoutGrid))
-                Move(_layoutGrid, (List<DocumentLayoutMetadata>)_layoutGrid.DataSource, delta, l => l.SequenceNo, (l, v) => l.SequenceNo = v);
+                MoveRow(_layoutGrid, (List<DocumentLayoutMetadata>)_layoutGrid.DataSource, delta, l => l.SequenceNo, (l, v) => l.SequenceNo = v);
         }
 
-        private void Move<T>(GridControl grid, List<T> rows, int delta, Func<T, int> getSequence, Action<T, int> setSequence) where T : class
+        private void MoveRow<T>(GridControl grid, List<T> rows, int delta, Func<T, int> getSequence, Action<T, int> setSequence) where T : class
         {
             var view = ViewOf(grid);
             var focused = view.GetFocusedRow() as T;
