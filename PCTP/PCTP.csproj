@@ -301,6 +301,21 @@
     <Compile Include="ALLVAR.cs" />
     <Compile Include="Domain\Events\FifoReleaseConfirmationRequestedEvent.cs" />
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
+    <Compile Include="Framework\UiLayout\Contracts\UiLayoutModels.cs" />
+    <Compile Include="Framework\UiLayout\Contracts\UiLayoutValidator.cs" />
+    <Compile Include="Framework\UiLayout\Design\SqlUiLayoutStore.cs" />
+    <Compile Include="Framework\UiLayout\Design\UiLayoutServices.cs" />
+    <Compile Include="Framework\UiLayout\Runtime\UiQueryBuilder.cs" />
+    <Compile Include="Framework\UiLayout\UI\UiDataSourceForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Framework\UiLayout\UI\UiGridConfigurator.cs" />
+    <Compile Include="Framework\UiLayout\UI\UiLayoutDesignerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Framework\UiLayout\UI\UiScreenRuntimeForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Infrastructure\Stock\LegacyStockSlotRepositoryAdapter.cs" />
     <Compile Include="Infrastructure\Stock\MesStockBalanceRepository.cs" />
     <Compile Include="Infrastructure\Stock\StockReceivingRepository.cs" />
