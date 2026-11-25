@@ -49,10 +49,7 @@ namespace PCTP.Framework.UiLayout
             _runtime = runtime;
             _screenCode = screenCode;
             _siteCode = siteCode.Trim();
-            _designerFactory = designerFactory ?? new Func<UiLayoutDesignerService>(() =>
-            {
-                throw new InvalidOperationException("Chưa cấu hình designerFactory cho UiScreenRuntimeForm.");
-            });
+            _designerFactory = designerFactory ?? new Func<UiLayoutDesignerService>(UiLayoutModule.CreateDesigner);
             _view = new GridView(_grid);
             Text = "Màn hình " + screenCode;
             StartPosition = FormStartPosition.CenterParent;

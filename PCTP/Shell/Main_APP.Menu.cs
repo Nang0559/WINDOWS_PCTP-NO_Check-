@@ -75,6 +75,8 @@ namespace PCTP
             _menuKho.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
             _menuKho.Elements.Add(CreateMenuItem("menuYeuCauXuatLinhKien", "Yêu cầu / Xuất linh kiện PART → WIP", OpenYeuCauXuatLinhKien));
             _menuKho.Elements.Add(CreateMenuItem("menuChungTuYeuCauLinhKien", "Màn hình yêu cầu linh kiện", OpenChungTuYeuCauLinhKien));
+            // Màn hình dựng từ layout đã duyệt (Bravo style); chuột phải để khai báo dữ liệu / layout.
+            _menuKho.Elements.Add(CreateMenuItem("menuPhieuDatHangLinhKienUi", "Phiếu đặt hàng linh kiện", OpenPhieuDatHangLinhKienUi));
             _menuKho.Elements.Add(_menuKhoTonTP);
 
             _menuKho.Elements.Add(CreateMenuItem(
@@ -101,6 +103,10 @@ namespace PCTP
                 "menuDocumentDesigner",
                 "Thiết kế giao diện (PCTP UI Designer)",
                 OpenDocumentDesigner));
+            accordionControlElement20.Elements.Add(CreateMenuItem(
+                "menuUiDataSourceDesigner",
+                "Khai báo cơ sở dữ liệu UI",
+                OpenUiDataSourceDesigner));
             accordionControlElement20.Elements.Add(CreateMenuItem(
                 "menuChangePassword",
                 "Đổi mật khẩu đăng nhập",
@@ -170,6 +176,8 @@ namespace PCTP
                 ["menuYeuCauXuatLinhKien"] = "MES.COMPONENT_DEMAND",
                 ["menuChungTuYeuCauLinhKien"] = "MES.COMPONENT_DEMAND",
                 ["menuDocumentDesigner"] = "ADMIN.DOCUMENT_DESIGNER",
+                ["menuUiDataSourceDesigner"] = "ADMIN.DOCUMENT_DESIGNER",
+                ["menuPhieuDatHangLinhKienUi"] = PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode,
                 ["menuDieuChinhTonKhoLot"] = "WAREHOUSE.STOCK_ADJUST",
                 ["menuHangChoGiao"] = "SHIPPING.DISPATCH",
                 ["menuIfsMasterDataSync"] = "MASTERDATA.IFS_SYNC",
@@ -316,6 +324,31 @@ namespace PCTP
                 "Thiết kế giao diện");
         }
 
+        /// <summary>Phiếu đặt hàng linh kiện vẽ từ layout đã duyệt. VIEW + SITE được kiểm lại trong UiScreenRuntime và SQL.</summary>
+        private void OpenPhieuDatHangLinhKienUi(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                string site = ResolveDocumentSite(PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode);
+                if (site == null) return; // user cancelled the site chooser
+                string screen = PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoScreenCode;
+                FormWindowManager.ShowSingle(this,
+                    () => PCTP.Framework.UiLayout.UiLayoutModule.CreateScreenForm(screen, site),
+                    "UiScreen:" + screen);
+            }, "Phiếu đặt hàng linh kiện");
+        }
+
+        /// <summary>Khai báo cơ sở dữ liệu (view đã duyệt, tạo màn hình). APPROVE được SQL kiểm lại ở từng thao tác.</summary>
+        private void OpenUiDataSourceDesigner(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                using (var form = new PCTP.Framework.UiLayout.UiDataSourceForm(
+                    PCTP.Framework.UiLayout.UiLayoutModule.CreateDesigner()))
+                    form.ShowDialog(this);
+            }, "Khai báo cơ sở dữ liệu UI");
+        }
+
         private void OpenChangePassword(object sender, EventArgs e)
         {
             using (var dialog = new ChangePasswordDialog(false))
@@ -375,6 +408,7 @@ namespace PCTP
             if (title.IndexOf("Điều hành sản xuất", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PRODUCTION_EXECUTION";
             if (title.IndexOf("Upload kế hoạch", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PLAN_UPLOAD";
             if (title.IndexOf("Nhận linh kiện", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.RECEIPT";
+            if (title.IndexOf("Phiếu đặt hàng", StringComparison.OrdinalIgnoreCase) >= 0) return PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode;
             if (title.IndexOf("linh kiện", StringComparison.OrdinalIgnoreCase) >= 0 && title.IndexOf("Truy xuất", StringComparison.OrdinalIgnoreCase) < 0) return "MES.COMPONENT_ISSUE";
             if (title.IndexOf("Tách LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "LOT.SPLIT";
             if (title.IndexOf("Ghép LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "LOT.MERGE";
