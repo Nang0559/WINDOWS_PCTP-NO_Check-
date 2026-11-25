@@ -40,6 +40,7 @@
     <Compile Include="../PCTP/Framework/Documents/Runtime/DocumentSiteResolver.cs" Link="Framework/Documents/DocumentSiteResolver.cs" />
     <Compile Include="../PCTP/Framework/Documents/Design/DocumentMenuDesigner.cs" Link="Framework/Documents/DocumentMenuDesigner.cs" />
     <Compile Include="../PCTP/Framework/Documents/Design/DocumentMenuProvider.cs" Link="Framework/Documents/DocumentMenuProvider.cs" />
+    <Compile Include="../PCTP/Framework/UiLayout/Design/UiScreenCatalog.cs" Link="Framework/UiLayout/UiScreenCatalog.cs" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/050_MES_ComponentDemandDocumentViewsAndMetadata.sql" Link="050_MES_ComponentDemandDocumentViewsAndMetadata.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/051_MES_DocumentDesignerMetadataWrite.sql" Link="051_MES_DocumentDesignerMetadataWrite.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/054_MES_UiDesignerMenuConcurrency.sql" Link="054_MES_UiDesignerMenuConcurrency.sql" CopyToOutputDirectory="PreserveNewest" />

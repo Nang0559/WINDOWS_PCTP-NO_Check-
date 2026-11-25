@@ -301,6 +301,7 @@
     <Compile Include="Framework\UiLayout\Contracts\UiLayoutValidator.cs" />
     <Compile Include="Framework\UiLayout\Design\SqlUiLayoutStore.cs" />
     <Compile Include="Framework\UiLayout\Design\UiLayoutServices.cs" />
+    <Compile Include="Framework\UiLayout\Design\UiScreenCatalog.cs" />
     <Compile Include="Framework\UiLayout\Runtime\UiQueryBuilder.cs" />
     <Compile Include="Framework\UiLayout\UiLayoutModule.cs" />
     <Compile Include="Framework\UiLayout\UI\UiDataSourceForm.cs">

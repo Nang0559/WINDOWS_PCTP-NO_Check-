@@ -22,6 +22,12 @@ namespace PCTP.Framework.UiLayout
             return new UiLayoutDesignerService(new SqlUiLayoutStore(), new SessionDocumentDesignerAuthorizer());
         }
 
+        /// <summary>Approved screens the signed-in user may open (drives the dynamic shell menu and "open by code").</summary>
+        public static UiScreenCatalog CreateCatalog()
+        {
+            return new UiScreenCatalog(new SqlUiLayoutStore(), () => new SessionDocumentDesignerAuthorizer().ActorUserId);
+        }
+
         /// <summary>Read-only runtime that draws a screen from its approved layout.</summary>
         public static UiScreenRuntime CreateRuntime()
         {

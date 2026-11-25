@@ -74,6 +74,7 @@ namespace PCTP
             AddMesBomNavigation();
             ApplyAuthorizationToNavigation();
             ApplyDocumentMenuConfiguration();
+            RefreshUiScreenMenu();
             accordionControlElement24.Text = "Quản lý máy đọc QR";
             ApplyFluentMenuIcons();
         }

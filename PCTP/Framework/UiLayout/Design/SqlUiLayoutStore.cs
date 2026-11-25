@@ -22,7 +22,7 @@ namespace PCTP.Framework.UiLayout
     }
 
     /// <summary>Calls migration 056 procedures. Not a security boundary: every procedure re-checks RBAC and re-validates names.</summary>
-    public sealed class SqlUiLayoutStore : IUiLayoutStore
+    public sealed class SqlUiLayoutStore : IUiLayoutStore, IUiScreenCatalogStore
     {
         private const int ConfigVersionConflict = 56131;
         private readonly string _connectionString;
@@ -45,6 +45,19 @@ namespace PCTP.Framework.UiLayout
                 ViewFunctionCode = (string)r["ViewFunctionCode"],
                 SiteColumn = (string)r["SiteColumn"],
                 IsActive = (bool)r["IsActive"]
+            }).ToList();
+        }
+
+        /// <summary>Migration 057. Menu driver only; opening a screen is re-checked by usp_FVN_UiScreen_Load.</summary>
+        public IList<UiScreenInfo> ListScreens(long actorUserId)
+        {
+            var table = Fill("MES.usp_FVN_UiScreen_List", p => p.Add("@ActorUserId", SqlDbType.BigInt).Value = actorUserId);
+            return table.Rows.Cast<DataRow>().Select(r => new UiScreenInfo
+            {
+                ScreenCode = (string)r["ScreenCode"],
+                Title = (string)r["Title"],
+                SourceCode = (string)r["SourceCode"],
+                ViewFunctionCode = (string)r["ViewFunctionCode"]
             }).ToList();
         }
 

@@ -35,6 +35,7 @@ namespace PCTP
         private AccordionControlElement _menuBcLichSuQC;
         private AccordionControlElement _menuXuLyLot;
         private AccordionControlElement _menuDieuChuyenNoiBo;
+        private AccordionControlElement _menuUiScreens;
 
         private void BuildStandardMenus()
         {
@@ -346,7 +347,69 @@ namespace PCTP
                 using (var form = new PCTP.Framework.UiLayout.UiDataSourceForm(
                     PCTP.Framework.UiLayout.UiLayoutModule.CreateDesigner()))
                     form.ShowDialog(this);
+                RefreshUiScreenMenu();   // a screen created in the dialog appears without restarting the app
             }, "Khai báo cơ sở dữ liệu UI");
+        }
+
+        /// <summary>
+        /// Rebuilds the "Màn hình UI" group from the approved-screen catalogue (migration 057). Every item calls the same
+        /// C# handler with a validated code, so a SQL row cannot supply code or a navigation target. If the catalogue
+        /// cannot be read (e.g. migration 057 not applied) the standard menu is left untouched.
+        /// </summary>
+        private void RefreshUiScreenMenu()
+        {
+            try
+            {
+                if (UserSession.Current == null) return;
+                var screens = PCTP.Framework.UiLayout.UiLayoutModule.CreateCatalog().List()
+                    .Where(x => !string.Equals(x.ScreenCode,
+                        PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoScreenCode, StringComparison.Ordinal))   // has its own menu item
+                    .ToList();
+                if (_menuUiScreens == null)
+                    _menuUiScreens = new AccordionControlElement(ElementStyle.Group)
+                    {
+                        Name = "menuUiScreens",
+                        Text = "Màn hình UI",
+                        Expanded = true
+                    };
+                _menuUiScreens.Elements.Clear();
+                foreach (var screen in screens)
+                {
+                    string code = screen.ScreenCode;
+                    _menuUiScreens.Elements.Add(CreateMenuItem("menuUiScreen_" + code, screen.Title,
+                        (s, e) => OpenUiScreenByCode(code)));
+                }
+                bool attached = _menuUiScreens.OwnerElement == mainAccordionGroup;
+                if (screens.Count > 0 && !attached) mainAccordionGroup.Elements.Add(_menuUiScreens);
+                else if (screens.Count == 0 && attached) mainAccordionGroup.Elements.Remove(_menuUiScreens);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("UI screen menu skipped: " + ex.GetBaseException().Message);
+            }
+        }
+
+        /// <summary>
+        /// Generic "open UI screen by code". The code must be in the catalogue SQL lists for this user; Site scope for the
+        /// screen's own function code is chosen/checked like every other screen, and SQL re-checks VIEW on load.
+        /// Deliberately does not go through OpenFromMenu: its title-to-permission guess must never see a screen title.
+        /// </summary>
+        private void OpenUiScreenByCode(string screenCode)
+        {
+            try
+            {
+                var info = PCTP.Framework.UiLayout.UiLayoutModule.CreateCatalog().Find(screenCode);
+                string site = ResolveDocumentSite(info.ViewFunctionCode);
+                if (site == null) return; // user cancelled the site chooser
+                FormWindowManager.ShowSingle(this,
+                    () => PCTP.Framework.UiLayout.UiLayoutModule.CreateScreenForm(info.ScreenCode, site),
+                    "UiScreen:" + info.ScreenCode);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(this, "Không thể mở màn hình.\r\n\r\n" + ex.Message,
+                    "Màn hình UI", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void OpenChangePassword(object sender, EventArgs e)
