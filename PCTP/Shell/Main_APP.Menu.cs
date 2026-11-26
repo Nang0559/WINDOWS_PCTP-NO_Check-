@@ -387,6 +387,8 @@ namespace PCTP
                 PCTP.Modules.KhoLinhKien.ComponentPoUploadAction.Create()
             };
             actions.AddRange(PCTP.Modules.KhoLinhKien.ComponentPoWorkflowActions.CreateSteps());
+            actions.AddRange(PCTP.Modules.KhoLinhKien.ComponentPoLabelActions.Create());
+            actions.Add(PCTP.Modules.KhoLinhKien.ComponentPackSpecAction.Create());
             return actions;
         }
 

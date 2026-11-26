@@ -492,6 +492,11 @@
     <Compile Include="Modules\KhoLinhKien\ComponentPoBravoMapper.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoBravoExcelReader.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoWorkflowActions.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentPackSpec.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentPoLabelPrint.cs" />
+    <Compile Include="Modules\KhoLinhKien\UI\FormComponentPackSpec.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\KhoLinhKien\ComponentStockFilter.cs" />
     <Compile Include="Modules\KhoLinhKien\UI\FormKhoLinhKien.cs">
       <SubType>Form</SubType>
