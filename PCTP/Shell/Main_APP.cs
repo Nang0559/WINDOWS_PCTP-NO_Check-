@@ -279,49 +279,29 @@ namespace PCTP
         }
 
 
+        /// <summary>
+        /// Adds the two MES entries that need their own permission check (Control Tower, Product Structure) to the
+        /// "Sản xuất MES" group built in <see cref="BuildStandardMenus"/>. Kho linh kiện PART, upload kế hoạch, điều hành and
+        /// truy xuất LOT already have their menu items there/in Báo cáo; the former "MES - Linh kiện &amp; Sản xuất" and
+        /// "Kỹ thuật / BOM" root groups only duplicated them and are gone.
+        /// </summary>
         private void AddMesBomNavigation()
         {
-            var bomGroup = new AccordionControlElement
-            {
-                Name = "menuMesBomGroup",
-                Text = "Kỹ thuật / BOM",
-                Style = ElementStyle.Group,
-                Expanded = true
-            };
+            if (_menuSanXuat == null) return;
+
+            // Read-only Control Tower is the cross-department entry point; individual task forms remain action-scoped.
+            AddMesMenuItem(_menuSanXuat, "menuMesProductionFlow", "MES Control Tower - Dòng chảy sản xuất",
+                "MES.PRODUCTION_FLOW", () => new FormMesProductionControlTower());
+
             var bomItem = new AccordionControlElement
             {
                 Name = "menuMesBomGraphic",
-                Text = "Product Structure Graphic",
+                Text = "Cấu trúc sản phẩm (BOM)",
                 Style = ElementStyle.Item
             };
             bomItem.Click += (s, e) =>
                 FormWindowManager.ShowSingle(this, () => new FormProductStructureGraphic());
-            bomGroup.Elements.Add(bomItem);
-            accordionControl.Elements.Add(bomGroup);
-
-            // MES nghiệp vụ: các form chỉ là presentation; service/repository và SQL\n            // tiếp tục chịu trách nhiệm phân quyền, phạm vi Site và trạng thái chứng từ.
-            var mesGroup = new AccordionControlElement
-            {
-                Name = "menuMesExecutionGroup",
-                Text = "MES - Linh kiện & Sản xuất",
-                Style = ElementStyle.Group,
-                Expanded = true
-            };
-            // Read-only Control Tower is the cross-department entry point; individual task forms remain action-scoped.
-            AddMesMenuItem(mesGroup, "menuMesProductionFlow", "MES Control Tower - Dòng chảy sản xuất",
-                "MES.PRODUCTION_FLOW", () => new FormMesProductionControlTower());
-            AddMesMenuItem(mesGroup, "menuMesPartWarehouse", "Kho linh kiện PART (PO / QR / Tồn / Cấp WIP)",
-                "WAREHOUSE.COMPONENT_STOCK", () => new FormKhoLinhKien());
-            AddMesMenuItem(mesGroup, "menuMesPlanUpload", "Upload kế hoạch sản xuất",
-                "MES.PLAN_UPLOAD", () => new FormUploadKeHoachSanXuat());
-            AddMesMenuItem(mesGroup, "menuMesProductionExecution", "Điều hành lệnh / LOT / công đoạn",
-                "MES.PRODUCTION_EXECUTION", () => new FormDieuHanhSanXuat());
-            AddMesMenuItem(mesGroup, "menuMesComponentTrace", "Truy xuất LOT / Genealogy",
-                "REPORT.COMPONENT_TRACEABILITY", () => new FormTruyXuatLinhKien());
-
-            mesGroup.Visible = mesGroup.Elements.Cast<AccordionControlElement>().Any(x => x.Visible);
-            if (mesGroup.Elements.Count > 0)
-                accordionControl.Elements.Add(mesGroup);
+            _menuSanXuat.Elements.Add(bomItem);   // visibility: MenuFunctionMap → MES.BOM_VIEW
         }
 
         private void AddMesMenuItem(AccordionControlElement group, string name, string caption,

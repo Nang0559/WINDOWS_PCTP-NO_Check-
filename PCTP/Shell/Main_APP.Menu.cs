@@ -36,6 +36,9 @@ namespace PCTP
         private AccordionControlElement _menuXuLyLot;
         private AccordionControlElement _menuDieuChuyenNoiBo;
         private AccordionControlElement _menuUiScreens;
+        private AccordionControlElement _menuLinhKien;
+        private AccordionControlElement _menuSanXuat;
+        private AccordionControlElement _menuQuanTri;
 
         private void BuildStandardMenus()
         {
@@ -69,42 +72,65 @@ namespace PCTP
             accordionControlElement36.Visible = false;
             _menuKho.Elements.Add(cmdRackControl);
 
+            // Kho chỉ giữ hàng tồn vật lý: bản đồ kho, tồn thành phẩm, điều chỉnh tồn LOT.
             _menuKhoTonTP = CreateMenuItem("menuKhoTonTP", "Tồn kho thành phẩm", OpenTonKhoThanhPham);
-            _menuKho.Elements.Add(CreateMenuItem("menuKhoLinhKien", "Kho linh kiện PART", OpenKhoLinhKien));
-            _menuKho.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Kiểm kê hàng về (QR)", OpenNhanLinhKien));
-            _menuKho.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
-            _menuKho.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
-            _menuKho.Elements.Add(CreateMenuItem("menuYeuCauXuatLinhKien", "Yêu cầu / Xuất linh kiện PART → WIP", OpenYeuCauXuatLinhKien));
-            _menuKho.Elements.Add(CreateMenuItem("menuChungTuYeuCauLinhKien", "Màn hình yêu cầu linh kiện", OpenChungTuYeuCauLinhKien));
-            // Màn hình dựng từ layout đã duyệt (Bravo style); chuột phải để khai báo dữ liệu / layout.
-            _menuKho.Elements.Add(CreateMenuItem("menuPhieuDatHangLinhKienUi", "Phiếu đặt hàng linh kiện", OpenPhieuDatHangLinhKienUi));
             _menuKho.Elements.Add(_menuKhoTonTP);
-
             _menuKho.Elements.Add(CreateMenuItem(
                 "menuDieuChinhTonKhoLot",
                 "Điều chỉnh tồn kho LOT",
                 OpenDieuChinhTonKhoLot));
 
-            // Danh sách hàng đã pick chờ giao (+ huỷ để hàng quay về kho khi giao lỗi / huỷ giao).
-            _menuKho.Elements.Add(CreateMenuItem(
+            // ── 2b. Linh kiện PART: đi theo luồng Đặt hàng → Nhận hàng → Kho → Yêu cầu → Xuất ──
+            _menuLinhKien = new AccordionControlElement(ElementStyle.Group)
+            {
+                Name = "menuLinhKien",
+                Text = "Linh kiện PART",
+                Expanded = true
+            };
+            // Màn hình dựng từ layout đã duyệt (Bravo style); có nút Upload Excel PO. Chuột phải để khai báo dữ liệu / layout.
+            _menuLinhKien.Elements.Add(CreateMenuItem("menuPhieuDatHangLinhKienUi", "Đặt hàng linh kiện (Upload PO)", OpenPhieuDatHangLinhKienUi));
+            _menuLinhKien.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Kiểm kê hàng về (QR)", OpenNhanLinhKien));
+            _menuLinhKien.Elements.Add(CreateMenuItem("menuKhoLinhKien", "Kho linh kiện PART (PO / QR / Tồn / Cấp WIP)", OpenKhoLinhKien));
+            _menuLinhKien.Elements.Add(CreateMenuItem("menuChungTuYeuCauLinhKien", "Chứng từ yêu cầu linh kiện", OpenChungTuYeuCauLinhKien));
+            _menuLinhKien.Elements.Add(CreateMenuItem("menuYeuCauXuatLinhKien", "Yêu cầu / Xuất linh kiện PART → WIP", OpenYeuCauXuatLinhKien));
+
+            // ── 2c. Sản xuất MES: kế hoạch → điều hành → theo dõi → cấu trúc sản phẩm ──
+            _menuSanXuat = new AccordionControlElement(ElementStyle.Group)
+            {
+                Name = "menuSanXuat",
+                Text = "Sản xuất MES",
+                Expanded = true
+            };
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
+            // Control Tower và BOM được thêm ở AddMesBomNavigation (cần kiểm quyền riêng từng mục).
+
+            // Hàng đã pick chờ giao (+ huỷ để hàng quay về kho khi giao lỗi / huỷ giao) thuộc luồng Giao Hàng.
+            accordionControlElement22.Elements.Add(CreateMenuItem(
                 "menuHangChoGiao",
                 "Hàng chờ giao",
                 OpenHangChoGiao));
 
-            // Đồng bộ dữ liệu IFS là công cụ quản trị, đặt trong nhóm Công Cụ.
-            accordionControlElement20.Elements.Add(CreateMenuItem(
-                "menuIfsMasterDataSync",
-                "Đồng bộ dữ liệu IFS → FVN_PCTP",
-                OpenIfsMasterDataSync));
-            accordionControlElement20.Elements.Add(CreateMenuItem(
+            // ── 2d. Công cụ người dùng + Quản trị hệ thống tách riêng ─────
+            _menuQuanTri = new AccordionControlElement(ElementStyle.Group)
+            {
+                Name = "menuQuanTri",
+                Text = "Quản trị hệ thống",
+                Expanded = true
+            };
+            _menuQuanTri.Elements.Add(CreateMenuItem(
                 "menuSecurityAdmin",
                 "Quản trị tài khoản & phân quyền",
                 OpenSecurityAdministration));
-            accordionControlElement20.Elements.Add(CreateMenuItem(
+            _menuQuanTri.Elements.Add(CreateMenuItem(
+                "menuIfsMasterDataSync",
+                "Đồng bộ dữ liệu IFS → FVN_PCTP",
+                OpenIfsMasterDataSync));
+            _menuQuanTri.Elements.Add(CreateMenuItem(
                 "menuDocumentDesigner",
                 "Thiết kế giao diện (PCTP UI Designer)",
                 OpenDocumentDesigner));
-            accordionControlElement20.Elements.Add(CreateMenuItem(
+            _menuQuanTri.Elements.Add(CreateMenuItem(
                 "menuUiDataSourceDesigner",
                 "Khai báo cơ sở dữ liệu UI",
                 OpenUiDataSourceDesigner));
@@ -157,12 +183,19 @@ namespace PCTP
             mainAccordionGroup.Elements.Add(NHAccordionControlElement);   // Nhập Kho
             mainAccordionGroup.Elements.Add(_menuKho);                    // Kho
             mainAccordionGroup.Elements.Add(_menuDieuChuyenNoiBo);         // Điều chuyển nội bộ
+            mainAccordionGroup.Elements.Add(_menuLinhKien);               // Linh kiện PART
+            mainAccordionGroup.Elements.Add(_menuSanXuat);                // Sản xuất MES
             mainAccordionGroup.Elements.Add(accordionControlElement22);   // Giao Hàng
             mainAccordionGroup.Elements.Add(_menuXuLyLot);                // Tách / Ghép LOT
             mainAccordionGroup.Elements.Add(E_Trahang);                   // Xử lý hàng lỗi
             mainAccordionGroup.Elements.Add(accordionControlElement28);   // Tra Cứu & Báo Cáo
+            // "Màn hình UI" (RefreshUiScreenMenu) được chèn ở đây, trước Công Cụ.
             mainAccordionGroup.Elements.Add(accordionControlElement20);   // Công Cụ
+            mainAccordionGroup.Elements.Add(_menuQuanTri);                // Quản trị hệ thống
         }
+
+        private static readonly HashSet<string> AutoHiddenGroups =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "menuLinhKien", "menuSanXuat", "menuQuanTri" };
 
         private static readonly Dictionary<string, string> MenuFunctionMap =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -281,7 +314,8 @@ namespace PCTP
             {
                 foreach (AccordionControlElement child in item.Elements)
                     ApplyAuthorizationElement(child);
-                if (string.Equals(item.Name, "menuMesBomGroup", StringComparison.OrdinalIgnoreCase))
+                // Groups we own disappear when the user may open nothing inside them.
+                if (AutoHiddenGroups.Contains(item.Name ?? string.Empty))
                     item.Visible = item.Elements.Cast<AccordionControlElement>().Any(child => child.Visible);
             }
         }
@@ -334,7 +368,8 @@ namespace PCTP
                 if (site == null) return; // user cancelled the site chooser
                 string screen = PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoScreenCode;
                 FormWindowManager.ShowSingle(this,
-                    () => PCTP.Framework.UiLayout.UiLayoutModule.CreateScreenForm(screen, site),
+                    () => PCTP.Framework.UiLayout.UiLayoutModule.CreateScreenForm(screen, site,
+                        new[] { PCTP.Modules.KhoLinhKien.ComponentPoUploadAction.Create() }),
                     "UiScreen:" + screen);
             }, "Phiếu đặt hàng linh kiện");
         }
@@ -380,7 +415,15 @@ namespace PCTP
                         (s, e) => OpenUiScreenByCode(code)));
                 }
                 bool attached = _menuUiScreens.OwnerElement == mainAccordionGroup;
-                if (screens.Count > 0 && !attached) mainAccordionGroup.Elements.Add(_menuUiScreens);
+                if (screens.Count > 0 && !attached)
+                {
+                    // Keep "Công Cụ" and "Quản trị hệ thống" last: re-append them after "Màn hình UI".
+                    mainAccordionGroup.Elements.Remove(accordionControlElement20);
+                    mainAccordionGroup.Elements.Remove(_menuQuanTri);
+                    mainAccordionGroup.Elements.Add(_menuUiScreens);
+                    mainAccordionGroup.Elements.Add(accordionControlElement20);
+                    mainAccordionGroup.Elements.Add(_menuQuanTri);
+                }
                 else if (screens.Count == 0 && attached) mainAccordionGroup.Elements.Remove(_menuUiScreens);
             }
             catch (Exception ex)

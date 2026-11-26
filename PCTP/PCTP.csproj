@@ -311,6 +311,7 @@
     <Compile Include="Framework\UiLayout\UI\UiLayoutDesignerForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Framework\UiLayout\UI\UiScreenAction.cs" />
     <Compile Include="Framework\UiLayout\UI\UiScreenRuntimeForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -479,6 +480,7 @@
     <Compile Include="Modules\KhoCore\Services\InspectionService.cs" />
     <Compile Include="Modules\KhoCore\Services\IStockHistoryService.cs" />
     <Compile Include="Modules\KhoCore\Services\StockHistoryService.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentPoUploadAction.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoStatus.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentStockFilter.cs" />
     <Compile Include="Modules\KhoLinhKien\UI\FormKhoLinhKien.cs">

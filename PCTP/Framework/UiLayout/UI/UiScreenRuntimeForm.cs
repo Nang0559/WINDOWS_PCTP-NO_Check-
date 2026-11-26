@@ -22,6 +22,7 @@ namespace PCTP.Framework.UiLayout
         private readonly Func<UiLayoutDesignerService> _designerFactory;
         private readonly string _screenCode;
         private readonly string _siteCode;
+        private readonly IList<UiScreenAction> _actions;
 
         private readonly ListBoxControl _filters = new ListBoxControl { Dock = DockStyle.Left, Width = 190 };
         private readonly GridControl _grid = new GridControl { Dock = DockStyle.Fill };
@@ -42,7 +43,7 @@ namespace PCTP.Framework.UiLayout
         private bool _loadingFilters;
 
         public UiScreenRuntimeForm(UiScreenRuntime runtime, string screenCode, string siteCode,
-            Func<UiLayoutDesignerService> designerFactory = null)
+            Func<UiLayoutDesignerService> designerFactory = null, IEnumerable<UiScreenAction> actions = null)
         {
             if (runtime == null) throw new ArgumentNullException("runtime");
             if (string.IsNullOrWhiteSpace(siteCode)) throw new ArgumentException("SiteCode là bắt buộc.", "siteCode");
@@ -50,6 +51,7 @@ namespace PCTP.Framework.UiLayout
             _screenCode = screenCode;
             _siteCode = siteCode.Trim();
             _designerFactory = designerFactory ?? new Func<UiLayoutDesignerService>(UiLayoutModule.CreateDesigner);
+            _actions = (actions ?? Enumerable.Empty<UiScreenAction>()).Where(a => a != null).ToList();
             _view = new GridView(_grid);
             Text = "Màn hình " + screenCode;
             StartPosition = FormStartPosition.CenterParent;
@@ -82,6 +84,15 @@ namespace PCTP.Framework.UiLayout
             var bar = new PanelControl { Dock = DockStyle.Top, Height = 40, Padding = new Padding(5) };
             bar.Controls.Add(_next);
             bar.Controls.Add(_prev);
+            // Extra module actions sit to the right of TẢI LẠI. Left-docked controls are laid out last-added-first,
+            // so they are added in reverse order before _reload.
+            foreach (var action in _actions.Reverse())
+            {
+                var captured = action;
+                var button = new SimpleButton { Text = captured.Caption, Width = captured.Width, Dock = DockStyle.Left, Visible = captured.IsAvailable() };
+                button.Click += (s, e) => RunAction(captured);
+                bar.Controls.Add(button);
+            }
             bar.Controls.Add(_reload);
 
             Controls.Add(_split);
@@ -248,6 +259,23 @@ namespace PCTP.Framework.UiLayout
                 OpenScreen();   // always reload so the saved layout (or a conflict-reloaded one) is what the user sees
             }
             catch (Exception ex) { XtraMessageBox.Show(this, ex.GetBaseException().Message, "Khai báo layout", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        }
+
+        private void RunAction(UiScreenAction action)
+        {
+            try
+            {
+                string status = action.Execute(this, _siteCode);
+                if (status == null) return;   // cancelled by the user
+                LoadPage();
+                SetStatus(status, false);
+            }
+            catch (Exception ex)
+            {
+                string message = ex.GetBaseException().Message;
+                SetStatus(action.Caption + " thất bại: " + message, true);
+                XtraMessageBox.Show(this, message, action.Caption, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void SetStatus(string text, bool error)

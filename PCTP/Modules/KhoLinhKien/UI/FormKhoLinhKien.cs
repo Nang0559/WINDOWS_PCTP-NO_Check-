@@ -622,34 +622,18 @@ namespace PCTP.Modules.KhoLinhKien.UI
 
         private void UploadClick(object sender, EventArgs e)
         {
-            string path;
-            using (var dlg = new OpenFileDialog { Filter = "Excel (*.xlsx;*.xlsm)|*.xlsx;*.xlsm", Title = "Chọn file yêu cầu mua hàng linh kiện" })
-            {
-                if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                path = dlg.FileName;
-            }
             try
             {
-                IList<string> sheets = ComponentPoExcelReader.GetSheetNames(path);
-                string sheet = sheets.FirstOrDefault(n => string.Equals(n, "PO", StringComparison.OrdinalIgnoreCase)) ?? sheets.FirstOrDefault();
-                if (sheet == null) throw new InvalidOperationException("File Excel không có sheet nào.");
-
-                List<ComponentPoImportRow> rows = ComponentPoExcelReader.Read(path, sheet);
-                int orders = rows.GroupBy(r => new { r.SiteCode, r.PurchaseOrderNo }).Count();
-                string message = "Sheet \"" + sheet + "\": " + orders + " PO, " + rows.Count + " dòng hàng.\r\n\r\n" +
-                    "Upload tạo PO ở trạng thái Nháp (hoặc thay thế PO Nháp cùng số). PO đã Kiểm tra/Phát hành không bị ghi đè. " +
-                    "Toàn bộ file chạy trong một transaction.\r\n\r\nTiếp tục upload?";
-                if (XtraMessageBox.Show(this, message, "Upload yêu cầu mua hàng", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-                    return;
-
-                int count = _po.Import(rows, Path.GetFileName(path));
-                SetStatus("Đã upload " + count + " PO (" + rows.Count + " dòng) ở trạng thái Nháp.");
+                // Shared with the "Phiếu đặt hàng linh kiện" screen so both show the same confirmation.
+                string status = ComponentPoUploadFlow.Run(this, _po);
+                if (status == null) return;   // cancelled
+                SetStatus(status);
                 LoadPoOrders();
             }
             catch (Exception ex)
             {
                 SetStatus("Upload thất bại: " + ex.Message);
-                XtraMessageBox.Show(this, ex.Message, "Upload yêu cầu mua hàng", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                XtraMessageBox.Show(this, ex.Message, ComponentPoUploadFlow.Title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 

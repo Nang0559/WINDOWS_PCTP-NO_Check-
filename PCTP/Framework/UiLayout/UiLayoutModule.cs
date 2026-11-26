@@ -37,8 +37,15 @@ namespace PCTP.Framework.UiLayout
         /// <summary>Runtime form for <paramref name="screenCode"/>, wired with the designer so right-click declaration works.</summary>
         public static UiScreenRuntimeForm CreateScreenForm(string screenCode, string siteCode)
         {
+            return CreateScreenForm(screenCode, siteCode, null);
+        }
+
+        /// <summary>Same, with extra toolbar actions supplied by the owning module (for example the PO Excel upload).</summary>
+        public static UiScreenRuntimeForm CreateScreenForm(string screenCode, string siteCode,
+            System.Collections.Generic.IEnumerable<UiScreenAction> actions)
+        {
             if (string.IsNullOrWhiteSpace(screenCode)) throw new ArgumentException("ScreenCode là bắt buộc.", "screenCode");
-            return new UiScreenRuntimeForm(CreateRuntime(), screenCode, siteCode, CreateDesigner);
+            return new UiScreenRuntimeForm(CreateRuntime(), screenCode, siteCode, CreateDesigner, actions);
         }
     }
 }
