@@ -16,6 +16,12 @@ namespace PCTP.Framework.UiLayout
         void CreateProfile(long actorUserId, string actorCode, string profileCode, string displayName);
         /// <summary>Returns the new ConfigVersion. Throws <see cref="UiConfigConflictException"/> on a version mismatch.</summary>
         int Save(long actorUserId, string actorCode, UiMenuProfile profile, int expectedConfigVersion);
+        /// <summary>Changes the priority of a profile. Returns the new ConfigVersion; throws <see cref="UiConfigConflictException"/> on a version mismatch.</summary>
+        int SetOrder(long actorUserId, string actorCode, string profileCode, int expectedConfigVersion, int profileOrder);
+        /// <summary>Deletes a profile with its nodes and role links (a copy stays in the audit trail). DEFAULT cannot be deleted.</summary>
+        void DeleteProfile(long actorUserId, string actorCode, string profileCode, int expectedConfigVersion);
+        /// <summary>Every active approved UI screen as a placeable item, whatever the actor may open (designer catalogue only).</summary>
+        IList<UiMenuItemInfo> ListScreenItems(long actorUserId);
         /// <summary>Nodes of the profile that applies to the user (role profile, else DEFAULT). Empty = standard menu.</summary>
         IList<UiMenuNode> LoadRuntime(long actorUserId);
     }
@@ -42,7 +48,8 @@ namespace PCTP.Framework.UiLayout
                 DisplayName = (string)r["DisplayName"],
                 ConfigVersion = (int)r["ConfigVersion"],
                 NodeCount = (int)r["NodeCount"],
-                RoleCount = (int)r["RoleCount"]
+                RoleCount = (int)r["RoleCount"],
+                ProfileOrder = (int)r["ProfileOrder"]
             }).ToList();
         }
 
@@ -69,6 +76,7 @@ namespace PCTP.Framework.UiLayout
                 ProfileCode = (string)head["ProfileCode"],
                 DisplayName = (string)head["DisplayName"],
                 ConfigVersion = (int)head["ConfigVersion"],
+                ProfileOrder = (int)head["ProfileOrder"],
                 Nodes = ToNodes(ds.Tables[1]).ToList(),
                 RoleCodes = ds.Tables[2].Rows.Cast<DataRow>().Select(r => (string)r["RoleCode"]).ToList()
             };
@@ -114,6 +122,55 @@ namespace PCTP.Framework.UiLayout
             {
                 throw new UiConfigConflictException(ex.Message, ex);
             }
+        }
+
+        public int SetOrder(long actorUserId, string actorCode, string profileCode, int expectedConfigVersion, int profileOrder)
+        {
+            try
+            {
+                var ds = Fill("MES.usp_FVN_UiMenuProfile_SetOrder", p =>
+                {
+                    p.Add("@ActorUserId", SqlDbType.BigInt).Value = actorUserId;
+                    p.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actorCode ?? string.Empty;
+                    p.Add("@ProfileCode", SqlDbType.VarChar, 40).Value = profileCode ?? string.Empty;
+                    p.Add("@ExpectedConfigVersion", SqlDbType.Int).Value = expectedConfigVersion;
+                    p.Add("@ProfileOrder", SqlDbType.Int).Value = profileOrder;
+                });
+                return (int)ds.Tables[0].Rows[0][0];
+            }
+            catch (SqlException ex) when (ex.Number == ConfigVersionConflict)
+            {
+                throw new UiConfigConflictException(ex.Message, ex);
+            }
+        }
+
+        public void DeleteProfile(long actorUserId, string actorCode, string profileCode, int expectedConfigVersion)
+        {
+            try
+            {
+                Fill("MES.usp_FVN_UiMenuProfile_Delete", p =>
+                {
+                    p.Add("@ActorUserId", SqlDbType.BigInt).Value = actorUserId;
+                    p.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actorCode ?? string.Empty;
+                    p.Add("@ProfileCode", SqlDbType.VarChar, 40).Value = profileCode ?? string.Empty;
+                    p.Add("@ExpectedConfigVersion", SqlDbType.Int).Value = expectedConfigVersion;
+                });
+            }
+            catch (SqlException ex) when (ex.Number == ConfigVersionConflict)
+            {
+                throw new UiConfigConflictException(ex.Message, ex);
+            }
+        }
+
+        public IList<UiMenuItemInfo> ListScreenItems(long actorUserId)
+        {
+            var ds = Fill("MES.usp_FVN_UiMenuProfile_ListScreens", p => p.Add("@ActorUserId", SqlDbType.BigInt).Value = actorUserId);
+            return ds.Tables[0].Rows.Cast<DataRow>().Select(r => new UiMenuItemInfo
+            {
+                ItemKey = UiMenuScreenKey.For((string)r["ScreenCode"]),
+                Caption = (string)r["Title"],
+                GroupCaption = UiMenuScreenKey.GroupCaption
+            }).ToList();
         }
 
         public IList<UiMenuNode> LoadRuntime(long actorUserId)

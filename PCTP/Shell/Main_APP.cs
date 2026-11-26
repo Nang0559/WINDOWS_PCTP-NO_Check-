@@ -1,4 +1,4 @@
-using DevExpress.XtraBars;
+﻿using DevExpress.XtraBars;
 using DevExpress.Utils.Svg;
 using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraEditors;
@@ -75,8 +75,8 @@ namespace PCTP
             ApplyAuthorizationToNavigation();
             ApplyDocumentMenuConfiguration();
             RefreshUiScreenMenu();
-            ApplyMenuProfile();   // menu profile from the UI Menu Designer (migration 059); no-op when none is saved
-            accordionControlElement24.Text = "Quản lý máy đọc QR";
+            accordionControlElement24.Text = "Quản lý máy đọc QR";   // before the profile: its standard text is part of the menu snapshot
+            ApplyMenuProfile();   // menu profile from the UI Menu Designer (migrations 059/060); no-op when none is saved
             ApplyFluentMenuIcons();
         }
 

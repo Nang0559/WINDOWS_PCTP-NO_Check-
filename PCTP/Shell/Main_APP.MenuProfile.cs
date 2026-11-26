@@ -16,6 +16,66 @@ namespace PCTP
     public partial class Main_APP
     {
         private IList<UiMenuItemInfo> _menuItemSnapshot;
+        private StandardMenuState _standardMenu;
+
+        /// <summary>
+        /// The menu exactly as the standard shell built it (after authorization), taken once before the first profile is
+        /// applied. It lets a profile be applied again, or removed, while the app is running.
+        /// </summary>
+        private sealed class StandardMenuState
+        {
+            public readonly List<KeyValuePair<AccordionControlElement, List<AccordionControlElement>>> Children =
+                new List<KeyValuePair<AccordionControlElement, List<AccordionControlElement>>>();
+            public readonly Dictionary<AccordionControlElement, bool> Visible = new Dictionary<AccordionControlElement, bool>();
+            public readonly Dictionary<AccordionControlElement, string> ItemText = new Dictionary<AccordionControlElement, string>();
+        }
+
+        private StandardMenuState CaptureStandardMenu()
+        {
+            var state = new StandardMenuState();
+            Action<AccordionControlElement> walk = null;
+            walk = owner =>
+            {
+                var kids = owner.Elements.Cast<AccordionControlElement>().ToList();
+                state.Children.Add(new KeyValuePair<AccordionControlElement, List<AccordionControlElement>>(owner, kids));
+                foreach (var kid in kids)
+                {
+                    state.Visible[kid] = kid.Visible;
+                    if (kid.Style == ElementStyle.Item) state.ItemText[kid] = kid.Text;
+                    walk(kid);
+                }
+            };
+            walk(mainAccordionGroup);
+            return state;
+        }
+
+        /// <summary>Puts every element back where the standard menu had it, with its own text and its authorized visibility.</summary>
+        private void RestoreStandardMenu(StandardMenuState state)
+        {
+            // 1) detach everything that was rearranged: profile groups first (they hold moved items), then every owner
+            foreach (var top in mainAccordionGroup.Elements.Cast<AccordionControlElement>().ToList())
+                if (IsProfileGroup(top)) ClearProfileGroup(top);
+            foreach (var entry in state.Children) entry.Key.Elements.Clear();
+            // 2) re-attach in the original order
+            foreach (var entry in state.Children)
+                foreach (var kid in entry.Value) entry.Key.Elements.Add(kid);
+            // 3) undo renames and the "empty group hidden" step; authorization's own result is what was captured
+            foreach (var pair in state.Visible) pair.Key.Visible = pair.Value;
+            foreach (var pair in state.ItemText) pair.Key.Text = pair.Value;
+        }
+
+        private static bool IsProfileGroup(AccordionControlElement element)
+        {
+            return element.Style == ElementStyle.Group && element.Name != null
+                   && element.Name.StartsWith("menuProfileGroup_", StringComparison.Ordinal);
+        }
+
+        private static void ClearProfileGroup(AccordionControlElement group)
+        {
+            foreach (var kid in group.Elements.Cast<AccordionControlElement>().ToList())
+                if (IsProfileGroup(kid)) ClearProfileGroup(kid);
+            group.Elements.Clear();
+        }
 
         /// <summary>Every real item of the shell as it is before a profile is applied (default text and default group).</summary>
         private IList<UiMenuItemInfo> CollectMenuItems()
@@ -47,11 +107,40 @@ namespace PCTP
             }
         }
 
+        /// <summary>
+        /// Rebuilds the menu while the app is running (after the designer saved or deleted a profile): back to the standard
+        /// menu, bring back dynamic UI screens, apply the profile of the signed-in user, restore icons.
+        /// </summary>
+        private void RebuildMenuProfile()
+        {
+            try
+            {
+                accordionControl.BeginUpdate();
+                try
+                {
+                    if (_standardMenu != null) RestoreStandardMenu(_standardMenu);
+                    RefreshUiScreenMenu();
+                    ApplyMenuProfile();
+                    ApplyFluentMenuIcons();
+                }
+                finally { accordionControl.EndUpdate(); }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("Menu rebuild skipped: " + ex.GetBaseException().Message);
+            }
+        }
+
         private void ApplyMenuProfile()
         {
             try
             {
-                _menuItemSnapshot = CollectMenuItems();
+                // Taken once, the first time: this is the standard menu a later rebuild returns to.
+                if (_standardMenu == null)
+                {
+                    _menuItemSnapshot = CollectMenuItems();
+                    _standardMenu = CaptureStandardMenu();
+                }
                 var session = UserSession.Current;
                 if (session == null) return;
 
@@ -112,14 +201,22 @@ namespace PCTP
             return group;
         }
 
-        /// <summary>Menu designer. Saving changes the stored profile; it takes effect the next time the app starts.</summary>
+        /// <summary>
+        /// Menu designer. After a save or delete the menu of the signed-in user is rebuilt at once; other users get their
+        /// new menu the next time their app starts.
+        /// </summary>
         private void OpenUiMenuDesigner(object sender, EventArgs e)
         {
             OpenFromMenu(() =>
             {
+                bool changed;
                 using (var form = new UiMenuDesignerForm(UiLayoutModule.CreateMenuDesigner(),
                     () => _menuItemSnapshot ?? CollectMenuItems()))
+                {
                     form.ShowDialog(this);
+                    changed = form.Saved;
+                }
+                if (changed) RebuildMenuProfile();
             }, "Thiết kế menu");
         }
     }

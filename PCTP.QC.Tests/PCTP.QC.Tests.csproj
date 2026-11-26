@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <IsPackable>false</IsPackable>
@@ -53,6 +53,7 @@
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/057_MES_UiScreenCatalog.sql" Link="057_MES_UiScreenCatalog.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/058_MES_UiScreenAuditList.sql" Link="058_MES_UiScreenAuditList.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/059_MES_UiMenuProfiles.sql" Link="059_MES_UiMenuProfiles.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/060_MES_UiMenuProfileOrderDelete.sql" Link="060_MES_UiMenuProfileOrderDelete.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/047_MES_ProductionFlowControlTower.sql" Link="047_MES_ProductionFlowControlTower.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/049_MES_ProductionFlowChangeVersionAndBomVisibility.sql" Link="049_MES_ProductionFlowChangeVersionAndBomVisibility.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/UI/FormMesProductionControlTower.cs" Link="FormMesProductionControlTower.source.cs" CopyToOutputDirectory="PreserveNewest" />

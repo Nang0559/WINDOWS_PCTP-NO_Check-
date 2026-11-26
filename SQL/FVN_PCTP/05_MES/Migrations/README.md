@@ -1,4 +1,4 @@
-# FVN_PCTP / MES SQL deployment package
+﻿# FVN_PCTP / MES SQL deployment package
 
 **Target:** the new FVN_PCTP database. Select the target database in SSMS before executing.
 **Compatibility:** SQL Server 2016. Scripts do not use STRING_AGG, do not hardcode USE, and do not write to IFS9 or B7R2_FCC.
@@ -548,3 +548,14 @@ After applying on DB57: sign in with a user holding `WAREHOUSE.COMPONENT_PO` VIE
 Run after 058, in FVN_PCTP. A profile is a tree (max 3 levels, 300 nodes) of GROUP and ITEM nodes. An ITEM stores only `ItemKey`, the Name of a menu item that already exists in the C# shell (or of a dynamic UI screen item). The shell resolves keys against the items it really has, drops unknown keys and empty groups, and never makes visible an item that RBAC hid, so the menu cannot gain a screen, command or permission from SQL. A profile may be assigned to roles (a role belongs to one profile); a user with no matching role gets `DEFAULT`. VIEW on `ADMIN.DOCUMENT_DESIGNER` opens the designer, EDIT saves or creates a profile; `usp_FVN_UiMenuProfile_Runtime` needs only an active signed-in user. History is in `MES.FVN_UiScreenAudit` with ScreenCode `MENU:<ProfileCode>` (read with `usp_FVN_UiScreen_ListAudit`).
 
 After applying: Quản trị hệ thống -> Thiết kế menu, drag items into groups, Lưu, restart the app and sign in; then assign a profile to a role and check a user of that role sees it while another user still sees DEFAULT / the standard menu.
+
+## UI Menu Designer - priority, delete profile, full catalogue - migration 060
+
+| Version | File | Contents |
+|---|---|---|
+| 060 | 060_MES_UiMenuProfileOrderDelete.sql | `FVN_UiMenuProfile.ProfileOrder` (1-9999, default 100); `usp_FVN_UiMenuProfile_SetOrder`, `usp_FVN_UiMenuProfile_Delete`, `usp_FVN_UiMenuProfile_ListScreens`; `List`, `Load`, `Runtime` re-created |
+
+Run after 059, in FVN_PCTP, **before** deploying the matching build (the new designer reads `ProfileOrder`). A user whose roles sit in several profiles gets the profile with the smallest `ProfileOrder` (ties: `ProfileCode`). Delete removes the profile, its nodes and role links (roles fall back to `DEFAULT`); a JSON copy stays in `MES.FVN_UiScreenAudit` (`MENU:<ProfileCode>`, action `DELETE`). `ListScreens` lists every active approved UI screen for the designer's left list, whatever the designer may open; the shell still creates a screen item only for users who may open it.
+
+After applying: open Thiết kế menu, change a profile and press Lưu, close the dialog and check the menu changes without restarting; give two profiles to one user through two roles, set different Ưu tiên and check the smaller one wins after restart; delete a test profile and check its role now gets DEFAULT; sign in as a designer without VIEW on some screen source and check that screen is still in the left list.
+

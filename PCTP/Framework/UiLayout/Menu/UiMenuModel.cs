@@ -29,6 +29,7 @@ namespace PCTP.Framework.UiLayout
         public int ConfigVersion { get; set; }
         public int NodeCount { get; set; }
         public int RoleCount { get; set; }
+        public int ProfileOrder { get; set; }
         public override string ToString() { return ProfileCode + " - " + DisplayName; }
     }
 
@@ -37,10 +38,12 @@ namespace PCTP.Framework.UiLayout
         public string ProfileCode { get; set; }
         public string DisplayName { get; set; }
         public int ConfigVersion { get; set; }
+        /// <summary>Priority when a user's roles sit in several profiles: the smallest number wins (ties: ProfileCode).</summary>
+        public int ProfileOrder { get; set; }
         public List<UiMenuNode> Nodes { get; set; }
         public List<string> RoleCodes { get; set; }
 
-        public UiMenuProfile() { Nodes = new List<UiMenuNode>(); RoleCodes = new List<string>(); }
+        public UiMenuProfile() { Nodes = new List<UiMenuNode>(); RoleCodes = new List<string>(); ProfileOrder = UiMenuValidator.DefaultOrder; }
     }
 
     public sealed class UiMenuRole
@@ -57,15 +60,28 @@ namespace PCTP.Framework.UiLayout
         public string GroupCaption { get; set; }
     }
 
+    /// <summary>Name of the shell item that opens an approved UI screen. One definition for the shell and the designer.</summary>
+    public static class UiMenuScreenKey
+    {
+        public const string Prefix = "menuUiScreen_";
+        public const string GroupCaption = "Màn hình UI";
+        public static string For(string screenCode) { return Prefix + screenCode; }
+    }
+
     /// <summary>Same rules as usp_FVN_UiMenuProfile_Save, so the designer reports problems before SQL does.</summary>
     public static class UiMenuValidator
     {
         public const int MaxNodes = 300;
         public const int MaxDepth = 3;
+        public const int MinOrder = 1;
+        public const int MaxOrder = 9999;
+        public const int DefaultOrder = 100;
         private static readonly Regex KeyPattern = new Regex("^[A-Za-z0-9_]{1,100}$", RegexOptions.CultureInvariant);
         private static readonly Regex ProfilePattern = new Regex("^[A-Z0-9_]{1,40}$", RegexOptions.CultureInvariant);
 
         public static bool IsValidProfileCode(string code) { return code != null && ProfilePattern.IsMatch(code); }
+
+        public static bool IsValidOrder(int order) { return order >= MinOrder && order <= MaxOrder; }
 
         public static IList<string> Validate(string profileCode, IList<UiMenuNode> nodes, IList<string> roleCodes)
         {

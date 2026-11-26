@@ -32,6 +32,8 @@ namespace PCTP.Framework.UiLayout
         private readonly ComboBoxEdit _profile = new ComboBoxEdit();
         private readonly CheckedComboBoxEdit _roles = new CheckedComboBoxEdit();
         private readonly SimpleButton _newProfile = new SimpleButton { Text = "Tạo profile…" };
+        private readonly SpinEdit _order = new SpinEdit();
+        private readonly SimpleButton _delete = new SimpleButton { Text = "Xóa profile" };
         private readonly SimpleButton _add = new SimpleButton { Text = "Thêm  »" };
         private readonly SimpleButton _newGroup = new SimpleButton { Text = "Nhóm mới" };
         private readonly SimpleButton _rename = new SimpleButton { Text = "Đổi tên" };
@@ -46,6 +48,9 @@ namespace PCTP.Framework.UiLayout
         private readonly HashSet<string> _placed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private UiMenuProfile _current;
         private bool _dirty;
+
+        /// <summary>True once a profile was saved or deleted in this dialog: the shell then rebuilds its menu.</summary>
+        public bool Saved { get; private set; }
         private bool _loading;
         private int _selectedProfileIndex = -1;
         private TreeListNode _internalDrag;
@@ -134,21 +139,31 @@ namespace PCTP.Framework.UiLayout
                 Left = 10, Top = 8
             });
             top.Controls.Add(new LabelControl { Text = "Profile", Left = 10, Top = 40 });
-            _profile.Left = 70; _profile.Top = 36; _profile.Width = 320;
+            _profile.Left = 70; _profile.Top = 36; _profile.Width = 250;
             _profile.Properties.TextEditStyle = TextEditStyles.DisableTextEditor;
             _profile.SelectedIndexChanged += (s, e) => OnProfileChosen();
             top.Controls.Add(_profile);
-            _newProfile.Left = 398; _newProfile.Top = 35; _newProfile.Width = 110;
+            _newProfile.Left = 328; _newProfile.Top = 35; _newProfile.Width = 100;
             _newProfile.Click += (s, e) => CreateProfile();
             top.Controls.Add(_newProfile);
-            top.Controls.Add(new LabelControl { Text = "Áp dụng cho vai trò", Left = 530, Top = 40 });
-            _roles.Left = 650; _roles.Top = 36; _roles.Width = 330;
+            top.Controls.Add(new LabelControl { Text = "Áp dụng cho vai trò", Left = 445, Top = 40 });
+            _roles.Left = 560; _roles.Top = 36; _roles.Width = 250;
             _roles.EditValueChanged += (s, e) => { if (!_loading) MarkDirty(); };
             top.Controls.Add(_roles);
+            top.Controls.Add(new LabelControl { Text = "Ưu tiên", Left = 825, Top = 40 });
+            _order.Left = 880; _order.Top = 36; _order.Width = 70;
+            _order.Properties.MinValue = UiMenuValidator.MinOrder;
+            _order.Properties.MaxValue = UiMenuValidator.MaxOrder;
+            _order.Properties.IsFloatValue = false;
+            _order.Properties.Mask.EditMask = "n0";
+            _order.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+            _order.ToolTip = "Người dùng thuộc nhiều vai trò ở nhiều profile sẽ nhận profile có số nhỏ nhất (bằng nhau: theo mã profile).";
+            _order.EditValueChanged += (s, e) => { if (!_loading) MarkDirty(); };
+            top.Controls.Add(_order);
 
             var buttons = new PanelControl { Dock = DockStyle.Right, Width = 132 };
             int y = 10;
-            foreach (var b in new[] { _add, _newGroup, _rename, _remove, _up, _down, _clear })
+            foreach (var b in new[] { _add, _newGroup, _rename, _remove, _up, _down, _clear, _delete })
             {
                 b.Left = 10; b.Top = y; b.Width = 112; buttons.Controls.Add(b); y += 34;
             }
@@ -161,6 +176,7 @@ namespace PCTP.Framework.UiLayout
             _up.Click += (s, e) => MoveFocused(-1);
             _down.Click += (s, e) => MoveFocused(1);
             _clear.Click += (s, e) => ClearMenu();
+            _delete.Click += (s, e) => DeleteProfile();
             _save.Click += (s, e) => Save();
             _close.Click += (s, e) => Close();
 
@@ -193,18 +209,42 @@ namespace PCTP.Framework.UiLayout
         {
             try
             {
-                _catalogue = _itemSource() ?? new List<UiMenuItemInfo>();
+                string catalogueWarning;
+                _catalogue = BuildCatalogue(out catalogueWarning);
                 _allRoles = _service.ListRoles();
                 FillLeft();
                 ReloadProfiles(null);
                 bool can = _service.CanEdit;
-                foreach (var b in new[] { _add, _newGroup, _rename, _remove, _up, _down, _clear, _save, _newProfile }) b.Enabled = can;
-                SetStatus(can ? "Chọn profile rồi sắp xếp menu." : "Bạn chỉ có quyền xem (cần EDIT trên ADMIN.DOCUMENT_DESIGNER để sửa).", !can);
+                foreach (var b in new[] { _add, _newGroup, _rename, _remove, _up, _down, _clear, _save, _newProfile, _delete }) b.Enabled = can;
+                ApplyProfileKindState();
+                if (catalogueWarning != null) SetStatus(catalogueWarning, true);
+                else SetStatus(can ? "Chọn profile rồi sắp xếp menu." : "Bạn chỉ có quyền xem (cần EDIT trên ADMIN.DOCUMENT_DESIGNER để sửa).", !can);
             }
             catch (Exception ex)
             {
                 SetStatus(ex.Message, true);
             }
+        }
+
+        /// <summary>
+        /// Real shell items plus every approved UI screen. The screens come from SQL, so the list does not depend on which
+        /// screens the person designing may open; the shell still only creates the items each signed-in user may use.
+        /// </summary>
+        private IList<UiMenuItemInfo> BuildCatalogue(out string warning)
+        {
+            warning = null;
+            var list = new List<UiMenuItemInfo>(_itemSource() ?? new List<UiMenuItemInfo>());
+            var keys = new HashSet<string>(list.Select(i => i.ItemKey), StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var screen in _service.ListScreenItems())
+                    if (keys.Add(screen.ItemKey)) list.Add(screen);
+            }
+            catch (Exception ex)
+            {
+                warning = "Không đọc được đủ danh sách màn hình UI (áp dụng migration 060?): " + ex.Message;
+            }
+            return list;
         }
 
         private void FillLeft()
@@ -290,13 +330,24 @@ namespace PCTP.Framework.UiLayout
             foreach (var role in _allRoles)
                 _roles.Properties.Items.Add(new CheckedListBoxItem(role.RoleCode, role.RoleName + " (" + role.RoleCode + ")",
                     profile.RoleCodes.Contains(role.RoleCode, StringComparer.OrdinalIgnoreCase) ? CheckState.Checked : CheckState.Unchecked));
-            _roles.Enabled = _service.CanEdit && !string.Equals(profile.ProfileCode, "DEFAULT", StringComparison.Ordinal);
+            _order.Value = UiMenuValidator.IsValidOrder(profile.ProfileOrder) ? profile.ProfileOrder : UiMenuValidator.DefaultOrder;
+            ApplyProfileKindState();
 
             _dirty = false;
             RecomputePlaced();
             UpdateTitle();
             SetStatus("Profile " + profile.ProfileCode + " (phiên bản " + profile.ConfigVersion + "). " +
                 (profile.Nodes.Count == 0 ? "Chưa có cấu hình: ứng dụng dùng menu chuẩn." : profile.Nodes.Count + " mục."), false);
+        }
+
+        /// <summary>DEFAULT is the fallback menu: no roles, no priority, no delete.</summary>
+        private void ApplyProfileKindState()
+        {
+            bool isDefault = _current == null || string.Equals(_current.ProfileCode, "DEFAULT", StringComparison.Ordinal);
+            bool can = _service.CanEdit;
+            _roles.Enabled = can && !isDefault;
+            _order.Enabled = can && !isDefault;
+            _delete.Enabled = can && !isDefault;
         }
 
         private string NodeText(UiMenuNode model)
@@ -504,6 +555,37 @@ namespace PCTP.Framework.UiLayout
             catch (Exception ex) { SetStatus(ex.Message, true); }
         }
 
+        private void DeleteProfile()
+        {
+            if (_current == null || !_service.CanEdit) return;
+            if (string.Equals(_current.ProfileCode, "DEFAULT", StringComparison.Ordinal))
+            {
+                SetStatus("Không thể xóa profile DEFAULT. Dùng \"Về menu chuẩn\" rồi Lưu để làm rỗng.", true);
+                return;
+            }
+            var info = _profile.SelectedItem as UiMenuProfileInfo;
+            int roleCount = info == null ? CheckedRoles().Count : info.RoleCount;
+            if (XtraMessageBox.Show(this,
+                    "Xóa profile " + _current.ProfileCode + " (" + _current.DisplayName + ")?" + Environment.NewLine +
+                    (roleCount > 0 ? roleCount + " vai trò đang gán sẽ quay về menu DEFAULT." + Environment.NewLine : string.Empty) +
+                    "Bản sao được giữ trong lịch sử thay đổi.",
+                    Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+            try
+            {
+                string code = _current.ProfileCode;
+                _service.Delete(code, _current.ConfigVersion);
+                Saved = true;
+                _dirty = false;
+                ReloadProfiles(null);
+                SetStatus("Đã xóa profile " + code + ".", false);
+            }
+            catch (UiConfigConflictException ex) { SetStatus(ex.Message, true); }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
         private List<UiMenuNode> CollectNodes()
         {
             var list = new List<UiMenuNode>();
@@ -547,16 +629,33 @@ namespace PCTP.Framework.UiLayout
                 ProfileCode = _current.ProfileCode,
                 DisplayName = _current.DisplayName,
                 ConfigVersion = _current.ConfigVersion,
+                ProfileOrder = Convert.ToInt32(_order.Value),
                 Nodes = CollectNodes(),
                 RoleCodes = CheckedRoles()
             };
             try
             {
                 _current.ConfigVersion = _service.Save(profile);
+                Saved = true;
+                if (!string.Equals(profile.ProfileCode, "DEFAULT", StringComparison.Ordinal) && profile.ProfileOrder != _current.ProfileOrder)
+                {
+                    try
+                    {
+                        _current.ConfigVersion = _service.SetOrder(profile.ProfileCode, _current.ConfigVersion, profile.ProfileOrder);
+                        _current.ProfileOrder = profile.ProfileOrder;
+                    }
+                    catch (Exception ex)
+                    {
+                        // The menu itself is saved; only the priority failed. Keep the form dirty so Lưu can be pressed again.
+                        MarkDirty();
+                        SetStatus("Đã lưu menu nhưng chưa lưu được thứ tự ưu tiên: " + ex.Message, true);
+                        return;
+                    }
+                }
                 _dirty = false;
                 UpdateTitle();
                 SetStatus("Đã lưu profile " + profile.ProfileCode + " (phiên bản " + _current.ConfigVersion +
-                          "). Menu mới áp dụng khi mở lại ứng dụng.", false);
+                          "). Menu của bạn được dựng lại khi đóng cửa sổ này; người dùng khác nhận menu mới khi mở lại ứng dụng.", false);
             }
             catch (UiConfigConflictException ex)
             {
