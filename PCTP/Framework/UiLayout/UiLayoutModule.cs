@@ -22,6 +22,18 @@ namespace PCTP.Framework.UiLayout
             return new UiLayoutDesignerService(new SqlUiLayoutStore(), new SessionDocumentDesignerAuthorizer());
         }
 
+        /// <summary>Menu profile designer (Bravo "Tùy chọn các mục trình đơn"): VIEW to open, EDIT to save.</summary>
+        public static UiMenuDesignerService CreateMenuDesigner()
+        {
+            return new UiMenuDesignerService(new SqlUiMenuStore(), new SessionDocumentDesignerAuthorizer());
+        }
+
+        /// <summary>Reads the menu profile that applies to the signed-in user (empty = standard shell menu).</summary>
+        public static IUiMenuStore CreateMenuStore()
+        {
+            return new SqlUiMenuStore();
+        }
+
         /// <summary>Approved screens the signed-in user may open (drives the dynamic shell menu and "open by code").</summary>
         public static UiScreenCatalog CreateCatalog()
         {

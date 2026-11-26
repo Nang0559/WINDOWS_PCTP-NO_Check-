@@ -75,6 +75,7 @@ namespace PCTP
             ApplyAuthorizationToNavigation();
             ApplyDocumentMenuConfiguration();
             RefreshUiScreenMenu();
+            ApplyMenuProfile();   // menu profile from the UI Menu Designer (migration 059); no-op when none is saved
             accordionControlElement24.Text = "Quản lý máy đọc QR";
             ApplyFluentMenuIcons();
         }

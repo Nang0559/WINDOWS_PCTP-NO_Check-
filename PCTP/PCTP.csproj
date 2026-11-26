@@ -303,12 +303,18 @@
     <Compile Include="Framework\UiLayout\Design\UiLayoutServices.cs" />
     <Compile Include="Framework\UiLayout\Design\UiScreenCatalog.cs" />
     <Compile Include="Framework\UiLayout\Runtime\UiQueryBuilder.cs" />
+    <Compile Include="Framework\UiLayout\Menu\SqlUiMenuStore.cs" />
+    <Compile Include="Framework\UiLayout\Menu\UiMenuModel.cs" />
+    <Compile Include="Framework\UiLayout\Menu\UiMenuServices.cs" />
     <Compile Include="Framework\UiLayout\UiLayoutModule.cs" />
     <Compile Include="Framework\UiLayout\UI\UiDataSourceForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Framework\UiLayout\UI\UiGridConfigurator.cs" />
     <Compile Include="Framework\UiLayout\UI\UiLayoutDesignerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Framework\UiLayout\UI\UiMenuDesignerForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Framework\UiLayout\UI\UiScreenAction.cs" />
@@ -955,6 +961,9 @@
     </Compile>
     <Compile Include="Modules\KhoCore\UI\FormDieuChinhTonKhoLot.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Shell\Main_APP.MenuProfile.cs">
+      <DependentUpon>Main_APP.cs</DependentUpon>
     </Compile>
     <Compile Include="Shell\Main_APP.Menu.cs">
       <DependentUpon>Main_APP.cs</DependentUpon>

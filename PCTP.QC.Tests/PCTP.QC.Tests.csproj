@@ -41,6 +41,7 @@
     <Compile Include="../PCTP/Framework/Documents/Design/DocumentMenuDesigner.cs" Link="Framework/Documents/DocumentMenuDesigner.cs" />
     <Compile Include="../PCTP/Framework/Documents/Design/DocumentMenuProvider.cs" Link="Framework/Documents/DocumentMenuProvider.cs" />
     <Compile Include="../PCTP/Framework/UiLayout/Design/UiScreenCatalog.cs" Link="Framework/UiLayout/UiScreenCatalog.cs" />
+    <Compile Include="../PCTP/Framework/UiLayout/Menu/UiMenuModel.cs" Link="Framework/UiLayout/UiMenuModel.cs" />
     <Compile Include="../PCTP/Framework/UiLayout/Contracts/UiLayoutModels.cs" Link="Framework/UiLayout/UiLayoutModels.cs" />
     <Compile Include="../PCTP/Framework/UiLayout/Contracts/UiLayoutValidator.cs" Link="Framework/UiLayout/UiLayoutValidator.cs" />
     <Compile Include="../PCTP/Framework/UiLayout/Runtime/UiQueryBuilder.cs" Link="Framework/UiLayout/UiQueryBuilder.cs" />
@@ -51,6 +52,7 @@
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/056 MES UiLayoutDesigner.sql" Link="056_MES_UiLayoutDesigner.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/057_MES_UiScreenCatalog.sql" Link="057_MES_UiScreenCatalog.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/058_MES_UiScreenAuditList.sql" Link="058_MES_UiScreenAuditList.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/059_MES_UiMenuProfiles.sql" Link="059_MES_UiMenuProfiles.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/047_MES_ProductionFlowControlTower.sql" Link="047_MES_ProductionFlowControlTower.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/049_MES_ProductionFlowChangeVersionAndBomVisibility.sql" Link="049_MES_ProductionFlowChangeVersionAndBomVisibility.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/UI/FormMesProductionControlTower.cs" Link="FormMesProductionControlTower.source.cs" CopyToOutputDirectory="PreserveNewest" />

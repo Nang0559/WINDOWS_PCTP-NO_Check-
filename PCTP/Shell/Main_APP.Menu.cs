@@ -134,6 +134,10 @@ namespace PCTP
                 "menuUiDataSourceDesigner",
                 "Khai báo cơ sở dữ liệu UI",
                 OpenUiDataSourceDesigner));
+            _menuQuanTri.Elements.Add(CreateMenuItem(
+                "menuUiMenuDesigner",
+                "Thiết kế menu (Tùy chọn trình đơn)",
+                OpenUiMenuDesigner));
             accordionControlElement20.Elements.Add(CreateMenuItem(
                 "menuChangePassword",
                 "Đổi mật khẩu đăng nhập",
@@ -211,6 +215,7 @@ namespace PCTP
                 ["menuChungTuYeuCauLinhKien"] = "MES.COMPONENT_DEMAND",
                 ["menuDocumentDesigner"] = "ADMIN.DOCUMENT_DESIGNER",
                 ["menuUiDataSourceDesigner"] = "ADMIN.DOCUMENT_DESIGNER",
+                ["menuUiMenuDesigner"] = "ADMIN.DOCUMENT_DESIGNER",
                 ["menuPhieuDatHangLinhKienUi"] = PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode,
                 ["menuDieuChinhTonKhoLot"] = "WAREHOUSE.STOCK_ADJUST",
                 ["menuHangChoGiao"] = "SHIPPING.DISPATCH",
@@ -411,11 +416,13 @@ namespace PCTP
                 foreach (var screen in screens)
                 {
                     string code = screen.ScreenCode;
+                    // A menu profile may already have moved this item elsewhere: do not create a second copy.
+                    if (FindMenuItem(accordionControl.Elements.Cast<AccordionControlElement>(), "menuUiScreen_" + code) != null) continue;
                     _menuUiScreens.Elements.Add(CreateMenuItem("menuUiScreen_" + code, screen.Title,
                         (s, e) => OpenUiScreenByCode(code)));
                 }
                 bool attached = _menuUiScreens.OwnerElement == mainAccordionGroup;
-                if (screens.Count > 0 && !attached)
+                if (_menuUiScreens.Elements.Count > 0 && !attached)
                 {
                     // Keep "Công Cụ" and "Quản trị hệ thống" last: re-append them after "Màn hình UI".
                     mainAccordionGroup.Elements.Remove(accordionControlElement20);
@@ -424,7 +431,7 @@ namespace PCTP
                     mainAccordionGroup.Elements.Add(accordionControlElement20);
                     mainAccordionGroup.Elements.Add(_menuQuanTri);
                 }
-                else if (screens.Count == 0 && attached) mainAccordionGroup.Elements.Remove(_menuUiScreens);
+                else if (_menuUiScreens.Elements.Count == 0 && attached) mainAccordionGroup.Elements.Remove(_menuUiScreens);
             }
             catch (Exception ex)
             {

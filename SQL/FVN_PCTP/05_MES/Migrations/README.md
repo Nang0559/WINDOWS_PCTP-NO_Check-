@@ -538,3 +538,13 @@ Run `055_MES_UiMenuRuntimeList.sql` after 054. It adds the read-only `MES.usp_FV
 Run in order after 055, in FVN_PCTP. Rules: a layout names only columns of an approved `MES.vw_FVN_*` view (re-validated against `sys.columns` on every save); the permission that guards reading a source belongs to the source row and is set by APPROVE; the Site column is mandatory; quick filters are column + operator + (closed token list | typed literal); there is no SQL text, expression, procedure, DLL or class name in any layout table. Layout screens are read-only; commands stay registered in C#.
 
 After applying on DB57: sign in with a user holding `WAREHOUSE.COMPONENT_PO` VIEW and a SITE scope, open Kho → Phiếu đặt hàng linh kiện, check the quick filters, the two child tabs and the grouping by status; then with a user holding `ADMIN.DOCUMENT_DESIGNER` EDIT right-click → Khai báo layout, change a caption/width, save, open from a second session to see the conflict message, and check LỊCH SỬ.
+
+## UI Menu Designer (Bravo "Tùy chọn các mục trình đơn") - migration 059
+
+| Version | File | Contents |
+|---|---|---|
+| 059 | 059_MES_UiMenuProfiles.sql | `MES.FVN_UiMenuProfile`, `FVN_UiMenuProfileRole`, `FVN_UiMenuNode`; procedures `usp_FVN_UiMenuProfile_List/ListRoles/Load/Create/Save/Runtime`; seed profile `DEFAULT` (empty = standard shell menu) |
+
+Run after 058, in FVN_PCTP. A profile is a tree (max 3 levels, 300 nodes) of GROUP and ITEM nodes. An ITEM stores only `ItemKey`, the Name of a menu item that already exists in the C# shell (or of a dynamic UI screen item). The shell resolves keys against the items it really has, drops unknown keys and empty groups, and never makes visible an item that RBAC hid, so the menu cannot gain a screen, command or permission from SQL. A profile may be assigned to roles (a role belongs to one profile); a user with no matching role gets `DEFAULT`. VIEW on `ADMIN.DOCUMENT_DESIGNER` opens the designer, EDIT saves or creates a profile; `usp_FVN_UiMenuProfile_Runtime` needs only an active signed-in user. History is in `MES.FVN_UiScreenAudit` with ScreenCode `MENU:<ProfileCode>` (read with `usp_FVN_UiScreen_ListAudit`).
+
+After applying: Quản trị hệ thống -> Thiết kế menu, drag items into groups, Lưu, restart the app and sign in; then assign a profile to a role and check a user of that role sees it while another user still sees DEFAULT / the standard menu.
