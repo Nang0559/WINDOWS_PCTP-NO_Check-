@@ -526,3 +526,15 @@ Run `054_MES_UiDesignerMenuConcurrency.sql` after 053. It replaces the menu-save
 ## Migration 055 — shell runtime menu configuration
 
 Run `055_MES_UiMenuRuntimeList.sql` after 054. It adds the read-only `MES.usp_FVN_UiScreenMenu_Runtime` procedure used by the desktop shell. It returns only configured menu placement and visibility for active, non-quarantined definitions. The C# `DocumentMenuProvider` applies a second allow-list check against registered modules and each screen's VIEW permission; SQL cannot create a shell item or supply an event handler. If the procedure is unavailable or the query fails, the shell keeps its standard navigation. After applying 055 on DB57, sign in with users who have and do not have the relevant screen VIEW permission, then verify menu visibility, group and sequence.
+
+## UI Layout Designer (Bravo style) - migrations 056-058
+
+| Version | File | Contents |
+|---|---|---|
+| 056 | 056 MES UiLayoutDesigner.sql | Approved data sources (`MES.FVN_UiDataSource`), structured layouts (`FVN_UiScreen`, `FVN_UiScreenColumn`, `FVN_UiScreenChild`, `FVN_UiScreenFilter`), audit, procedures (`usp_FVN_UiDataSource_*`, `usp_FVN_UiScreen_Create/Load/Save`), seed screen `COMPONENT_PO` (Phiếu đặt hàng linh kiện) |
+| 057 | 057_MES_UiScreenCatalog.sql | `usp_FVN_UiScreen_List`: approved screens the actor may open (drives the shell menu only) |
+| 058 | 058_MES_UiScreenAuditList.sql | `usp_FVN_UiScreen_ListAudit`: read-only change history for the designer "LỊCH SỬ" button |
+
+Run in order after 055, in FVN_PCTP. Rules: a layout names only columns of an approved `MES.vw_FVN_*` view (re-validated against `sys.columns` on every save); the permission that guards reading a source belongs to the source row and is set by APPROVE; the Site column is mandatory; quick filters are column + operator + (closed token list | typed literal); there is no SQL text, expression, procedure, DLL or class name in any layout table. Layout screens are read-only; commands stay registered in C#.
+
+After applying on DB57: sign in with a user holding `WAREHOUSE.COMPONENT_PO` VIEW and a SITE scope, open Kho → Phiếu đặt hàng linh kiện, check the quick filters, the two child tabs and the grouping by status; then with a user holding `ADMIN.DOCUMENT_DESIGNER` EDIT right-click → Khai báo layout, change a caption/width, save, open from a second session to see the conflict message, and check LỊCH SỬ.

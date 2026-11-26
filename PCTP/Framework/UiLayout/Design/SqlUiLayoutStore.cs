@@ -1,5 +1,4 @@
-﻿using DevExpress.XtraPrinting;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -19,6 +18,8 @@ namespace PCTP.Framework.UiLayout
         UiScreenLoadResult Load(long actorUserId, string screenCode);
         /// <summary>Returns the new ConfigVersion. Throws <see cref="UiConfigConflictException"/> on a version mismatch.</summary>
         int Save(long actorUserId, string actorCode, UiScreenLayout layout, int expectedConfigVersion);
+        /// <summary>Migration 058: change history of a screen (or of a data source: SOURCE:&lt;code&gt;), newest first.</summary>
+        DataTable ListAudit(long actorUserId, string screenCode, int top);
     }
 
     /// <summary>Calls migration 056 procedures. Not a security boundary: every procedure re-checks RBAC and re-validates names.</summary>
@@ -59,6 +60,16 @@ namespace PCTP.Framework.UiLayout
                 SourceCode = (string)r["SourceCode"],
                 ViewFunctionCode = (string)r["ViewFunctionCode"]
             }).ToList();
+        }
+
+        public DataTable ListAudit(long actorUserId, string screenCode, int top)
+        {
+            return Fill("MES.usp_FVN_UiScreen_ListAudit", p =>
+            {
+                p.Add("@ActorUserId", SqlDbType.BigInt).Value = actorUserId;
+                p.Add("@ScreenCode", SqlDbType.VarChar, 80).Value = screenCode;
+                p.Add("@Top", SqlDbType.Int).Value = top;
+            });
         }
 
         public IList<UiSourceColumn> GetSourceColumns(long actorUserId, string sourceCode)

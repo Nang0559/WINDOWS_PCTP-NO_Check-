@@ -57,6 +57,13 @@ namespace PCTP.Framework.UiLayout
             return _store.Load(_auth.ActorUserId, screenCode);
         }
 
+        /// <summary>Change history of the screen (VIEW on the designer function).</summary>
+        public System.Data.DataTable ListAudit(string screenCode, int top = 100)
+        {
+            _auth.Demand(DocumentDesignerPermissions.View);
+            return _store.ListAudit(_auth.ActorUserId, screenCode, top);
+        }
+
         public IList<string> ListCandidateViews()
         {
             _auth.Demand(DocumentDesignerPermissions.Approve);

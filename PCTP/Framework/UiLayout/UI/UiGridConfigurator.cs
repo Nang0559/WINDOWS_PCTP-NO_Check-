@@ -1,7 +1,6 @@
 ﻿using DevExpress.Utils;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
-using DevExpress.XtraPrinting;
 using System;
 using System.Collections.Generic;
 using System.Linq;

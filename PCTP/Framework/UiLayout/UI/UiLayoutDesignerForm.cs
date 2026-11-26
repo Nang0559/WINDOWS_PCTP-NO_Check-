@@ -3,7 +3,6 @@ using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraEditors.Repository;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
-using DevExpress.XtraPrinting;
 using DevExpress.XtraTab;
 using System;
 using System.Collections.Generic;
@@ -28,6 +27,7 @@ namespace PCTP.Framework.UiLayout
         private readonly ComboBoxEdit _region = new ComboBoxEdit { Width = 260, Dock = DockStyle.Left };
         private readonly SimpleButton _save = new SimpleButton { Text = "LƯU", Width = 90, Dock = DockStyle.Left };
         private readonly SimpleButton _reload = new SimpleButton { Text = "TẢI LẠI", Width = 90, Dock = DockStyle.Left };
+        private readonly SimpleButton _history = new SimpleButton { Text = "LỊCH SỬ", Width = 90, Dock = DockStyle.Left };
         private readonly CheckedListBoxControl _cols = new CheckedListBoxControl { Dock = DockStyle.Left, Width = 250 };
         private readonly GridControl _preview = new GridControl { Dock = DockStyle.Fill };
         private readonly GridView _previewView;
@@ -89,6 +89,8 @@ namespace PCTP.Framework.UiLayout
             _colProps.PropertyValueChanged += (s, e) => { MarkDirty(); RefreshPreview(_colProps.SelectedObject as UiColumnLayout); };
 
             var top = new PanelControl { Dock = DockStyle.Top, Height = 42, Padding = new Padding(5) };
+            _history.Click += (s, e) => ShowHistory();
+            top.Controls.Add(_history);
             top.Controls.Add(_reload);
             top.Controls.Add(_save);
             top.Controls.Add(_region);
@@ -188,6 +190,37 @@ namespace PCTP.Framework.UiLayout
                 _loading = false;
                 SetStatus(ex.GetBaseException().Message, true);
             }
+        }
+
+        /// <summary>Change history (who saved which version, when). Read-only; restoring a version is a manual re-save.</summary>
+        private void ShowHistory()
+        {
+            try
+            {
+                var table = _service.ListAudit(_screenCode, 200);
+                using (var form = new XtraForm { Text = "Lịch sử thay đổi - " + _screenCode, StartPosition = FormStartPosition.CenterParent, Size = new System.Drawing.Size(980, 520) })
+                {
+                    var grid = new GridControl { Dock = DockStyle.Fill, DataSource = table };
+                    var view = new GridView(grid);
+                    grid.MainView = view;
+                    grid.ViewCollection.Add(view);
+                    view.OptionsBehavior.Editable = false;
+                    view.OptionsView.ShowGroupPanel = false;
+                    view.OptionsView.ColumnAutoWidth = false;
+                    view.PopulateColumns();
+                    view.Columns["AuditId"].Caption = "Id";
+                    view.Columns["AtUtc"].Caption = "Thời điểm (UTC)";
+                    view.Columns["ActionCode"].Caption = "Thao tác";
+                    view.Columns["ActorCode"].Caption = "Người thực hiện";
+                    view.Columns["VersionBefore"].Caption = "Phiên bản trước";
+                    view.Columns["VersionAfter"].Caption = "Phiên bản sau";
+                    view.Columns["DetailJson"].Caption = "Chi tiết";
+                    view.BestFitColumns();
+                    form.Controls.Add(grid);
+                    form.ShowDialog(this);
+                }
+            }
+            catch (Exception ex) { SetStatus(ex.GetBaseException().Message, true); }
         }
 
         private void SaveLayout()
