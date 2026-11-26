@@ -294,7 +294,16 @@ namespace PCTP.Modules.KhoLinhKien
             if (!ComponentPoLabelSheet.Print(owner, labels, "Tem PO " + poNo)) return null;
 
             var ids = labels.Rows.Cast<DataRow>().Select(r => Convert.ToInt64(r["ComponentLotId"], CultureInfo.InvariantCulture)).ToList();
-            service.LogPrinted(id, reprint, reason, ids);
+            try
+            {
+                service.LogPrinted(id, reprint, reason, ids);
+            }
+            catch (Exception ex)
+            {
+                // Tem đã ra máy in nhưng chưa ghi lịch sử: nếu im lặng, lần sau "In tem" sẽ in lại cùng các tem này.
+                throw new InvalidOperationException("Đã gửi " + labels.Rows.Count + " tem tới máy in nhưng KHÔNG ghi được lịch sử in: " +
+                    ex.Message + "\r\nKhông bấm In tem lần nữa (tem sẽ in trùng). Báo quản trị để ghi nhận hoặc dùng \"In lại tem\" khi cần.", ex);
+            }
             return "Đã gửi " + labels.Rows.Count + " tem của PO " + poNo + " tới máy in (" + (reprint ? "in lại" : "in lần đầu") + ").";
         }
     }

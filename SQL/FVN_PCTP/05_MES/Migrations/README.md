@@ -554,6 +554,8 @@ After applying: Quản trị hệ thống -> Thiết kế menu, drag items into 
 | Version | File | Contents |
 |---|---|---|
 | 060 | 060_MES_UiMenuProfileOrderDelete.sql | `FVN_UiMenuProfile.ProfileOrder` (1-9999, default 100); `usp_FVN_UiMenuProfile_SetOrder`, `usp_FVN_UiMenuProfile_Delete`, `usp_FVN_UiMenuProfile_ListScreens`; `List`, `Load`, `Runtime` re-created |
+| 061 | 061_MES_ComponentPackSpecAndQrLabels.sql | `MES.FVN_ComponentPackSpec`; `usp_FVN_ComponentPackSpec_Upsert`; `usp_FVN_ComponentPO_Release` re-created (one QR LOT per pack, stops listing parts without an active pack spec); `usp_FVN_ComponentPO_LabelData`, `usp_FVN_ComponentPO_LabelLog` |
+| 062 | 062_MES_ComponentReceiptIdempotencyAndLabelLog.sql | `usp_FVN_ComponentReceipt_Post` re-created: replay of an already-posted IdempotencyKey (same site/QR/quantity) returns the original document instead of failing, same key with different content -> 53233; `usp_FVN_ComponentPO_LabelLog` re-created: INITIAL_PRINT logged once per LOT, serialized per PO |
 
 Run after 059, in FVN_PCTP, **before** deploying the matching build (the new designer reads `ProfileOrder`). A user whose roles sit in several profiles gets the profile with the smallest `ProfileOrder` (ties: `ProfileCode`). Delete removes the profile, its nodes and role links (roles fall back to `DEFAULT`); a JSON copy stays in `MES.FVN_UiScreenAudit` (`MENU:<ProfileCode>`, action `DELETE`). `ListScreens` lists every active approved UI screen for the designer's left list, whatever the designer may open; the shell still creates a screen item only for users who may open it.
 

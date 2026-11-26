@@ -54,7 +54,7 @@ SELECT l.ComponentLotId, h.PurchaseOrderId, h.SiteCode, h.PurchaseOrderNo,
        l.LotNo, l.QrPayload, l.Status AS LotStatus,
        r.LastReceivedAtUtc AS ArrivalDateUtc,
        l.IssuedQty, l.ReceivedQty,
-       p.OrderQty - l.ReceivedQty AS DiffQty,
+       l.IssuedQty - l.ReceivedQty AS DiffQty,
        ISNULL(lb.PrintCount, 0) AS LabelPrintCount
 FROM MES.FVN_ComponentLot l
 JOIN MES.FVN_ComponentPurchaseOrderLine p ON p.PurchaseOrderLineId = l.PurchaseOrderLineId

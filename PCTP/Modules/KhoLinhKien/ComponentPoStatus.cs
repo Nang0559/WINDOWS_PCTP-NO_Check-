@@ -130,6 +130,8 @@ namespace PCTP.Modules.KhoLinhKien
         int ImportOrders(IReadOnlyList<ComponentPoImportRow> rows, string actor, string sourceFile, Guid correlationId);
         /// <summary>Các PartNo chưa có trong danh mục IFS của Site (thủ tục upload chỉ báo lỗi chung, không nêu mã nào).</summary>
         IReadOnlyList<string> FindMissingParts(string siteCode, IEnumerable<string> partNos);
+        /// <summary>Các PartNo của PO chưa có quy cách đóng gói hoạt động (Site + nhà cung cấp của PO hoặc áp dụng mọi nhà cung cấp).</summary>
+        IReadOnlyList<string> FindPartsWithoutPackSpec(long purchaseOrderId);
         DataTable Transition(long purchaseOrderId, int fromStatus, int toStatus, string actor, string reason, Guid correlationId);
     }
 
@@ -352,6 +354,29 @@ ORDER BY e.OccurredAtUtc DESC, e.WorkflowEventId DESC;";
             return wanted.Where(x => !found.Contains(x)).ToList();
         }
 
+        public IReadOnlyList<string> FindPartsWithoutPackSpec(long purchaseOrderId)
+        {
+            const string sql = @"
+SELECT DISTINCT l.PartNo
+FROM MES.FVN_ComponentPurchaseOrderLine l
+JOIN MES.FVN_ComponentPurchaseOrder h ON h.PurchaseOrderId = l.PurchaseOrderId
+WHERE l.PurchaseOrderId = @PurchaseOrderId
+  AND NOT EXISTS (SELECT 1 FROM MES.FVN_ComponentPackSpec s
+                  WHERE s.SiteCode = l.SiteCode AND s.PartNo = l.PartNo AND s.IsActive = 1
+                    AND s.SupplierCode IN (h.SupplierCode, N''))
+ORDER BY l.PartNo;";
+            var result = new List<string>();
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(sql, cn) { CommandTimeout = 60 })
+            {
+                cmd.Parameters.Add("@PurchaseOrderId", SqlDbType.BigInt).Value = purchaseOrderId;
+                cn.Open();
+                using (var rd = cmd.ExecuteReader())
+                    while (rd.Read()) result.Add(Convert.ToString(rd[0]).Trim());
+            }
+            return result;
+        }
+
         public DataTable Transition(long purchaseOrderId, int fromStatus, int toStatus, string actor, string reason, Guid correlationId)
         {
             using (var cn = new SqlConnection(_connectionString))
@@ -494,6 +519,16 @@ ORDER BY e.OccurredAtUtc DESC, e.WorkflowEventId DESC;";
             _transitions.EnsureCanTransition(ComponentPoStatus.ProcessCode, fromStatus, toStatus);
             if (ComponentPoStatus.NeedsReason(fromStatus, toStatus) && string.IsNullOrWhiteSpace(reason))
                 throw new ArgumentException("Bắt buộc nhập lý do.");
+
+            // Phát hành sinh một tem cho mỗi gói: thiếu quy cách đóng gói thì phát hành sẽ dừng. Báo ngay ở bước Kiểm tra.
+            if (toStatus == ComponentPoStatus.Validated)
+            {
+                IReadOnlyList<string> noSpec = _repository.FindPartsWithoutPackSpec(purchaseOrderId);
+                if (noSpec.Count > 0)
+                    throw new InvalidOperationException("Chưa có quy cách đóng gói cho " + noSpec.Count + " mã: " +
+                        string.Join(", ", noSpec.Take(20)) + (noSpec.Count > 20 ? ", ..." : string.Empty) +
+                        ".\r\nKhai báo quy cách (màn hình Quy cách đóng gói) rồi Kiểm tra lại.");
+            }
 
             return _repository.Transition(purchaseOrderId, fromStatus, toStatus, actor,
                 string.IsNullOrWhiteSpace(reason) ? null : reason.Trim(), Guid.NewGuid());
