@@ -88,6 +88,8 @@ namespace PCTP.Modules.KhoLinhKien
         DataTable ListEvents(long purchaseOrderId);
         string GetSiteCode(long purchaseOrderId);
         int ImportOrders(IReadOnlyList<ComponentPoImportRow> rows, string actor, string sourceFile, Guid correlationId);
+        /// <summary>Các PartNo chưa có trong danh mục IFS của Site (thủ tục upload chỉ báo lỗi chung, không nêu mã nào).</summary>
+        IReadOnlyList<string> FindMissingParts(string siteCode, IEnumerable<string> partNos);
         DataTable Transition(long purchaseOrderId, int fromStatus, int toStatus, string actor, string reason, Guid correlationId);
     }
 
@@ -100,6 +102,8 @@ namespace PCTP.Modules.KhoLinhKien
         IReadOnlyList<WorkflowTransition> GetAvailableActions(int fromStatus);
         /// <summary>Upload các dòng PO; mọi PO trong lô nằm trong một transaction. Trả về số PO.</summary>
         int Import(IReadOnlyList<ComponentPoImportRow> rows, string sourceFile);
+        /// <summary>Kiểm tra trước khi upload: các PartNo chưa có trong danh mục IFS của Site. Cần quyền CREATE theo Site.</summary>
+        IReadOnlyList<string> FindMissingParts(string siteCode, IEnumerable<string> partNos);
         DataTable Transition(long purchaseOrderId, int fromStatus, int toStatus, string reason);
     }
 
@@ -272,6 +276,42 @@ ORDER BY e.OccurredAtUtc DESC, e.WorkflowEventId DESC;";
             return groups.Count;
         }
 
+        public IReadOnlyList<string> FindMissingParts(string siteCode, IEnumerable<string> partNos)
+        {
+            var wanted = (partNos ?? Enumerable.Empty<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            using (var cn = new SqlConnection(_connectionString))
+            {
+                cn.Open();
+                const int chunkSize = 500;
+                for (int offset = 0; offset < wanted.Count; offset += chunkSize)
+                {
+                    List<string> chunk = wanted.Skip(offset).Take(chunkSize).ToList();
+                    using (var cmd = new SqlCommand { Connection = cn, CommandTimeout = 60 })
+                    {
+                        var names = new List<string>();
+                        for (int i = 0; i < chunk.Count; i++)
+                        {
+                            string name = "@p" + i.ToString(CultureInfo.InvariantCulture);
+                            names.Add(name);
+                            cmd.Parameters.Add(name, SqlDbType.NVarChar, 100).Value = chunk[i];
+                        }
+                        cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = siteCode;
+                        cmd.CommandText = "SELECT PartNo FROM IFS.FVN_InventoryPart WHERE SiteCode=@SiteCode AND PartNo IN (" +
+                                          string.Join(",", names) + ")";
+                        using (var rd = cmd.ExecuteReader())
+                            while (rd.Read()) found.Add(Convert.ToString(rd[0]).Trim());
+                    }
+                }
+            }
+            return wanted.Where(x => !found.Contains(x)).ToList();
+        }
+
         public DataTable Transition(long purchaseOrderId, int fromStatus, int toStatus, string actor, string reason, Guid correlationId)
         {
             using (var cn = new SqlConnection(_connectionString))
@@ -389,6 +429,14 @@ ORDER BY e.OccurredAtUtc DESC, e.WorkflowEventId DESC;";
             }
 
             return _repository.ImportOrders(rows, actor, sourceFile, Guid.NewGuid());
+        }
+
+        public IReadOnlyList<string> FindMissingParts(string siteCode, IEnumerable<string> partNos)
+        {
+            string site = (siteCode ?? string.Empty).Trim().ToUpperInvariant();
+            if (site.Length == 0) throw new ArgumentException("Thiếu SiteCode.");
+            AuthorizationGuard.DemandActionAndScope(Function, "CREATE", "SITE", site, site);
+            return _repository.FindMissingParts(site, partNos);
         }
 
         public DataTable Transition(long purchaseOrderId, int fromStatus, int toStatus, string reason)
@@ -510,6 +558,8 @@ ORDER BY e.OccurredAtUtc DESC, e.WorkflowEventId DESC;";
         {
             if (value is DateTime) { date = (DateTime)value; return true; }
             if (value is double) { date = DateTime.FromOADate((double)value); return true; }
+            // Ngày dạng chuỗi dd/MM/yyyy phải ra đúng ngày: TryParse theo InvariantCulture đọc 01/10/2026 thành 10/01.
+            if (BravoPoMapper.TryParseDateText(text, out date)) return true;
             return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out date)
                 || DateTime.TryParse(text, out date);
         }

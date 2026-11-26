@@ -488,6 +488,8 @@
     <Compile Include="Modules\KhoCore\Services\StockHistoryService.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoUploadAction.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoStatus.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentPoBravoMapper.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentPoBravoExcelReader.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentStockFilter.cs" />
     <Compile Include="Modules\KhoLinhKien\UI\FormKhoLinhKien.cs">
       <SubType>Form</SubType>

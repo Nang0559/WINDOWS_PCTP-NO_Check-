@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -35,17 +36,41 @@ namespace PCTP.Modules.KhoLinhKien
                 path = dlg.FileName;
             }
 
-            IList<string> sheets = ComponentPoExcelReader.GetSheetNames(path);
-            string sheet = sheets.FirstOrDefault(n => string.Equals(n, "PO", StringComparison.OrdinalIgnoreCase)) ?? sheets.FirstOrDefault();
-            if (sheet == null) throw new InvalidOperationException("File Excel không có sheet nào.");
+            List<ComponentPoImportRow> rows;
+            string summary;
+            if (ComponentPoBravoExcelReader.IsBravoWorkbook(path))
+            {
+                // File xuất từ Bravo: sheet header + sheet detail (chuẩn header/detail của phiếu đặt hàng).
+                List<BravoPoDocument> docs = ComponentPoBravoExcelReader.Read(path);
+                rows = ComponentPoBravoExcelReader.ToImportRows(docs);
+                summary = DescribeBravo(docs);
+            }
+            else
+            {
+                IList<string> sheets = ComponentPoExcelReader.GetSheetNames(path);
+                string sheet = sheets.FirstOrDefault(n => string.Equals(n, "PO", StringComparison.OrdinalIgnoreCase)) ?? sheets.FirstOrDefault();
+                if (sheet == null) throw new InvalidOperationException("File Excel không có sheet nào.");
 
-            List<ComponentPoImportRow> rows = ComponentPoExcelReader.Read(path, sheet);
-            int orders = rows.GroupBy(r => new { r.SiteCode, r.PurchaseOrderNo }).Count();
-            string sites = string.Join(", ", rows
-                .Select(r => (r.SiteCode ?? string.Empty).Trim().ToUpperInvariant())
-                .Where(x => x.Length > 0).Distinct().OrderBy(x => x, StringComparer.Ordinal));
-            string message = "Sheet \"" + sheet + "\": " + orders + " PO, " + rows.Count + " dòng hàng" +
-                (sites.Length > 0 ? " (Site: " + sites + ")" : string.Empty) + ".\r\n\r\n" +
+                rows = ComponentPoExcelReader.Read(path, sheet);
+                int orders = rows.GroupBy(r => new { r.SiteCode, r.PurchaseOrderNo }).Count();
+                string sites = string.Join(", ", rows
+                    .Select(r => (r.SiteCode ?? string.Empty).Trim().ToUpperInvariant())
+                    .Where(x => x.Length > 0).Distinct().OrderBy(x => x, StringComparer.Ordinal));
+                summary = "Sheet \"" + sheet + "\": " + orders + " PO, " + rows.Count + " dòng hàng" +
+                    (sites.Length > 0 ? " (Site: " + sites + ")" : string.Empty) + ".";
+            }
+
+            // Thủ tục upload chỉ báo "một PartNo không có trong danh mục IFS" mà không nêu mã nào: kiểm tra trước để liệt kê.
+            foreach (var bySite in rows.GroupBy(r => (r.SiteCode ?? string.Empty).Trim().ToUpperInvariant()))
+            {
+                IReadOnlyList<string> missing = po.FindMissingParts(bySite.Key, bySite.Select(r => r.PartNo));
+                if (missing.Count > 0)
+                    throw new InvalidOperationException("Site " + bySite.Key + ": " + missing.Count +
+                        " mã linh kiện chưa có trong danh mục IFS nên không thể upload:\r\n" +
+                        string.Join(", ", missing.Take(20)) + (missing.Count > 20 ? ", ..." : string.Empty));
+            }
+
+            string message = summary + "\r\n\r\n" +
                 "Upload tạo PO ở trạng thái Nháp (hoặc thay thế PO Nháp cùng số). PO đã Kiểm tra/Phát hành không bị ghi đè. " +
                 "Toàn bộ file chạy trong một transaction.\r\n\r\nTiếp tục upload?";
             if (XtraMessageBox.Show(owner, message, Title, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
@@ -53,6 +78,24 @@ namespace PCTP.Modules.KhoLinhKien
 
             int count = po.Import(rows, Path.GetFileName(path));
             return "Đã upload " + count + " PO (" + rows.Count + " dòng) ở trạng thái Nháp.";
+        }
+
+        private static string DescribeBravo(IList<BravoPoDocument> docs)
+        {
+            var lines = new List<string>();
+            foreach (BravoPoDocument d in docs)
+            {
+                string range = d.MinNeedBy.HasValue
+                    ? d.MinNeedBy.Value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) + " → " +
+                      d.MaxNeedBy.Value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
+                    : "-";
+                lines.Add("PO " + d.PurchaseOrderNo + " | NCC " + d.SupplierCode + " | Site " + d.SiteCode +
+                          " | ngày đặt " + d.OrderDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) + "\r\n" +
+                          d.Lines.Count + " dòng, " + d.PartCount + " mã, tổng SL " +
+                          d.TotalQty.ToString("#,##0.###", CultureInfo.CurrentCulture) + ", ngày cần " + range +
+                          (string.IsNullOrWhiteSpace(d.Description) ? string.Empty : "\r\nMô tả: " + d.Description.Trim()));
+            }
+            return "File Bravo (header + detail):\r\n" + string.Join("\r\n\r\n", lines);
         }
     }
 
