@@ -490,6 +490,7 @@
     <Compile Include="Modules\KhoLinhKien\ComponentPoStatus.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoBravoMapper.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoBravoExcelReader.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentPoWorkflowActions.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentStockFilter.cs" />
     <Compile Include="Modules\KhoLinhKien\UI\FormKhoLinhKien.cs">
       <SubType>Form</SubType>
@@ -966,6 +967,7 @@
     </Compile>
     <Compile Include="Shell\Main_APP.MenuProfile.cs">
       <DependentUpon>Main_APP.cs</DependentUpon>
+      <SubType>Form</SubType>
     </Compile>
     <Compile Include="Shell\Main_APP.Menu.cs">
       <DependentUpon>Main_APP.cs</DependentUpon>
