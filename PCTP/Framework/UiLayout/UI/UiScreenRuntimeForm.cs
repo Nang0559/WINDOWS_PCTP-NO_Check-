@@ -23,6 +23,7 @@ namespace PCTP.Framework.UiLayout
         private readonly string _screenCode;
         private readonly string _siteCode;
         private readonly IList<UiScreenAction> _actions;
+        private readonly List<KeyValuePair<UiScreenAction, SimpleButton>> _actionButtons = new List<KeyValuePair<UiScreenAction, SimpleButton>>();
 
         private readonly ListBoxControl _filters = new ListBoxControl { Dock = DockStyle.Left, Width = 190 };
         private readonly GridControl _grid = new GridControl { Dock = DockStyle.Fill };
@@ -68,7 +69,7 @@ namespace PCTP.Framework.UiLayout
             _view.OptionsBehavior.ReadOnly = true;
             _view.OptionsView.ShowAutoFilterRow = true;
             _view.OptionsSelection.MultiSelect = false;
-            _view.FocusedRowChanged += (s, e) => ScheduleChildLoad();
+            _view.FocusedRowChanged += (s, e) => { ScheduleChildLoad(); RefreshActionStates(); };
 
             _childTimer.Tick += (s, e) => { _childTimer.Stop(); LoadChild(); };
             _tabs.SelectedPageChanged += (s, e) => ScheduleChildLoad();
@@ -92,6 +93,7 @@ namespace PCTP.Framework.UiLayout
                 var button = new SimpleButton { Text = captured.Caption, Width = captured.Width, Dock = DockStyle.Left, Visible = captured.IsAvailable() };
                 button.Click += (s, e) => RunAction(captured);
                 bar.Controls.Add(button);
+                _actionButtons.Add(new KeyValuePair<UiScreenAction, SimpleButton>(captured, button));
             }
             bar.Controls.Add(_reload);
 
@@ -204,6 +206,7 @@ namespace PCTP.Framework.UiLayout
                 _next.Enabled = _pageIndex + 1 < pageCount;
                 SetStatus("Trang " + (pageCount == 0 ? 0 : _pageIndex + 1) + "/" + pageCount + " - " + total.ToString("N0") +
                           " dòng, Site " + _siteCode + (_activeFilter == null ? string.Empty : " - " + _activeFilter.Caption), false);
+                RefreshActionStates();
                 ScheduleChildLoad();
             }
             catch (Exception ex)
@@ -261,11 +264,26 @@ namespace PCTP.Framework.UiLayout
             catch (Exception ex) { XtraMessageBox.Show(this, ex.GetBaseException().Message, "Khai báo layout", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
 
+        private UiScreenRowContext FocusedRowContext()
+        {
+            return new UiScreenRowContext(_view.GetFocusedDataRow());
+        }
+
+        /// <summary>Enables row-based buttons (workflow steps) for the focused row. Usability only: service and SQL re-check.</summary>
+        private void RefreshActionStates()
+        {
+            if (_actionButtons.Count == 0) return;
+            UiScreenRowContext row = FocusedRowContext();
+            foreach (var pair in _actionButtons)
+                if (pair.Key.IsRowAction) pair.Value.Enabled = pair.Key.IsEnabledFor(row);
+        }
+
         private void RunAction(UiScreenAction action)
         {
             try
             {
-                string status = action.Execute(this, _siteCode);
+                // The row is captured at click time, before any dialog, so a reload in between cannot change the target.
+                string status = action.Execute(this, _siteCode, FocusedRowContext());
                 if (status == null) return;   // cancelled by the user
                 LoadPage();
                 SetStatus(status, false);

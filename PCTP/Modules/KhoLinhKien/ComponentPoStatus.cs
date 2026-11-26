@@ -64,6 +64,46 @@ namespace PCTP.Modules.KhoLinhKien
                 default: return null;
             }
         }
+
+        /// <summary>
+        /// Đọc mã trạng thái từ cột Status của view màn hình (tên như DRAFT, VALIDATED, ...; cùng bảng ánh xạ với
+        /// MES.fn_FVN_ComponentPoStatusCode) hoặc từ chính mã số. Trả false khi không nhận ra.
+        /// </summary>
+        public static bool TryFromName(string name, out int statusCode)
+        {
+            statusCode = 0;
+            string key = (name ?? string.Empty).Trim().ToUpperInvariant();
+            switch (key)
+            {
+                case "DRAFT": statusCode = Draft; return true;
+                case "VALIDATED": statusCode = Validated; return true;
+                case "RELEASED": statusCode = Released; return true;
+                case "PARTIALLY_RECEIVED": statusCode = PartiallyReceived; return true;
+                case "RECEIVED": statusCode = Received; return true;
+                case "CLOSED": statusCode = Closed; return true;
+                case "CANCELLED": statusCode = Cancelled; return true;
+            }
+            int number;
+            if (!int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out number)) return false;
+            switch (number)
+            {
+                case Draft: case Validated: case Released: case PartiallyReceived:
+                case Received: case Closed: case Cancelled:
+                    statusCode = number;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Chuyển trạng thái bắt buộc nhập lý do: Hủy PO, và Đóng sớm khi mới nhận một phần (30 → 50).
+        /// Cùng quy tắc với MES.usp_FVN_ComponentPO_Transition và ComponentPurchaseOrderService.Transition.
+        /// </summary>
+        public static bool NeedsReason(int fromStatus, int toStatus)
+        {
+            return toStatus == Cancelled || (toStatus == Closed && fromStatus == PartiallyReceived);
+        }
     }
 
     public sealed class ComponentPoImportRow
@@ -452,8 +492,7 @@ ORDER BY e.OccurredAtUtc DESC, e.WorkflowEventId DESC;";
             DemandOrderScope(purchaseOrderId, action);
 
             _transitions.EnsureCanTransition(ComponentPoStatus.ProcessCode, fromStatus, toStatus);
-            if ((toStatus == ComponentPoStatus.Cancelled || (toStatus == ComponentPoStatus.Closed && fromStatus == ComponentPoStatus.PartiallyReceived))
-                && string.IsNullOrWhiteSpace(reason))
+            if (ComponentPoStatus.NeedsReason(fromStatus, toStatus) && string.IsNullOrWhiteSpace(reason))
                 throw new ArgumentException("Bắt buộc nhập lý do.");
 
             return _repository.Transition(purchaseOrderId, fromStatus, toStatus, actor,

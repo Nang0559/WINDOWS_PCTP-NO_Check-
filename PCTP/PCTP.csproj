@@ -318,6 +318,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Framework\UiLayout\UI\UiScreenAction.cs" />
+    <Compile Include="Framework\UiLayout\UI\UiScreenRowContext.cs" />
     <Compile Include="Framework\UiLayout\UI\UiScreenRuntimeForm.cs">
       <SubType>Form</SubType>
     </Compile>

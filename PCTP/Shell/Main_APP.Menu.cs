@@ -374,9 +374,20 @@ namespace PCTP
                 string screen = PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoScreenCode;
                 FormWindowManager.ShowSingle(this,
                     () => PCTP.Framework.UiLayout.UiLayoutModule.CreateScreenForm(screen, site,
-                        new[] { PCTP.Modules.KhoLinhKien.ComponentPoUploadAction.Create() }),
+                        ComponentPoActions()),
                     "UiScreen:" + screen);
             }, "Phiếu đặt hàng linh kiện");
+        }
+
+        /// <summary>Upload Excel PO + các nút workflow (Kiểm tra / Phát hành / Đóng PO / Hủy PO) của màn hình PO.</summary>
+        private static System.Collections.Generic.IEnumerable<PCTP.Framework.UiLayout.UiScreenAction> ComponentPoActions()
+        {
+            var actions = new System.Collections.Generic.List<PCTP.Framework.UiLayout.UiScreenAction>
+            {
+                PCTP.Modules.KhoLinhKien.ComponentPoUploadAction.Create()
+            };
+            actions.AddRange(PCTP.Modules.KhoLinhKien.ComponentPoWorkflowActions.CreateSteps());
+            return actions;
         }
 
         /// <summary>Khai báo cơ sở dữ liệu (view đã duyệt, tạo màn hình). APPROVE được SQL kiểm lại ở từng thao tác.</summary>
