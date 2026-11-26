@@ -57,4 +57,36 @@ public sealed class UiMenuProfileSqlContractTests
         Assert.DoesNotContain("ClassName", Sql);
         Assert.DoesNotContain("DllName", Sql);
     }
+
+    private static string Sql060 => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "060_MES_UiMenuProfileOrderDelete.sql"));
+
+    [Fact]
+    public void Migration_059_quarantines_a_drifted_menu_table_instead_of_keeping_it_and_deletes_nothing()
+    {
+        int guard = Sql.IndexOf("schema drift guard", StringComparison.Ordinal);
+        int create = Sql.IndexOf("CREATE TABLE MES.FVN_UiMenuProfile\n", StringComparison.Ordinal);
+        Assert.True(guard > 0 && guard < create, "the drift guard must run before the tables are created");
+        string block = Sql.Substring(guard, create - guard);
+        Assert.Contains("COL_LENGTH", block);
+        Assert.Contains("sys.sp_rename", block);
+        Assert.Contains("_Legacy_", block);
+        foreach (string column in new[] { "DisplayName", "NodeId", "ParentNodeId", "ConfigVersion", "ItemKey", "SequenceNo", "RoleCode" })
+            Assert.Contains(column, block);
+        Assert.DoesNotContain("DROP TABLE", block, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Regex.IsMatch(block, @"\bDELETE\b", RegexOptions.IgnoreCase), "the guard must not delete data");
+        Assert.False(Regex.IsMatch(block, @"\bEXEC(UTE)?\s*\(", RegexOptions.IgnoreCase), "no dynamic SQL");
+    }
+
+    [Fact]
+    public void Migration_060_stops_with_a_clear_error_and_skips_later_batches_when_the_structure_is_wrong()
+    {
+        Assert.Contains("60004", Sql060);
+        int check = Sql060.IndexOf("THROW 60004", StringComparison.Ordinal);
+        int firstProc = Sql060.IndexOf("CREATE PROCEDURE", StringComparison.Ordinal);
+        Assert.True(check > 0 && check < firstProc, "the structure check must precede every procedure");
+        foreach (string column in new[] { "DisplayName", "NodeId", "ParentNodeId" })
+            Assert.Contains("N'" + column + "'", Sql060.Substring(0, firstProc));
+        Assert.Contains("SET NOEXEC ON", Sql060);
+        Assert.EndsWith("SET NOEXEC OFF;\nGO", Sql060.Replace("\r\n", "\n").TrimEnd());
+    }
 }

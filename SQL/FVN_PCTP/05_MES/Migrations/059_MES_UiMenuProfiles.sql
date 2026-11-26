@@ -28,6 +28,76 @@ IF OBJECT_ID(N'SEC.Role', N'U') IS NULL OR OBJECT_ID(N'SEC.UserRole', N'U') IS N
     THROW 59004, 'Security tables are missing.', 1;
 GO
 
+/* ====================================================================== schema drift guard
+ If a menu table with these names already exists but has other columns (an earlier draft, or a hand-made table),
+ CREATE TABLE IF NOT EXISTS below would silently keep it and every procedure would fail with Msg 207 (invalid column).
+ Quarantine instead: the three tables are renamed together, with their constraints and indexes, to *_Legacy_<UTC time>
+ (nothing is deleted), and the tables are re-created with the structure this migration defines. Static sp_rename calls
+ only; no dynamic SQL. Re-running 059 on a correct schema does nothing here.
+*/
+DECLARE @Expected TABLE (TableName sysname NOT NULL, ColumnName sysname NOT NULL);
+INSERT @Expected (TableName, ColumnName) VALUES
+    (N'FVN_UiMenuProfile', N'ProfileCode'), (N'FVN_UiMenuProfile', N'DisplayName'), (N'FVN_UiMenuProfile', N'ConfigVersion'),
+    (N'FVN_UiMenuProfile', N'IsActive'), (N'FVN_UiMenuProfile', N'UpdatedBy'), (N'FVN_UiMenuProfile', N'UpdatedAtUtc'),
+    (N'FVN_UiMenuProfileRole', N'ProfileCode'), (N'FVN_UiMenuProfileRole', N'RoleCode'),
+    (N'FVN_UiMenuNode', N'ProfileCode'), (N'FVN_UiMenuNode', N'NodeId'), (N'FVN_UiMenuNode', N'ParentNodeId'),
+    (N'FVN_UiMenuNode', N'NodeType'), (N'FVN_UiMenuNode', N'ItemKey'), (N'FVN_UiMenuNode', N'Caption'),
+    (N'FVN_UiMenuNode', N'SequenceNo');
+
+IF EXISTS (SELECT 1 FROM @Expected e
+           WHERE OBJECT_ID(N'MES.' + e.TableName, N'U') IS NOT NULL
+             AND COL_LENGTH(N'MES.' + e.TableName, e.ColumnName) IS NULL)
+BEGIN
+    DECLARE @Suffix nvarchar(20) = N'_Legacy_' + FORMAT(SYSUTCDATETIME(), N'yyyyMMddHHmmss');
+    DECLARE @Tbl sysname, @Obj sysname, @Old nvarchar(400), @New sysname;
+
+    DECLARE tbl_cur CURSOR LOCAL FAST_FORWARD FOR
+        SELECT v.TableName FROM (VALUES (N'FVN_UiMenuNode', 1), (N'FVN_UiMenuProfileRole', 2), (N'FVN_UiMenuProfile', 3)) v(TableName, Ord)
+        WHERE OBJECT_ID(N'MES.' + v.TableName, N'U') IS NOT NULL ORDER BY v.Ord;
+    OPEN tbl_cur;
+    FETCH NEXT FROM tbl_cur INTO @Tbl;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        -- stand-alone indexes (constraint-backed ones are renamed as objects below)
+        DECLARE ix_cur CURSOR LOCAL FAST_FORWARD FOR
+            SELECT i.name FROM sys.indexes i
+            WHERE i.object_id = OBJECT_ID(N'MES.' + @Tbl) AND i.name IS NOT NULL AND i.is_primary_key = 0 AND i.is_unique_constraint = 0;
+        OPEN ix_cur;
+        FETCH NEXT FROM ix_cur INTO @Obj;
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            SET @Old = N'MES.' + QUOTENAME(@Tbl) + N'.' + QUOTENAME(@Obj);
+            SET @New = LEFT(@Obj, 100) + @Suffix;
+            EXEC sys.sp_rename @Old, @New, N'INDEX';
+            FETCH NEXT FROM ix_cur INTO @Obj;
+        END;
+        CLOSE ix_cur; DEALLOCATE ix_cur;
+
+        -- PK / UNIQUE / FOREIGN KEY / CHECK / DEFAULT constraints owned by the table
+        DECLARE con_cur CURSOR LOCAL FAST_FORWARD FOR
+            SELECT o.name FROM sys.objects o
+            WHERE o.parent_object_id = OBJECT_ID(N'MES.' + @Tbl) AND o.type IN ('PK', 'UQ', 'F', 'C', 'D');
+        OPEN con_cur;
+        FETCH NEXT FROM con_cur INTO @Obj;
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            SET @Old = N'MES.' + QUOTENAME(@Obj);
+            SET @New = LEFT(@Obj, 100) + @Suffix;
+            EXEC sys.sp_rename @Old, @New, N'OBJECT';
+            FETCH NEXT FROM con_cur INTO @Obj;
+        END;
+        CLOSE con_cur; DEALLOCATE con_cur;
+
+        SET @Old = N'MES.' + QUOTENAME(@Tbl);
+        SET @New = LEFT(@Tbl, 100) + @Suffix;
+        EXEC sys.sp_rename @Old, @New, N'OBJECT';
+        FETCH NEXT FROM tbl_cur INTO @Tbl;
+    END;
+    CLOSE tbl_cur; DEALLOCATE tbl_cur;
+    PRINT N'Migration 059: menu tables had a different structure; renamed to *' + @Suffix + N' and re-created.';
+END;
+GO
+
 /* ====================================================================== tables */
 IF OBJECT_ID(N'MES.FVN_UiMenuProfile', N'U') IS NULL
 BEGIN

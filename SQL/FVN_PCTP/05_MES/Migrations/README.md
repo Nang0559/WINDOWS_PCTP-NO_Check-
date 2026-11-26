@@ -559,3 +559,6 @@ Run after 059, in FVN_PCTP, **before** deploying the matching build (the new des
 
 After applying: open Thiết kế menu, change a profile and press Lưu, close the dialog and check the menu changes without restarting; give two profiles to one user through two roles, set different Ưu tiên and check the smaller one wins after restart; delete a test profile and check its role now gets DEFAULT; sign in as a designer without VIEW on some screen source and check that screen is still in the left list.
 
+### Menu migrations 059/060 - schema drift (Msg 207 on DisplayName / NodeId / ParentNodeId)
+
+Cause: a table named `MES.FVN_UiMenuProfile`, `FVN_UiMenuProfileRole` or `FVN_UiMenuNode` already existed with other columns, and `CREATE TABLE ... IF OBJECT_ID IS NULL` kept it. Fix: re-run `059_MES_UiMenuProfiles.sql` (it now renames the three tables with their constraints and indexes to `*_Legacy_<UTC time>` and re-creates them; no data is deleted, nothing is dynamic SQL), then run `060_MES_UiMenuProfileOrderDelete.sql`. 060 now stops with error 60004 and skips its remaining batches when the structure is still wrong. Menu profiles stored in the legacy tables must be re-entered in the designer (or copied from `*_Legacy_*` by hand).

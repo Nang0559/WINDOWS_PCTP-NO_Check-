@@ -1,7 +1,7 @@
 # PCTP MES — Quantity Management Implementation Plan
 
 - **Document:** MES-QTY-001
-- **Version:** 0.1 — Repository audit and implementation baseline
+- **Version:** 0.2 — Repository audit; status updated to migration 060 (see section 9)
 - **Date:** 2026-11-13
 - **Target branch:** `feature/mes-product-genealogy-timeline`
 - **Scope:** Quantity-only MES; no purchasing price, unit cost, inventory valuation, or accounting value.
@@ -193,4 +193,60 @@ Every equation must use a consistent UOM. UOM conversion is allowed only from a 
 4. Produce PO and production-plan Excel template contracts with stable column names, required fields, duplicate keys and row-level error rules.
 5. Only after tasks 1–4 are evidenced, create Phase 1 sync contracts and Phase 2 DDL.
 
-**Current implementation status:** Phase 0 audit started. No raw-material tables or live stock mutation code has been added in this baseline commit.
+**Current implementation status:** superseded by section 9 (this paragraph described the 0.1 baseline, before migrations 025–060).
+
+## 9. Implementation status as of migration 060 (verified against the repository, not against a live database)
+
+Sections 1–8 are the original baseline and remain the target. This section records what exists now. "Verified" means read in the
+repository source; nothing here was run against DB57 unless stated.
+
+### 9.1 Delivered, by phase
+
+| Phase | Migration(s) | What exists |
+|---|---|---|
+| 0 / master data | 013–030, 037 | `FVN_` table prefix standard; site-scoped Part/Warehouse; IFS part/warehouse/supplier sync (selective sync in 037); `MES.FVN_ItemIdentity` as the only ItemId5 allocator |
+| 2 receiving | 025, 026, 031, 032, 045 | Slot-aware adapter `dbo.usp_FVN_PCTP_PostStockMovement` to the MES ledger; idempotency guard and LOT adjustment history; MES-owned component PO + component LOT release; canonical component LOT receipt posting; PO label print |
+| 3 planning / BOM | 033, 038, 046, 048, 049 | Shift production plan, IFS BOM demand, firm plan with automatic component demand; production order requires a firm plan and fulfilled components; change version and BOM visibility |
+| 5 issue (PART → WIP) | 033, 050 | `usp_FVN_ComponentIssue_Post` (idempotent, locks the demand line, checks PART source slot and WIP destination slot, posts a `MOVE` AVAILABLE → WIP); document views over component demand |
+| 4 / 5 execution | 034, 035, 036 | Routing, production order from plan, `usp_FVN_ProductionLot_Create`, operation completion, `usp_FVN_ProductionMaterial_Consume`, component LOT trace, per-unit process labels, shared workflow transitions and audit |
+| Control / reporting | 047 | Production flow control tower |
+| Document runtime / UI designer | 039, 050–058 | Document metadata registry and hardened runtime, designer with versioned writes, trusted-registry-only rule, UI layout designer and screen catalogue, audit list |
+| Menu designer | 054, 055, 059, 060 | Menu profiles (tree of GROUP/ITEM keys), role assignment, priority, delete with audit copy; 059 now quarantines a menu table whose structure differs (see 9.4) |
+
+Numbers 040–044 are not present in the repository.
+
+### 9.2 Confirmed gaps (what is NOT connected yet)
+
+1. **Finished goods are not bridged to the FG receipt flow.** `usp_FVN_ProductionLot_Create` creates a `MES.FVN_MaterialLot` of type `FG`
+   and a `MES.FVN_ProductionLot`, but writes no inventory balance or movement for it. The existing receipt flow
+   (`vNhapTP`, `NhapTpReceivingService`, `STOCKTP`) is fed from legacy documents; no code reads the MES FG LOT. Only the BaoCao
+   traceability module reads it. The bridge needs the live `vNhapTP`/`STOCKTP` contract and an idempotency key per
+   `ProductionLotId` to avoid double posting; it is deliberately not implemented without that evidence (section 7).
+2. **No UI for returning components from WIP to the PART warehouse, or for scrapping them.** Only the generic movement procedure
+   (migration 004/025) can do it.
+3. **Reservation is not part of the live flow.** `MES.usp_ReserveMaterial` / `usp_ConsumeMaterialReservation` /
+   `usp_ReleaseMaterialReservation` (migration 008) operate on the generic `MES.ProductionOrderMaterial` model. The live path
+   (033/034) uses `FVN_ComponentDemandLine`, and `usp_FVN_ComponentIssue_Post` only checks `OnHandQty - ReservedQty >= Quantity`;
+   nothing in 033/034/038 ever increases `ReservedQty`. Two concurrent orders can therefore both plan on the same LOT.
+   The production-order guard (048) checks that demand is fulfilled, not that a LOT is locked.
+4. **Test coverage is thin outside the document/menu areas.** MES tests cover `ProductionFlow*`, the document runtime and the menu
+   designer. There are no regression tests for receipt, issue or consumption procedures, although section 7 requires them for
+   every shared stock change.
+
+### 9.3 Suggested order for the remaining work
+
+1. Evidence first (Phase 0 tasks in section 8): dump `vNhapTP`, `STOCKTP` and the FG slot mapping from DB57 and agree the
+   FG receipt contract.
+2. Reservation on the live model: reserve at demand-line level, keyed `(ComponentDemandLineId, MaterialLotId, SlotId)`,
+   increase `FVN_InventoryBalance.ReservedQty` under `UPDLOCK, HOLDLOCK`, consume/release in `usp_FVN_ComponentIssue_Post`, with
+   concurrency tests.
+3. Return/scrap procedures on the same pattern as issue (explicit events, never edit issue history), then their screens.
+4. FG bridge: one idempotent procedure per `ProductionLotId`, plus a pending-receipt list for the existing receiving screen.
+5. SQL integration tests (`PCTP.QC.SqlIntegration`) for each of the above before enabling it in production.
+
+### 9.4 Migration 059/060 note
+
+If a menu table with the same name but another structure already exists (an earlier draft), `CREATE TABLE ... IF NOT EXISTS`
+used to keep it and the procedures failed with Msg 207 (`DisplayName`, `NodeId`, `ParentNodeId`). 059 now renames the three
+tables, their constraints and indexes to `*_Legacy_<UTC time>` (nothing is deleted) and re-creates them; 060 stops with error
+60004 and instructions if the structure is still wrong. Re-run 059, then 060.

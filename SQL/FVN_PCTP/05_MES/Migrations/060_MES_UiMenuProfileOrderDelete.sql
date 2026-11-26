@@ -22,6 +22,26 @@ IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '0
     THROW 60002, 'Migration 059 must be applied before 060.', 1;
 IF OBJECT_ID(N'MES.FVN_UiMenuProfile', N'U') IS NULL OR OBJECT_ID(N'MES.FVN_UiScreen', N'U') IS NULL
     THROW 60003, 'Menu profile or UI screen tables are missing.', 1;
+-- Msg 207 on DisplayName / NodeId / ParentNodeId means a menu table with another structure already exists. Stop here with
+-- a clear instruction instead of creating procedures that cannot compile. Migration 059 (re-run) quarantines such tables.
+IF COL_LENGTH(N'MES.FVN_UiMenuProfile', N'DisplayName') IS NULL
+   OR COL_LENGTH(N'MES.FVN_UiMenuProfile', N'ConfigVersion') IS NULL
+   OR OBJECT_ID(N'MES.FVN_UiMenuNode', N'U') IS NULL
+   OR COL_LENGTH(N'MES.FVN_UiMenuNode', N'NodeId') IS NULL
+   OR COL_LENGTH(N'MES.FVN_UiMenuNode', N'ParentNodeId') IS NULL
+   OR COL_LENGTH(N'MES.FVN_UiMenuNode', N'SequenceNo') IS NULL
+   OR OBJECT_ID(N'MES.FVN_UiMenuProfileRole', N'U') IS NULL
+    THROW 60004, 'Menu tables do not match migration 059 (DisplayName/NodeId/ParentNodeId missing). Re-run 059_MES_UiMenuProfiles.sql (it renames the old tables to *_Legacy_<time> and re-creates them), then run 060 again.', 1;
+GO
+-- SSMS keeps running the batches after a failed batch; skip them all (restored by the last batch) so no 207 noise follows.
+IF COL_LENGTH(N'MES.FVN_UiMenuProfile', N'DisplayName') IS NULL
+   OR COL_LENGTH(N'MES.FVN_UiMenuProfile', N'ConfigVersion') IS NULL
+   OR OBJECT_ID(N'MES.FVN_UiMenuNode', N'U') IS NULL
+   OR COL_LENGTH(N'MES.FVN_UiMenuNode', N'NodeId') IS NULL
+   OR COL_LENGTH(N'MES.FVN_UiMenuNode', N'ParentNodeId') IS NULL
+   OR COL_LENGTH(N'MES.FVN_UiMenuNode', N'SequenceNo') IS NULL
+   OR OBJECT_ID(N'MES.FVN_UiMenuProfileRole', N'U') IS NULL
+    SET NOEXEC ON;
 GO
 
 IF COL_LENGTH(N'MES.FVN_UiMenuProfile', N'ProfileOrder') IS NULL
@@ -221,4 +241,7 @@ BEGIN CATCH
     IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
     THROW;
 END CATCH;
+GO
+
+SET NOEXEC OFF;
 GO
