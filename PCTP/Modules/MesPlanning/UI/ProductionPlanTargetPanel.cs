@@ -83,7 +83,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
                 if (_site.Properties.Items.Count == 0)
                 {
-                    _hint.Text = "Tài khoản chưa được gán Site cho chức năng upload kế hoạch (MES.PLAN_UPLOAD).";
+                    _hint.Text = "Không có Site khả dụng: kiểm tra quyền SITE của MES.PLAN_UPLOAD, dbo.FVN_PCTPSite đang hoạt động và Site đã đồng bộ IFS.FVN_Site.";
                     return;
                 }
                 int index = 0;
