@@ -63,7 +63,7 @@ ORDER BY ProductionLineCode;", cn) { CommandTimeout = 60 })
 
     public sealed class ProductionLineSetupService
     {
-        private const string Function = "MES.PLAN_UPLOAD";
+        private const string Function = "MES.PRODUCTION_LINE_SETUP";
         private readonly IProductionLineSetupRepository _repository;
 
         public ProductionLineSetupService(IProductionLineSetupRepository repository)
