@@ -154,7 +154,7 @@ namespace PCTP.Modules.IfsSync
                     }
 
                     using (var command = new SqlCommand(@"
-UPDATE IFS.SyncBatch
+UPDATE IFS.FVN_SyncBatch
 SET Status='STAGED',
     PartCatalogRows=@PartCatalogRows,
     InventoryPartRows=@InventoryPartRows,
@@ -230,7 +230,7 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                     try
                     {
                         using (var command = new SqlCommand(@"
-UPDATE IFS.SyncBatch
+UPDATE IFS.FVN_SyncBatch
 SET Status='FAILED', CompletedAtUtc=SYSUTCDATETIME(),
     ErrorSummary=@ErrorSummary
 WHERE SyncBatchId=@SyncBatchId AND Status<>'APPLIED';", connection))
@@ -268,7 +268,7 @@ VALUES(@SyncBatchId, @EntityName, 'SYNC_FAILED', @ErrorMessage, @ErrorDetails, S
         private static long BeginBatch(SqlConnection connection, string syncMode, string selectedEntities)
         {
             using (var command = new SqlCommand(@"
-INSERT IFS.SyncBatch
+INSERT IFS.FVN_SyncBatch
     (SyncMode, SelectedEntities, Status, StartedAtUtc, InitiatedBy)
 OUTPUT INSERTED.SyncBatchId
 VALUES (@SyncMode, @SelectedEntities, 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
