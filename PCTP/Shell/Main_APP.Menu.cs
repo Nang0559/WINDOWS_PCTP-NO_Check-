@@ -217,7 +217,7 @@ namespace PCTP
                 ["menuKhoLinhKien"] = "WAREHOUSE.COMPONENT_STOCK",
                 ["menuNhanLinhKien"] = "WAREHOUSE.COMPONENT_RECEIPT",
                 ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
-                ["menuKhaiBaoChuyenSanXuat"] = "MES.PLAN_UPLOAD",
+                ["menuKhaiBaoChuyenSanXuat"] = "MES.PRODUCTION_LINE_SETUP",
                 ["menuDieuHanhSanXuat"] = "MES.PRODUCTION_EXECUTION",
                 ["menuYeuCauXuatLinhKien"] = "MES.COMPONENT_DEMAND",
                 ["menuChungTuYeuCauLinhKien"] = "MES.COMPONENT_DEMAND",
@@ -685,7 +685,7 @@ namespace PCTP
         {
             OpenFromMenu(() =>
             {
-                string site = ResolveDocumentSite("MES.PLAN_UPLOAD");
+                string site = ResolveDocumentSite("MES.PRODUCTION_LINE_SETUP");
                 if (site == null) return; // user cancelled the site chooser
                 FormWindowManager.ShowSingle(this,
                     () => new PCTP.Modules.MesPlanning.UI.FormProductionLineSetup(site),
