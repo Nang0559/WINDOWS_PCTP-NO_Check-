@@ -31,7 +31,7 @@ namespace PCTP.Modules.MesPlanning
         {
             var sites = new List<string>();
             using (var cn = new SqlConnection(_connectionString))
-            using (var cmd = new SqlCommand("SELECT SiteCode FROM dbo.FVN_PCTPSite WHERE IsActive=1 ORDER BY SiteCode", cn))
+            using (var cmd = new SqlCommand("SELECT p.SiteCode FROM dbo.FVN_PCTPSite AS p JOIN IFS.FVN_Site AS s ON s.SiteCode=p.SiteCode AND s.IsPresentInIfs=1 WHERE p.IsActive=1 ORDER BY p.SiteCode", cn))
             {
                 cn.Open();
                 using (var rd = cmd.ExecuteReader())
@@ -44,9 +44,15 @@ namespace PCTP.Modules.MesPlanning
         {
             using (var cn = new SqlConnection(_connectionString))
             using (var cmd = new SqlCommand(@"
-SELECT m.PlanProductionLineCode AS LineCode, m.LotLineCode, m.DepartmentCode, pl.LineName
-FROM MES.FVN_ProductionLotCodeMap m
-LEFT JOIN dbo.FVN_ProductionLine pl ON pl.SiteCode=m.SiteCode AND pl.LineCode=m.LotLineCode
+/* The upload key is (SiteCode, IFS ProductionLineCode). dbo.FVN_ProductionLine is the separate LOT-line master. */
+SELECT m.PlanProductionLineCode AS LineCode, m.LotLineCode, m.DepartmentCode,
+       COALESCE(NULLIF(LTRIM(RTRIM(ifsLine.Description)), N''), lotLine.LineName) AS LineName,
+       ifsLine.Description AS IFSLineName
+FROM MES.FVN_ProductionLotCodeMap AS m
+JOIN IFS.FVN_Site AS ifsSite ON ifsSite.SiteCode=m.SiteCode AND ifsSite.IsPresentInIfs=1
+JOIN dbo.FVN_PCTPSite AS pctpSite ON pctpSite.SiteCode=m.SiteCode AND pctpSite.IsActive=1
+JOIN IFS.FVN_ProductionLine AS ifsLine ON ifsLine.SiteCode=m.SiteCode AND ifsLine.ProductionLineCode=m.PlanProductionLineCode AND ifsLine.IsActive=1
+LEFT JOIN dbo.FVN_ProductionLine AS lotLine ON lotLine.SiteCode=m.SiteCode AND lotLine.LineCode=m.LotLineCode
 WHERE m.SiteCode=@SiteCode AND m.IsActive=1
 ORDER BY m.PlanProductionLineCode;", cn))
             {
