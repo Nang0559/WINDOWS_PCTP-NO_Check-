@@ -26,7 +26,7 @@ IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '075')
 
 /* Setup view: every IFS line appears, even when no LOT mapping exists.
    A stale mapping is also shown so it can be reviewed/deactivated. */
-EXEC(N'CREATE OR ALTER VIEW MES.vFVN_ProductionLineSetup
+DECLARE @ViewDefinition nvarchar(max) = N'CREATE VIEW MES.vFVN_ProductionLineSetup
 AS
 SELECT l.SiteCode,
        fs.SiteName,
@@ -72,7 +72,14 @@ WHERE NOT EXISTS
     SELECT 1 FROM IFS.FVN_ProductionLine AS l
     WHERE l.SiteCode = m.SiteCode
       AND l.ProductionLineCode = m.PlanProductionLineCode
-);');
+);';
+IF OBJECT_ID(N'MES.vFVN_ProductionLineSetup', N'V') IS NULL
+    EXEC sys.sp_executesql @ViewDefinition;
+ELSE
+BEGIN
+    SET @ViewDefinition = REPLACE(@ViewDefinition, N'CREATE VIEW', N'ALTER VIEW');
+    EXEC sys.sp_executesql @ViewDefinition;
+END;
 
 BEGIN TRY
     BEGIN TRANSACTION;
@@ -98,9 +105,14 @@ BEGIN TRY
             N'            THROW 57511, ''Site is not present in IFS.FVN_Site; synchronize SITE before activating this mapping.'', 1;' + CHAR(13) + CHAR(10) + N'        ');
     END;
 
-    IF CHARINDEX(N'CREATE PROCEDURE', @MapDefinition) = 0
-        THROW 57506, 'Cannot convert mapping save procedure to ALTER PROCEDURE.', 1;
+    /* OBJECT_DEFINITION commonly returns CREATE OR ALTER PROCEDURE (067 uses that form). */
+    SET @MapDefinition = REPLACE(@MapDefinition, N'CREATE OR ALTER PROCEDURE', N'ALTER PROCEDURE');
     SET @MapDefinition = REPLACE(@MapDefinition, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
+    SET @MapDefinition = REPLACE(@MapDefinition, N'CREATE PROC ', N'ALTER PROCEDURE ');
+    IF CHARINDEX(N'CREATE OR ALTER PROCEDURE', @MapDefinition) > 0
+       OR CHARINDEX(N'CREATE PROCEDURE', @MapDefinition) > 0
+       OR CHARINDEX(N'CREATE PROC ', @MapDefinition) > 0
+        THROW 57506, 'Cannot normalize mapping save procedure header to ALTER PROCEDURE.', 1;
     EXEC sys.sp_executesql @MapDefinition;
 
     /* SQL is the final gate: import must use the exact site-scoped IFS line and active MES map. */
@@ -128,9 +140,13 @@ BEGIN TRY
             N'   THROW 57522, ''Production line has no active LOT mapping for this Site. Check MES.FVN_ProductionLotCodeMap (SiteCode + PlanProductionLineCode).'', 1;' + CHAR(13) + CHAR(10));
     END;
 
-    IF CHARINDEX(N'CREATE PROCEDURE', @ImportDefinition) = 0
-        THROW 57510, 'Cannot convert plan import procedure to ALTER PROCEDURE.', 1;
+    SET @ImportDefinition = REPLACE(@ImportDefinition, N'CREATE OR ALTER PROCEDURE', N'ALTER PROCEDURE');
     SET @ImportDefinition = REPLACE(@ImportDefinition, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
+    SET @ImportDefinition = REPLACE(@ImportDefinition, N'CREATE PROC ', N'ALTER PROCEDURE ');
+    IF CHARINDEX(N'CREATE OR ALTER PROCEDURE', @ImportDefinition) > 0
+       OR CHARINDEX(N'CREATE PROCEDURE', @ImportDefinition) > 0
+       OR CHARINDEX(N'CREATE PROC ', @ImportDefinition) > 0
+        THROW 57510, 'Cannot normalize plan import procedure header to ALTER PROCEDURE.', 1;
     EXEC sys.sp_executesql @ImportDefinition;
 
     INSERT MES.FVN_SchemaMigration(MigrationVersion, MigrationName)
