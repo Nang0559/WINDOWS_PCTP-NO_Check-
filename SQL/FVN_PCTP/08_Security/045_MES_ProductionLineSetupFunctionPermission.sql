@@ -1,5 +1,5 @@
 /*
- Migration 045: dedicated function permission for MES production-line LOT mapping.
+ Migration 074: dedicated function permission for MES production-line LOT mapping.
  The setup UI already exists; this migration registers its own function code and
  carries forward the existing MES.PLAN_UPLOAD VIEW/CREATE grants and scopes so
  current planners do not unexpectedly lose access. Role admins can then tune it
@@ -14,7 +14,7 @@ IF OBJECT_ID(N'SEC.FunctionCatalog', N'U') IS NULL
    OR OBJECT_ID(N'SEC.RoleFunctionPermission', N'U') IS NULL
    OR OBJECT_ID(N'MES.FVN_SchemaMigration', N'U') IS NULL
     THROW 54501, 'RBAC objects or MES migration registry are missing. Apply security migrations 037+ first.', 1;
-IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '045')
+IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '074')
     RETURN;
 
 BEGIN TRY
@@ -90,7 +90,7 @@ BEGIN TRY
       );
 
     INSERT MES.FVN_SchemaMigration(MigrationVersion, MigrationName)
-    VALUES('045', N'MES production line setup dedicated function permission');
+    VALUES('074', N'MES production line setup dedicated function permission');
 
     COMMIT TRANSACTION;
 END TRY
