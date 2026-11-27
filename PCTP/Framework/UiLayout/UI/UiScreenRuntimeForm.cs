@@ -92,8 +92,8 @@ namespace PCTP.Framework.UiLayout
                 var captured = action;
                 var button = new SimpleButton { Text = captured.Caption, Width = captured.Width, Dock = DockStyle.Left, Visible = captured.IsAvailable() };
                 button.Click += (s, e) => RunAction(captured);
-                bar.Controls.Add(button);
                 _actionButtons.Add(new KeyValuePair<UiScreenAction, SimpleButton>(captured, button));
+                bar.Controls.Add(button);
             }
             bar.Controls.Add(_reload);
 
@@ -204,9 +204,9 @@ namespace PCTP.Framework.UiLayout
                 UiGridConfigurator.Apply(_view, _screen.Layout.ColumnsOf(UiRegion.Main), _screen.Layout.GroupColumn);
                 _prev.Enabled = _pageIndex > 0;
                 _next.Enabled = _pageIndex + 1 < pageCount;
+                RefreshActionStates();
                 SetStatus("Trang " + (pageCount == 0 ? 0 : _pageIndex + 1) + "/" + pageCount + " - " + total.ToString("N0") +
                           " dòng, Site " + _siteCode + (_activeFilter == null ? string.Empty : " - " + _activeFilter.Caption), false);
-                RefreshActionStates();
                 ScheduleChildLoad();
             }
             catch (Exception ex)
@@ -264,33 +264,52 @@ namespace PCTP.Framework.UiLayout
             catch (Exception ex) { XtraMessageBox.Show(this, ex.GetBaseException().Message, "Khai báo layout", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
 
-        private UiScreenRowContext FocusedRowContext()
+        private UiScreenRowContext FocusedContext()
         {
-            return new UiScreenRowContext(_view.GetFocusedDataRow());
+            DataRow row = _view.FocusedRowHandle < 0 ? null : _view.GetFocusedDataRow();
+            return row == null ? UiScreenRowContext.None : new UiScreenRowContext(row);
         }
 
-        /// <summary>Enables row-based buttons (workflow steps) for the focused row. Usability only: service and SQL re-check.</summary>
+        /// <summary>Row-aware actions are clickable only for a row they apply to (for example a PO in the right status).</summary>
         private void RefreshActionStates()
         {
-            if (_actionButtons.Count == 0) return;
-            UiScreenRowContext row = FocusedRowContext();
+            UiScreenRowContext context = FocusedContext();
             foreach (var pair in _actionButtons)
-                if (pair.Key.IsRowAction) pair.Value.Enabled = pair.Key.IsEnabledFor(row);
+                pair.Value.Enabled = pair.Key.IsEnabledFor(context);
+        }
+
+        private void FocusRow(string column, object value)
+        {
+            string wanted = Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
+            for (int i = 0; i < _view.DataRowCount; i++)
+            {
+                DataRow row = _view.GetDataRow(i);
+                if (row == null || !row.Table.Columns.Contains(column) || row.IsNull(column)) continue;
+                if (string.Equals(Convert.ToString(row[column], System.Globalization.CultureInfo.InvariantCulture), wanted, StringComparison.Ordinal))
+                {
+                    _view.FocusedRowHandle = i;
+                    return;
+                }
+            }
         }
 
         private void RunAction(UiScreenAction action)
         {
+            UiScreenRowContext context = FocusedContext();
+            object keepKey = action.RowKeyColumn == null ? null : context.GetValue(action.RowKeyColumn);
             try
             {
-                // The row is captured at click time, before any dialog, so a reload in between cannot change the target.
-                string status = action.Execute(this, _siteCode, FocusedRowContext());
+                string status = action.Execute(this, _siteCode, context);
                 if (status == null) return;   // cancelled by the user
                 LoadPage();
+                if (keepKey != null) FocusRow(action.RowKeyColumn, keepKey);
                 SetStatus(status, false);
             }
             catch (Exception ex)
             {
                 string message = ex.GetBaseException().Message;
+                // The row may have changed under us (state moved on, another user acted): show the current data.
+                if (keepKey != null) { LoadPage(); FocusRow(action.RowKeyColumn, keepKey); }
                 SetStatus(action.Caption + " thất bại: " + message, true);
                 XtraMessageBox.Show(this, message, action.Caption, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }

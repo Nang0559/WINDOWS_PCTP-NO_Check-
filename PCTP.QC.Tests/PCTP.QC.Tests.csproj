@@ -21,6 +21,7 @@
     <Compile Include="../PCTP/Modules/KhoLinhKien/ComponentPoBravoMapper.cs" Link="ComponentPoBravoMapper.source.cs" />
     <Compile Include="../PCTP/Modules/KhoLinhKien/ExcelNumberParser.cs" Link="ExcelNumberParser.source.cs" />
     <Compile Include="../PCTP/Modules/KhoLinhKien/ComponentPackSplit.cs" Link="ComponentPackSplit.source.cs" />
+    <Compile Include="../PCTP/Modules/KhoLinhKien/ComponentPoStatusCodes.cs" Link="ComponentPoStatusCodes.source.cs" />
     <Compile Include="../PCTP/Framework/Documents/Contracts/DocumentIdentifiers.cs" Link="Framework/Documents/DocumentIdentifiers.cs" />
     <Compile Include="../PCTP/Framework/Documents/Contracts/DocumentFieldDefinition.cs" Link="Framework/Documents/DocumentFieldDefinition.cs" />
     <Compile Include="../PCTP/Framework/Documents/Contracts/DocumentCommandDefinition.cs" Link="Framework/Documents/DocumentCommandDefinition.cs" />

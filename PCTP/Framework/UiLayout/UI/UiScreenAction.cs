@@ -1,8 +1,35 @@
 using System;
+using System.Data;
 using System.Windows.Forms;
 
 namespace PCTP.Framework.UiLayout
 {
+    /// <summary>The master-grid row that has focus when a row-aware <see cref="UiScreenAction"/> is evaluated or run.</summary>
+    public sealed class UiScreenRowContext
+    {
+        public static readonly UiScreenRowContext None = new UiScreenRowContext(null);
+
+        private readonly DataRow _row;
+
+        public UiScreenRowContext(DataRow row) { _row = row; }
+
+        public bool HasRow { get { return _row != null; } }
+
+        /// <summary>Value of a column of the screen's data source, or null when there is no row, no such column or DBNull.</summary>
+        public object GetValue(string column)
+        {
+            if (_row == null || string.IsNullOrEmpty(column) || !_row.Table.Columns.Contains(column) || _row.IsNull(column))
+                return null;
+            return _row[column];
+        }
+
+        public string GetText(string column)
+        {
+            object v = GetValue(column);
+            return v == null ? null : Convert.ToString(v, System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+
     /// <summary>
     /// An extra toolbar button on a layout-driven screen (for example "Upload Excel PO…"). The framework only draws the
     /// button and reloads the grid afterwards; what the action does, and who may do it, stays in the owning module, whose
@@ -12,14 +39,16 @@ namespace PCTP.Framework.UiLayout
     {
         public string Caption { get; private set; }
         public int Width { get; private set; }
-        /// <summary>Column the action reads from the focused row (null for actions that do not use a row).</summary>
-        public string RowKeyColumn { get; private set; }
-        /// <summary>True when the action acts on the focused row, so the screen enables the button per row.</summary>
-        public bool IsRowAction { get { return _executeOnRow != null; } }
         private readonly Func<bool> _isAvailable;
         private readonly Func<IWin32Window, string, string> _execute;
         private readonly Func<UiScreenRowContext, bool> _isEnabledForRow;
-        private readonly Func<IWin32Window, string, UiScreenRowContext, string> _executeOnRow;
+        private readonly Func<IWin32Window, string, UiScreenRowContext, string> _executeForRow;
+
+        /// <summary>
+        /// Column whose value identifies the row the action works on; after the action the grid is reloaded and the same
+        /// row is focused again. Null for actions that do not use the selected row.
+        /// </summary>
+        public string RowKeyColumn { get; private set; }
 
         /// <param name="isAvailable">Null means always shown.</param>
         /// <param name="execute">
@@ -37,24 +66,21 @@ namespace PCTP.Framework.UiLayout
         }
 
         /// <summary>
-        /// Action that works on the focused row (for example PO workflow steps Kiểm tra / Phát hành / Đóng / Hủy).
-        /// The button is shown by <paramref name="isAvailable"/> (permission, a usability aid) and enabled per focused row by
-        /// <paramref name="isEnabledForRow"/> (workflow state, also a usability aid: the service and SQL re-check both).
+        /// Row-aware action (for example PO workflow buttons). The button is enabled only while
+        /// <paramref name="isEnabledForRow"/> accepts the focused row; <paramref name="execute"/> receives that row.
+        /// Enabling is a usability aid; the module's service and SQL re-check everything when the action runs.
         /// </summary>
-        /// <param name="rowKeyColumn">Column that identifies the row; the screen does not enable the button when it is empty.</param>
-        /// <param name="execute">Receives the owner window, the screen's Site and the focused row. Same return/throw contract as above.</param>
         public UiScreenAction(string caption, int width, string rowKeyColumn, Func<bool> isAvailable,
             Func<UiScreenRowContext, bool> isEnabledForRow, Func<IWin32Window, string, UiScreenRowContext, string> execute)
         {
             if (string.IsNullOrWhiteSpace(caption)) throw new ArgumentException("Caption là bắt buộc.", "caption");
-            if (string.IsNullOrWhiteSpace(rowKeyColumn)) throw new ArgumentException("rowKeyColumn là bắt buộc.", "rowKeyColumn");
             if (execute == null) throw new ArgumentNullException("execute");
             Caption = caption;
             Width = width < 60 ? 60 : width;
-            RowKeyColumn = rowKeyColumn;
+            RowKeyColumn = string.IsNullOrWhiteSpace(rowKeyColumn) ? null : rowKeyColumn.Trim();
             _isAvailable = isAvailable;
             _isEnabledForRow = isEnabledForRow;
-            _executeOnRow = execute;
+            _executeForRow = execute;
         }
 
         public bool IsAvailable()
@@ -66,23 +92,19 @@ namespace PCTP.Framework.UiLayout
         /// <summary>Whether the button is clickable for the focused row. Always true for actions that do not use a row.</summary>
         public bool IsEnabledFor(UiScreenRowContext row)
         {
-            if (_executeOnRow == null) return true;
-            try
-            {
-                if (row == null || !row.HasRow || row.GetValue(RowKeyColumn) == null) return false;
-                return _isEnabledForRow == null || _isEnabledForRow(row);
-            }
+            if (_isEnabledForRow == null) return true;
+            try { return _isEnabledForRow(row ?? UiScreenRowContext.None); }
             catch (Exception) { return false; }
         }
 
         public string Execute(IWin32Window owner, string siteCode)
         {
-            return Execute(owner, siteCode, UiScreenRowContext.Empty);
+            return Execute(owner, siteCode, UiScreenRowContext.None);
         }
 
         public string Execute(IWin32Window owner, string siteCode, UiScreenRowContext row)
         {
-            if (_executeOnRow != null) return _executeOnRow(owner, siteCode, row ?? UiScreenRowContext.Empty);
+            if (_executeForRow != null) return _executeForRow(owner, siteCode, row ?? UiScreenRowContext.None);
             return _execute(owner, siteCode);
         }
     }
