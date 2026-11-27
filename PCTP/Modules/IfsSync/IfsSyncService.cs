@@ -35,7 +35,7 @@ namespace PCTP.Modules.IfsSync
     /// </summary>
     public sealed class IfsSyncService
     {
-        private readonly IFSPROVIDER _ifs;
+        private readonly string _oracleConnectionString;
         private readonly string _targetConnectionString;
 
         public IfsSyncService()
@@ -60,7 +60,7 @@ namespace PCTP.Modules.IfsSync
                 throw new InvalidOperationException(
                     "Từ chối đồng bộ: Initial Catalog phải là FVN_PCTP, không được ghi vào B7R2_FCC.");
 
-            _ifs = new IFSPROVIDER(oracleConnectionString);
+            _oracleConnectionString = oracleConnectionString;
             _targetConnectionString = targetSqlConnectionString;
         }
 
@@ -287,21 +287,29 @@ VALUES (@SyncMode, @SelectedEntities, 'RUNNING', SYSUTCDATETIME(), @InitiatedBy)
             int count = 0;
             try
             {
-                // Stream Oracle rows in bounded chunks. A large INVENTORY_PART view
-                // therefore does not have to fit into one in-memory DataTable.
-                _ifs.ExecuteReaderStrict(oracleSql, reader =>
+                // Read only the selected IFS entity directly. ExecuteReaderStrict in the
+                // legacy IFSPROVIDER performs a cross-view "required views" check and
+                // rejects an empty unrelated view, which breaks selective sync.
+                // This query comes only from the private EntityQueries allow-list.
+                using (var oracleConnection = new OracleConnection(_oracleConnectionString))
+                using (var oracleCommand = new OracleCommand(oracleSql, oracleConnection))
                 {
-                    while (reader.Read())
+                    oracleCommand.CommandTimeout = 1800;
+                    oracleConnection.Open();
+                    using (OracleDataReader reader = oracleCommand.ExecuteReader(CommandBehavior.SequentialAccess))
                     {
-                        AddStageRow(stage, batchId, entityName, reader);
-                        count++;
-                        if (stage.Rows.Count >= 2000)
+                        while (reader.Read())
                         {
-                            BulkStage(connection, stage);
-                            stage.Clear();
+                            AddStageRow(stage, batchId, entityName, reader);
+                            count++;
+                            if (stage.Rows.Count >= 2000)
+                            {
+                                BulkStage(connection, stage);
+                                stage.Clear();
+                            }
                         }
                     }
-                });
+                }
             }
             catch (Exception ex)
             {
