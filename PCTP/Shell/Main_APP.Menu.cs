@@ -680,7 +680,7 @@ namespace PCTP
                 "Upload kế hoạch sản xuất");
         }
 
-        /// <summary>Gán chuyền IFS (PRODUCTION_LINE đã đồng bộ) của một Site với mã chuyền LOT 3 ký tự và mã bộ phận 4 ký tự. Quyền MES.PLAN_UPLOAD (CREATE + SITE).</summary>
+        /// <summary>Gán IFS.FVN_ProductionLine (SiteCode + ProductionLineCode) sang mã LOT 3 ký tự / bộ phận 4 ký tự. Quyền riêng MES.PRODUCTION_LINE_SETUP (VIEW/CREATE + SITE).</summary>
         private void OpenKhaiBaoChuyenSanXuat(object sender, EventArgs e)
         {
             OpenFromMenu(() =>
