@@ -73,7 +73,7 @@
             this.Detail.MultiColumn.ColumnCount = 4;
             this.Detail.MultiColumn.ColumnSpacing = 0F;
             this.Detail.MultiColumn.ColumnWidth = 271F;
-            this.Detail.MultiColumn.Layout = DevExpress.XtraReports.UI.ColumnLayout.AcrossThenDown;
+            this.Detail.MultiColumn.Layout = DevExpress.XtraPrinting.ColumnLayout.AcrossThenDown;
             this.Detail.MultiColumn.Mode = DevExpress.XtraReports.UI.MultiColumnMode.UseColumnCount;
             // 
             // xrLabel1
