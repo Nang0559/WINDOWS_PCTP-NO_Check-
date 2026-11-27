@@ -26,6 +26,7 @@ namespace PCTP.Modules.KhoLinhKien
         public string SupplierCode { get; set; }
         public string PartNo { get; set; }
         public decimal PackQty { get; set; }
+        /// <summary>Số lượng tối đa của một palet (B20: MaxCloseQty). Dùng để gom các tem nhỏ thành tem palet khi in.</summary>
         public decimal? MaxCloseQty { get; set; }
         public bool IsActive { get; set; }
 
@@ -132,6 +133,8 @@ namespace PCTP.Modules.KhoLinhKien
                 if (r.PackQty <= 0) throw new ArgumentException("PackQty phải lớn hơn 0 (PartNo " + r.PartNo + ").");
                 if (r.MaxCloseQty.HasValue && r.MaxCloseQty.Value <= 0)
                     throw new ArgumentException("MaxCloseQty phải lớn hơn 0 (PartNo " + r.PartNo + ").");
+                if (r.MaxCloseQty.HasValue && r.MaxCloseQty.Value < r.PackQty)
+                    throw new ArgumentException("MaxCloseQty (SL / palet) không được nhỏ hơn PackQty (SL / tem) (PartNo " + r.PartNo + ").");
             }
 
             var dup = rows.GroupBy(r => (r.SiteCode + "|" + r.SupplierCode + "|" + r.PartNo).ToUpperInvariant())
@@ -182,7 +185,10 @@ namespace PCTP.Modules.KhoLinhKien
             { "isactive", "IsActive" }
         };
 
-        /// <summary>Phân tích số theo máy hiện tại rồi theo Invariant (Regional Settings mỗi máy một khác).</summary>
+        /// <summary>
+        /// Số người dùng gõ trên màn hình (theo Regional Settings của máy, rồi Invariant). KHÔNG dùng cho ô Excel:
+        /// ô Excel đọc bằng <see cref="ExcelNumberParser"/> để kết quả giống nhau trên mọi máy.
+        /// </summary>
         public static bool TryParseDecimal(string text, out decimal value)
         {
             value = 0;
@@ -222,21 +228,18 @@ namespace PCTP.Modules.KhoLinhKien
                     string qtyText = text(r, "PackQty");
                     if (part.Length == 0 && qtyText.Length == 0) continue;
 
+                    // Đọc số theo quy tắc cố định (không phụ thuộc Regional Settings): "2.400" dạng text luôn là 2400.
                     decimal qty;
-                    object qtyCell = ws.Cells[r, col["PackQty"]].Value;
-                    if (qtyCell is double) qty = Convert.ToDecimal((double)qtyCell);
-                    else if (!TryParseDecimal(qtyText, out qty))
-                        throw new InvalidOperationException("PackQty không hợp lệ tại dòng " + r + ".");
+                    if (!ExcelNumberParser.TryParseCell(ws.Cells[r, col["PackQty"]].Value, qtyText, out qty))
+                        throw new InvalidOperationException("PackQty không hợp lệ tại dòng " + r + " (\"" + qtyText + "\").");
 
                     decimal? max = null;
                     string maxText = text(r, "MaxCloseQty");
                     if (maxText.Length > 0)
                     {
                         decimal m;
-                        object maxCell = ws.Cells[r, col["MaxCloseQty"]].Value;
-                        if (maxCell is double) m = Convert.ToDecimal((double)maxCell);
-                        else if (!TryParseDecimal(maxText, out m))
-                            throw new InvalidOperationException("MaxCloseQty không hợp lệ tại dòng " + r + ".");
+                        if (!ExcelNumberParser.TryParseCell(ws.Cells[r, col["MaxCloseQty"]].Value, maxText, out m))
+                            throw new InvalidOperationException("MaxCloseQty không hợp lệ tại dòng " + r + " (\"" + maxText + "\").");
                         max = m;
                     }
 

@@ -494,6 +494,9 @@
     <Compile Include="Modules\KhoLinhKien\ComponentPoWorkflowActions.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPackSpec.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoLabelPrint.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentPalletLabel.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentLabelPicker.cs" />
+    <Compile Include="Modules\KhoLinhKien\ExcelNumberParser.cs" />
     <Compile Include="Modules\KhoLinhKien\UI\FormComponentPackSpec.cs">
       <SubType>Form</SubType>
     </Compile>

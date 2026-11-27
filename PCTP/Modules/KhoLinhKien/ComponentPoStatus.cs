@@ -640,9 +640,7 @@ ORDER BY l.PartNo;";
 
         private static bool TryDecimal(object value, string text, out decimal number)
         {
-            if (value is double) { number = Convert.ToDecimal((double)value); return true; }
-            return decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out number)
-                || decimal.TryParse(text, out number);
+            return ExcelNumberParser.TryParseCell(value, text, out number);
         }
     }
 }

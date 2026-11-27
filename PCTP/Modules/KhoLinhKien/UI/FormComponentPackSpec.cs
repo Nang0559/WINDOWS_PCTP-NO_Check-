@@ -79,7 +79,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
             {
                 DataTable table = _service.List(_site);
                 _grid.DataSource = table;
-                string[] headers = { "Id", "Site", "Nhà cung cấp (trống = mọi NCC)", "Mã vật tư", "SL / tem", "SL đóng tối đa", "Đang dùng", "Người tạo", "Cập nhật (UTC)", "Người sửa" };
+                string[] headers = { "Id", "Site", "Nhà cung cấp (trống = mọi NCC)", "Mã vật tư", "SL / tem", "SL / palet (MaxCloseQty)", "Đang dùng", "Người tạo", "Cập nhật (UTC)", "Người sửa" };
                 for (int i = 0; i < _view.Columns.Count && i < headers.Length; i++) _view.Columns[i].Caption = headers[i];
                 _view.BestFitColumns();
                 SetStatus(table.Rows.Count + " quy cách, Site " + _site + ".", false);
@@ -209,7 +209,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
                 AddRow(0, "Nhà cung cấp (trống = mọi NCC):", _supplier);
                 AddRow(1, "Mã vật tư (PartNo):", _part);
                 AddRow(2, "Số lượng mỗi tem:", _qty);
-                AddRow(3, "SL đóng tối đa (tùy chọn):", _max);
+                AddRow(3, "SL / palet (để in tem palet):", _max);
                 _active.Location = new Point(190, 134); _active.Width = 200;
                 Controls.Add(_active);
 
@@ -245,7 +245,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
                 {
                     decimal m;
                     if (!ComponentPackSpecExcel.TryParseDecimal(_max.Text, out m) || m <= 0)
-                    { XtraMessageBox.Show(this, "SL đóng tối đa phải là số lớn hơn 0 hoặc để trống.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                    { XtraMessageBox.Show(this, "SL / palet phải là số lớn hơn 0 hoặc để trống.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                     max = m;
                 }
                 if (string.IsNullOrWhiteSpace(_part.Text))

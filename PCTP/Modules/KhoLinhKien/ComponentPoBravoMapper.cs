@@ -257,8 +257,7 @@ namespace PCTP.Modules.KhoLinhKien
                 return true;
             }
             if (value is int || value is long) { qty = Convert.ToDecimal(value, CultureInfo.InvariantCulture); return true; }
-            return decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture),
-                NumberStyles.Number, CultureInfo.InvariantCulture, out qty);
+            return ExcelNumberParser.TryParseText(Convert.ToString(value, CultureInfo.InvariantCulture), out qty);
         }
 
         /// <summary>Mã có thể nằm trong ô số (100016 → "100016"); bỏ phần ".0" do double.</summary>

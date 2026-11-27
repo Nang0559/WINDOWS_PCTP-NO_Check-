@@ -229,7 +229,7 @@ namespace PCTP.Modules.KhoLinhKien
         }
 
         /// <summary>Bitmap mã QR (cùng bộ sinh QR của DevExpress như tem MES). Mức sửa lỗi M để quét tốt khi in nhỏ.</summary>
-        private static Bitmap CreateQr(string payload)
+        internal static Bitmap CreateQr(string payload)
         {
             var bitmap = new Bitmap(300, 300);
             using (var control = new BarCodeControl())
@@ -255,11 +255,12 @@ namespace PCTP.Modules.KhoLinhKien
         private static readonly int[] PrintableStatuses =
             { ComponentPoStatus.Released, ComponentPoStatus.PartiallyReceived, ComponentPoStatus.Received };
 
-        public static bool CanPrint(UiScreenRowContext row)
+        /// <summary>In lần đầu: PO đã phát hành đến đã nhận đủ. In lại (rách / không đọc được mã vạch): thêm cả PO đã đóng.</summary>
+        public static bool CanPrint(UiScreenRowContext row, bool reprint)
         {
             int status;
-            return row != null && row.HasRow && ComponentPoStatus.TryFromName(row.GetText("Status"), out status)
-                   && PrintableStatuses.Contains(status);
+            if (row == null || !row.HasRow || !ComponentPoStatus.TryFromName(row.GetText("Status"), out status)) return false;
+            return PrintableStatuses.Contains(status) || (reprint && status == ComponentPoStatus.Closed);
         }
 
         public static string Run(IWin32Window owner, UiScreenRowContext row, bool reprint)
@@ -280,6 +281,16 @@ namespace PCTP.Modules.KhoLinhKien
             string reason = null;
             if (reprint)
             {
+                // Chỉ in lại các tem được chọn (rách / không đọc được), không bắt in lại cả PO.
+                labels = ComponentLabelPicker.Pick(owner, labels, "Chọn tem cần in lại - PO " + poNo, new[]
+                {
+                    new KeyValuePair<string, string>("LineNo", "Dòng"),
+                    new KeyValuePair<string, string>("Seq", "Stt"),
+                    new KeyValuePair<string, string>("LotNo", "Số lô"),
+                    new KeyValuePair<string, string>("PartNo", "Mã vật tư"),
+                    new KeyValuePair<string, string>("IssuedQty", "Số lượng")
+                });
+                if (labels == null || labels.Rows.Count == 0) return null;
                 reason = XtraInputBox.Show("Nhập lý do in lại tem (bắt buộc):", "In lại tem " + poNo, string.Empty);
                 if (string.IsNullOrWhiteSpace(reason)) return null;
                 reason = reason.Trim();
@@ -313,7 +324,11 @@ namespace PCTP.Modules.KhoLinhKien
     {
         public static IList<UiScreenAction> Create()
         {
-            return new List<UiScreenAction> { Step("In tem", 90, false), Step("In lại tem", 100, true) };
+            return new List<UiScreenAction>
+            {
+                Step("In tem", 90, false), Step("In lại tem", 100, true),
+                PalletStep("In tem palet", 115, false), PalletStep("In lại tem palet", 135, true)
+            };
         }
 
         private static UiScreenAction Step(string caption, int width, bool reprint)
@@ -324,8 +339,20 @@ namespace PCTP.Modules.KhoLinhKien
                     var session = UserSession.Current;
                     return session != null && session.HasPermission(ComponentPoStatus.Function, "CONFIRM");
                 },
-                row => ComponentPoLabelFlow.CanPrint(row),
+                row => ComponentPoLabelFlow.CanPrint(row, reprint),
                 (owner, site, row) => ComponentPoLabelFlow.Run(owner, row, reprint));
+        }
+
+        private static UiScreenAction PalletStep(string caption, int width, bool reprint)
+        {
+            return new UiScreenAction(caption, width, "PurchaseOrderId",
+                () =>
+                {
+                    var session = UserSession.Current;
+                    return session != null && session.HasPermission(ComponentPoStatus.Function, "CONFIRM");
+                },
+                row => ComponentPoLabelFlow.CanPrint(row, reprint),
+                (owner, site, row) => ComponentPalletLabelFlow.Run(owner, row, reprint));
         }
     }
 }

@@ -8,6 +8,7 @@ using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Infrastructure.Security;
+using PCTP.Modules.KhoLinhKien;
 using PCTP.Modules.NhapKho.ComponentReceiving;
 using PCTP.Security;
 using System;
@@ -434,6 +435,12 @@ namespace PCTP.Modules.KhoLinhKien.UI
             string payload = Convert.ToString(_txtQr.EditValue ?? string.Empty).Trim();
             if (payload.Length == 0) return;
 
+            if (ComponentPalletQr.IsPalletPayload(payload))
+            {
+                ProcessPalletScan(payload);
+                return;
+            }
+
             DataRow lot = FindLot(payload);
             if (lot == null)
             {
@@ -498,6 +505,86 @@ namespace PCTP.Modules.KhoLinhKien.UI
                 SetStatus("✘ " + ex.Message, Kind.Error);
                 XtraMessageBox.Show(this, ex.Message, "Không thể nhận linh kiện",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+                _txtQr.Enabled = true;
+                _busy = false;
+                _txtQr.Focus();
+                _txtQr.SelectAll();
+            }
+        }
+
+        /// <summary>
+        /// Quét tem palet (FVN2|...): nhận toàn bộ phần còn lại của các tem nhỏ trong palet vào Slot đã chọn.
+        /// Mỗi tem nhỏ là một phiếu nhận idempotent riêng (khóa = khóa quét + Id tem) nên quét lại palet sau khi lỗi giữa chừng
+        /// chỉ nhận tiếp các tem còn thiếu, không nhận trùng.
+        /// </summary>
+        private void ProcessPalletScan(string payload)
+        {
+            if (_slot.EditValue == null || _slot.EditValue == DBNull.Value)
+            {
+                Reject("Chưa chọn Slot nhập kho PART.");
+                _slot.Focus();
+                return;
+            }
+
+            DataTable palletLots;
+            try { palletLots = new ComponentPalletRepository().GetPalletLots(_siteCode, payload); }
+            catch (Exception ex) { Reject("Tem palet không hợp lệ: " + ex.GetBaseException().Message); return; }
+
+            var todo = new System.Collections.Generic.List<DataRow>();   // dòng của _lots còn phải nhận
+            foreach (DataRow p in palletLots.Rows)
+            {
+                DataRow lot = FindLot(Convert.ToString(p["LotQrPayload"]));
+                if (lot == null) { Reject("Tem palet không thuộc yêu cầu " + _purchaseOrderNo + "."); return; }
+                if (Convert.ToDecimal(lot["IssuedQty"]) - Convert.ToDecimal(lot["ReceivedQty"]) > 0) todo.Add(lot);
+            }
+            if (todo.Count == 0) { Reject("Palet này đã nhận đủ."); return; }
+
+            if (!string.Equals(_pendingPayload, payload, StringComparison.OrdinalIgnoreCase))
+            {
+                _pendingPayload = payload;
+                _pendingKey = Guid.NewGuid().ToString("N");
+            }
+
+            _busy = true;
+            _txtQr.Enabled = false;
+            Cursor = Cursors.WaitCursor;
+            int done = 0;
+            decimal total = 0m;
+            try
+            {
+                string receiptNo = "KK-" + _purchaseOrderNo + "-" + DateTime.Now.ToString("yyMMdd");
+                foreach (DataRow lot in todo)
+                {
+                    decimal remaining = Convert.ToDecimal(lot["IssuedQty"]) - Convert.ToDecimal(lot["ReceivedQty"]);
+                    string lotQr = Convert.ToString(lot["QrPayload"]);
+                    ComponentReceiptResult r = _receiving.Receive(new ComponentReceiptRequest
+                    {
+                        SiteCode = _siteCode,
+                        ReceiptNo = receiptNo,
+                        QrPayload = lotQr,
+                        Quantity = remaining,
+                        TargetSlotId = Convert.ToInt32(_slot.EditValue),
+                        IdempotencyKey = _pendingKey + ":" + Convert.ToString(lot["LotNo"])
+                    });
+                    done++; total += r.ReceivedQty;
+                }
+                _pendingPayload = null;
+                _pendingKey = null;
+                LoadLots(payload);
+                SetStatus(string.Format("✔ Đã nhận palet: {0} tem nhỏ, tổng {1:N3}.", done, total), Kind.Success);
+                _txtQr.EditValue = null;
+            }
+            catch (Exception ex)
+            {
+                SystemSounds.Hand.Play();
+                try { LoadLots(null); } catch { }
+                SetStatus(string.Format("✘ Palet nhận dở {0}/{1} tem: {2} — quét lại tem palet để nhận tiếp.", done, todo.Count, ex.Message), Kind.Error);
+                XtraMessageBox.Show(this, ex.Message + "\r\nĐã nhận " + done + "/" + todo.Count + " tem nhỏ. Quét lại tem palet để nhận phần còn lại.",
+                    "Không thể nhận palet", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             finally
             {
