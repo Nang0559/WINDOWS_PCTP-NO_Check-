@@ -493,6 +493,7 @@
     <Compile Include="Modules\KhoLinhKien\ComponentPoBravoExcelReader.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoWorkflowActions.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPackSpec.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentPackSplit.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoLabelPrint.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPalletLabel.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentLabelPicker.cs" />

@@ -33,9 +33,35 @@ namespace PCTP.Modules.KhoLinhKien
         public ComponentPackSpecRow() { IsActive = true; }
     }
 
+    /// <summary>Một dòng Bravo B20ItemQuyCach không nạp được và lý do (PACK_QTY_INVALID / MAX_LT_PACK / PART_NOT_IN_IFS).</summary>
+    public sealed class ComponentPackSpecImportSkip
+    {
+        public string SupplierCode { get; set; }
+        public string PartNo { get; set; }
+        public decimal? PackQty { get; set; }
+        public decimal? MaxCloseQty { get; set; }
+        public string Reason { get; set; }
+    }
+
+    /// <summary>Kết quả (hoặc kết quả chạy thử) của MES.usp_FVN_ComponentPackSpec_ImportBravo.</summary>
+    public sealed class ComponentPackSpecImportResult
+    {
+        public ComponentPackSpecImportResult() { Skipped = new List<ComponentPackSpecImportSkip>(); }
+
+        public bool DryRun { get; set; }
+        public int TotalRows { get; set; }
+        public int InsertRows { get; set; }
+        public int UpdateRows { get; set; }
+        public int UnchangedRows { get; set; }
+        public int SkippedRows { get; set; }
+        public List<ComponentPackSpecImportSkip> Skipped { get; private set; }
+    }
+
     public interface IComponentPackSpecRepository
     {
         DataTable List(string siteCode);
+        /// <summary>Đọc dbo.B20ItemQuyCach của Bravo (cùng SQL Server) và nạp quy cách của Site. dryRun = true: chỉ báo cáo, không ghi.</summary>
+        ComponentPackSpecImportResult ImportBravo(string siteCode, string actor, string bravoDatabase, bool dryRun);
         /// <summary>Ghi tất cả dòng trong một transaction (hoặc tất cả hoặc không dòng nào).</summary>
         void Upsert(IReadOnlyList<ComponentPackSpecRow> rows, string actor);
     }
@@ -65,6 +91,42 @@ namespace PCTP.Modules.KhoLinhKien
                 using (var da = new SqlDataAdapter(cmd)) da.Fill(table);
             }
             return table;
+        }
+
+        public ComponentPackSpecImportResult ImportBravo(string siteCode, string actor, string bravoDatabase, bool dryRun)
+        {
+            var result = new ComponentPackSpecImportResult { DryRun = dryRun };
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("MES.usp_FVN_ComponentPackSpec_ImportBravo", cn) { CommandType = CommandType.StoredProcedure, CommandTimeout = 180 })
+            {
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = siteCode;
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
+                cmd.Parameters.Add("@BravoDatabase", SqlDbType.NVarChar, 128).Value = bravoDatabase;
+                cmd.Parameters.Add("@DryRun", SqlDbType.Bit).Value = dryRun;
+                cn.Open();
+                using (var rd = cmd.ExecuteReader())
+                {
+                    if (rd.Read())
+                    {
+                        result.TotalRows = Convert.ToInt32(rd["TotalRows"], CultureInfo.InvariantCulture);
+                        result.InsertRows = Convert.ToInt32(rd["InsertRows"], CultureInfo.InvariantCulture);
+                        result.UpdateRows = Convert.ToInt32(rd["UpdateRows"], CultureInfo.InvariantCulture);
+                        result.UnchangedRows = Convert.ToInt32(rd["UnchangedRows"], CultureInfo.InvariantCulture);
+                        result.SkippedRows = Convert.ToInt32(rd["SkippedRows"], CultureInfo.InvariantCulture);
+                    }
+                    if (rd.NextResult())
+                        while (rd.Read())
+                            result.Skipped.Add(new ComponentPackSpecImportSkip
+                            {
+                                SupplierCode = Convert.ToString(rd["SupplierCode"]),
+                                PartNo = Convert.ToString(rd["PartNo"]),
+                                PackQty = rd.IsDBNull(rd.GetOrdinal("PackQty")) ? (decimal?)null : Convert.ToDecimal(rd["PackQty"], CultureInfo.InvariantCulture),
+                                MaxCloseQty = rd.IsDBNull(rd.GetOrdinal("MaxCloseQty")) ? (decimal?)null : Convert.ToDecimal(rd["MaxCloseQty"], CultureInfo.InvariantCulture),
+                                Reason = Convert.ToString(rd["Reason"])
+                            });
+                }
+            }
+            return result;
         }
 
         public void Upsert(IReadOnlyList<ComponentPackSpecRow> rows, string actor)
@@ -158,6 +220,19 @@ namespace PCTP.Modules.KhoLinhKien
 
             _repository.Upsert(rows, actor);
             return rows.Count;
+        }
+
+        /// <summary>
+        /// Đồng bộ quy cách từ Bravo B20ItemQuyCach (tên database lấy từ appSettings "BravoDatabase", mặc định B7R2_FCC).
+        /// Cần quyền CREATE theo Site. dryRun = true chỉ báo cáo số dòng thêm / cập nhật / bỏ qua.
+        /// </summary>
+        public ComponentPackSpecImportResult ImportFromBravo(string siteCode, bool dryRun)
+        {
+            string site = NormalizeSite(siteCode);
+            AuthorizationGuard.DemandActionAndScope(Function, "CREATE", "SITE", site, site);
+            string database = ConfigurationManager.AppSettings["BravoDatabase"];
+            if (string.IsNullOrWhiteSpace(database)) database = "B7R2_FCC";
+            return _repository.ImportBravo(site, AuthorizationGuard.ActorCode, database.Trim(), dryRun);
         }
 
         private static string NormalizeSite(string siteCode)
