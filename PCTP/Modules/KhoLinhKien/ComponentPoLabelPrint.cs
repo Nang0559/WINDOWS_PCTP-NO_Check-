@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -12,6 +12,7 @@ using System.Text;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraPrinting.BarCode;
+using DevExpress.XtraReports.UI;
 using PCTP.Framework.UiLayout;
 using PCTP.Infrastructure.Security;
 using PCTP.Security;
@@ -107,146 +108,85 @@ namespace PCTP.Modules.KhoLinhKien
         }
     }
 
+    /// <summary>Chuẩn bị dữ liệu cho báo cáo tem: thêm các cột chữ đã định dạng (ngày, giờ, số lượng...) để bố cục trong Report Designer chỉ cần gắn [Cột].</summary>
+    public static class ComponentPoLabelData
+    {
+        private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
+
+        public static DataTable PrepareCarton(DataTable source, DateTime printedAt)
+        {
+            DataTable t = source.Copy();
+            foreach (string c in new[] { "DateText", "SeqText", "TimeText", "QtyText" }) t.Columns.Add(c, typeof(string));
+            foreach (DataRow r in t.Rows)
+            {
+                r["DateText"] = DateText(r["LotIssueDate"], "dd-MMM");
+                r["SeqText"] = Convert.ToString(r["Seq"], Inv);
+                r["TimeText"] = printedAt.Hour.ToString(Inv) + "h";
+                r["QtyText"] = QtyText(r["IssuedQty"]);
+            }
+            return t;
+        }
+
+        public static DataTable PreparePallet(DataTable source)
+        {
+            DataTable t = source.Copy();
+            foreach (string c in new[] { "PalletText", "DateText", "QtyText", "SeqText" }) t.Columns.Add(c, typeof(string));
+            foreach (DataRow r in t.Rows)
+            {
+                string seq = Convert.ToString(r["PalletSeq"], Inv) + " / " + Convert.ToString(r["PalletCount"], Inv);
+                r["SeqText"] = seq;
+                r["PalletText"] = "PALLET " + seq;
+                r["DateText"] = DateText(r["LotIssueDate"], "dd-MMM-yyyy");
+                r["QtyText"] = QtyText(r["TotalQty"]);
+            }
+            return t;
+        }
+
+        private static string DateText(object value, string format)
+        {
+            return value == null || value == DBNull.Value ? string.Empty : Convert.ToDateTime(value, Inv).ToString(format, Inv);
+        }
+
+        private static string QtyText(object value)
+        {
+            return value == null || value == DBNull.Value ? string.Empty : Convert.ToDecimal(value, Inv).ToString("#,##0.###", Inv);
+        }
+    }
+
+    /// <summary>In báo cáo tem (XtraReport) ra máy in người dùng chọn. Trả false nếu hủy hộp thoại in.</summary>
+    internal static class ComponentLabelReportPrinter
+    {
+        public static bool Print(IWin32Window owner, XtraReport report, string title)
+        {
+            using (report)
+            using (var dialog = new PrintDialog { PrinterSettings = new PrinterSettings(), UseEXDialog = true })
+            {
+                report.DisplayName = title;
+                if (dialog.ShowDialog(owner) != DialogResult.OK) return false;
+                using (var tool = new ReportPrintTool(report))
+                    tool.Print(dialog.PrinterSettings.PrinterName);
+                return true;
+            }
+        }
+    }
+
     /// <summary>
-    /// Tờ tem QR A4 ngang, 4 cột x 4 hàng = 16 tem/trang (mỗi ô khoảng 72 x 50 mm). Mỗi tem một LOT/gói:
-    /// ngày phát hành, Stt (số thứ tự gói trong dòng PO), mã vật tư, tên, số dòng PO, nhà cung cấp, số lượng và mã QR
-    /// (QrPayload của LOT) thay cho mã vạch 2D cũ.
+    /// Tem thùng linh kiện: ComponentCartonLabelReport (A4 ngang, 4 cột x 4 hàng = 16 tem/trang, mỗi ô khoảng 72 x 47 mm).
+    /// Bố cục chỉnh trong Report Designer; mỗi tem một LOT: Date | Stt | Time, PartNo, PartName, Maker | Quantity,
+    /// mã QR (QrPayload của LOT), Quantity / DeptName-INVOICE và số LOT ở dòng cuối.
     /// </summary>
     public static class ComponentPoLabelSheet
     {
         public const int Columns = 4;
         public const int Rows = 4;
         public const int PerPage = Columns * Rows;
-        private const int Margin = 20;   // 1/100 inch (~5 mm)
 
         public static int PageCount(int labels) { return (labels + PerPage - 1) / PerPage; }
 
-        /// <summary>Gửi bảng tem tới máy in đã chọn trong <paramref name="dialog"/>. Trả false nếu người dùng hủy hộp thoại in.</summary>
         public static bool Print(IWin32Window owner, DataTable labels, string title)
         {
-            using (var document = new PrintDocument { DocumentName = title })
-            using (var dialog = new PrintDialog { Document = document, UseEXDialog = true })
-            {
-                document.DefaultPageSettings.Landscape = true;
-                document.DefaultPageSettings.Margins = new Margins(Margin, Margin, Margin, Margin);
-                foreach (PaperSize size in document.PrinterSettings.PaperSizes)
-                    if (size.Kind == PaperKind.A4) { document.DefaultPageSettings.PaperSize = size; break; }
-                if (dialog.ShowDialog(owner) != DialogResult.OK) return false;
-
-                int index = 0;
-                DateTime printedAt = DateTime.Now;
-                document.PrintPage += (s, e) =>
-                {
-                    RectangleF area = e.MarginBounds;
-                    float cellW = area.Width / Columns;
-                    float cellH = area.Height / Rows;
-                    for (int slot = 0; slot < PerPage && index < labels.Rows.Count; slot++, index++)
-                    {
-                        var cell = new RectangleF(area.Left + (slot % Columns) * cellW, area.Top + (slot / Columns) * cellH, cellW, cellH);
-                        DrawLabel(e.Graphics, cell, labels.Rows[index], printedAt);
-                    }
-                    e.HasMorePages = index < labels.Rows.Count;
-                };
-                document.Print();
-                return true;
-            }
-        }
-
-        private static void DrawLabel(Graphics g, RectangleF cell, DataRow row, DateTime printedAt)
-        {
-            const float pad = 3f;
-            var box = new RectangleF(cell.Left + pad, cell.Top + pad, cell.Width - 2 * pad, cell.Height - 2 * pad);
-            float rowH = box.Height * 0.115f;
-
-            string date = Convert.ToDateTime(row["LotIssueDate"]).ToString("dd-MMM", CultureInfo.InvariantCulture);
-            string qty = Convert.ToDecimal(row["IssuedQty"]).ToString("#,##0.###", CultureInfo.InvariantCulture);
-            string supplierName = Convert.ToString(row["SupplierName"]);
-            var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
-            var left = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
-
-            using (var pen = new Pen(Color.Black, 1f))
-            using (var small = new Font("Arial", 7f, FontStyle.Regular))
-            using (var bold = new Font("Arial", 8f, FontStyle.Bold))
-            using (var big = new Font("Arial", 13f, FontStyle.Bold))
-            using (var lotFont = new Font("Arial", 8.5f, FontStyle.Bold))
-            {
-                g.DrawRectangle(pen, box.X, box.Y, box.Width, box.Height);
-
-                // Hàng 1: Date | Stt | Time
-                float y = box.Top;
-                float third = box.Width / 3f;
-                g.DrawString("Date: " + date, bold, Brushes.Black, new RectangleF(box.Left, y, third, rowH), center);
-                g.DrawString("Stt: " + Convert.ToString(row["Seq"], CultureInfo.InvariantCulture), bold, Brushes.Black, new RectangleF(box.Left + third, y, third, rowH), center);
-                g.DrawString("Time: " + printedAt.Hour.ToString(CultureInfo.InvariantCulture) + "h", bold, Brushes.Black, new RectangleF(box.Left + 2 * third, y, third, rowH), center);
-                g.DrawLine(pen, box.Left, y + rowH, box.Right, y + rowH);
-                g.DrawLine(pen, box.Left + third, y, box.Left + third, y + rowH);
-                g.DrawLine(pen, box.Left + 2 * third, y, box.Left + 2 * third, y + rowH);
-
-                // Hàng 2-3: PartNo, PartName
-                y += rowH;
-                g.DrawString("PartNo: " + Convert.ToString(row["PartNo"]), bold, Brushes.Black, new RectangleF(box.Left + 2, y, box.Width - 4, rowH), left);
-                y += rowH;
-                g.DrawLine(pen, box.Left, y, box.Right, y);
-                g.DrawString("PartName: " + Convert.ToString(row["PartDescription"]), bold, Brushes.Black, new RectangleF(box.Left + 2, y, box.Width - 4, rowH), left);
-                y += rowH;
-                g.DrawLine(pen, box.Left, y, box.Right, y);
-
-                // Hàng 4-5: DeptName/ INVOICE + số dòng PO
-                g.DrawString("DeptName/ INVOICE", small, Brushes.Black, new RectangleF(box.Left, y, box.Width, rowH * 0.7f), center);
-                y += rowH * 0.7f;
-                g.DrawString(Convert.ToString(row["LineNo"], CultureInfo.InvariantCulture), bold, Brushes.Black, new RectangleF(box.Left, y, box.Width, rowH * 0.9f), center);
-                y += rowH * 0.9f;
-                g.DrawLine(pen, box.Left, y, box.Right, y);
-
-                // Hàng 6: Maker | Quantity
-                float makerH = rowH * 1.7f;
-                float half = box.Width / 2f;
-                g.DrawString("Maker:", small, Brushes.Black, new RectangleF(box.Left + 2, y, half * 0.4f, makerH * 0.5f), left);
-                g.DrawString(Convert.ToString(row["SupplierCode"]), bold, Brushes.Black, new RectangleF(box.Left + half * 0.4f, y, half * 0.6f, makerH * 0.5f), left);
-                g.DrawString(supplierName, bold, Brushes.Black, new RectangleF(box.Left, y + makerH * 0.5f, half, makerH * 0.5f), center);
-                g.DrawString("Quantity", small, Brushes.Black, new RectangleF(box.Left + half, y, half, makerH * 0.4f), center);
-                g.DrawString(qty, big, Brushes.Black, new RectangleF(box.Left + half, y + makerH * 0.4f, half, makerH * 0.6f), center);
-                g.DrawLine(pen, box.Left + half, y, box.Left + half, y + makerH);
-                y += makerH;
-                g.DrawLine(pen, box.Left, y, box.Right, y);
-
-                // Phần dưới: mã QR bên trái, số LOT bên phải
-                float qrSize = Math.Min(box.Bottom - y - 4f, box.Width * 0.42f);
-                if (qrSize > 20f)
-                {
-                    using (Bitmap qr = CreateQr(Convert.ToString(row["QrPayload"])))
-                    {
-                        GraphicsState state = g.Save();
-                        g.InterpolationMode = InterpolationMode.NearestNeighbor;
-                        g.PixelOffsetMode = PixelOffsetMode.Half;
-                        g.DrawImage(qr, box.Left + 4f, y + 2f, qrSize, qrSize);
-                        g.Restore(state);
-                    }
-                    var lotArea = new RectangleF(box.Left + qrSize + 10f, y + 2f, box.Right - box.Left - qrSize - 14f, qrSize);
-                    g.DrawString(Convert.ToString(row["LotNo"]), lotFont, Brushes.Black, lotArea, new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
-                }
-            }
-        }
-
-        /// <summary>Bitmap mã QR (cùng bộ sinh QR của DevExpress như tem MES). Mức sửa lỗi M để quét tốt khi in nhỏ.</summary>
-        internal static Bitmap CreateQr(string payload)
-        {
-            var bitmap = new Bitmap(300, 300);
-            using (var control = new BarCodeControl())
-            {
-                control.Size = new Size(300, 300);
-                control.AutoModule = true;
-                control.Text = payload;
-                control.Symbology = new QRCodeGenerator
-                {
-                    CompactionMode = QRCodeCompactionMode.Byte,
-                    ErrorCorrectionLevel = QRCodeErrorCorrectionLevel.M,
-                    Version = QRCodeVersion.AutoVersion
-                };
-                control.CreateControl();
-                control.DrawToBitmap(bitmap, new Rectangle(0, 0, 300, 300));
-            }
-            return bitmap;
+            var report = new Reports.ComponentCartonLabelReport { DataSource = ComponentPoLabelData.PrepareCarton(labels, DateTime.Now) };
+            return ComponentLabelReportPrinter.Print(owner, report, title);
         }
     }
 

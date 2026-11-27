@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -136,101 +136,22 @@ namespace PCTP.Modules.KhoLinhKien
         }
     }
 
-    /// <summary>Tờ tem palet A4 ngang, 2 cột x 2 hàng = 4 tem/trang (mỗi tem dán được lên palet, QR lớn để quét xa).</summary>
+    /// <summary>
+    /// Phiếu quản lý nhập linh kiện palet: ComponentPalletLabelReport (A4 ngang, 1 phiếu / trang) cùng khung, font và vị trí QR với tem thùng.
+    /// Bố cục chỉnh trong Report Designer.
+    /// </summary>
     public static class ComponentPalletLabelSheet
     {
-        public const int Columns = 2;
-        public const int Rows = 2;
+        public const int Columns = 1;
+        public const int Rows = 1;
         public const int PerPage = Columns * Rows;
-        private const int Margin = 20;
 
         public static int PageCount(int labels) { return (labels + PerPage - 1) / PerPage; }
 
         public static bool Print(IWin32Window owner, DataTable pallets, string title)
         {
-            using (var document = new PrintDocument { DocumentName = title })
-            using (var dialog = new PrintDialog { Document = document, UseEXDialog = true })
-            {
-                document.DefaultPageSettings.Landscape = true;
-                document.DefaultPageSettings.Margins = new Margins(Margin, Margin, Margin, Margin);
-                foreach (PaperSize size in document.PrinterSettings.PaperSizes)
-                    if (size.Kind == PaperKind.A4) { document.DefaultPageSettings.PaperSize = size; break; }
-                if (dialog.ShowDialog(owner) != DialogResult.OK) return false;
-
-                int index = 0;
-                document.PrintPage += (s, e) =>
-                {
-                    RectangleF area = e.MarginBounds;
-                    float cellW = area.Width / Columns;
-                    float cellH = area.Height / Rows;
-                    for (int slot = 0; slot < PerPage && index < pallets.Rows.Count; slot++, index++)
-                    {
-                        var cell = new RectangleF(area.Left + (slot % Columns) * cellW, area.Top + (slot / Columns) * cellH, cellW, cellH);
-                        DrawPallet(e.Graphics, cell, pallets.Rows[index]);
-                    }
-                    e.HasMorePages = index < pallets.Rows.Count;
-                };
-                document.Print();
-                return true;
-            }
-        }
-
-        private static void DrawPallet(Graphics g, RectangleF cell, DataRow row)
-        {
-            const float pad = 6f;
-            var box = new RectangleF(cell.Left + pad, cell.Top + pad, cell.Width - 2 * pad, cell.Height - 2 * pad);
-            var left = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
-            var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
-            string qty = Convert.ToDecimal(row["TotalQty"], CultureInfo.InvariantCulture).ToString("#,##0.###", CultureInfo.InvariantCulture);
-            string date = row["LotIssueDate"] == DBNull.Value ? string.Empty
-                : Convert.ToDateTime(row["LotIssueDate"], CultureInfo.InvariantCulture).ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture);
-            float rowH = box.Height * 0.095f;
-
-            using (var pen = new Pen(Color.Black, 1.5f))
-            using (var small = new Font("Arial", 8f, FontStyle.Regular))
-            using (var bold = new Font("Arial", 10f, FontStyle.Bold))
-            using (var title = new Font("Arial", 16f, FontStyle.Bold))
-            using (var big = new Font("Arial", 26f, FontStyle.Bold))
-            using (var codeFont = new Font("Arial", 9f, FontStyle.Bold))
-            {
-                g.DrawRectangle(pen, box.X, box.Y, box.Width, box.Height);
-                float y = box.Top;
-                g.DrawString("PALLET  " + Convert.ToString(row["PalletSeq"], CultureInfo.InvariantCulture) + " / " + Convert.ToString(row["PalletCount"], CultureInfo.InvariantCulture),
-                    title, Brushes.Black, new RectangleF(box.Left + 4, y, box.Width * 0.6f, rowH * 1.4f), left);
-                g.DrawString(date, bold, Brushes.Black, new RectangleF(box.Left + box.Width * 0.6f, y, box.Width * 0.4f - 4, rowH * 1.4f), center);
-                y += rowH * 1.4f; g.DrawLine(pen, box.Left, y, box.Right, y);
-
-                g.DrawString("PO: " + Convert.ToString(row["PurchaseOrderNo"]) + "    Line: " + Convert.ToString(row["LineNo"], CultureInfo.InvariantCulture),
-                    bold, Brushes.Black, new RectangleF(box.Left + 4, y, box.Width - 8, rowH), left);
-                y += rowH;
-                g.DrawString("PartNo: " + Convert.ToString(row["PartNo"]), bold, Brushes.Black, new RectangleF(box.Left + 4, y, box.Width - 8, rowH), left);
-                y += rowH;
-                g.DrawString(Convert.ToString(row["PartDescription"]), small, Brushes.Black, new RectangleF(box.Left + 4, y, box.Width - 8, rowH), left);
-                y += rowH;
-                g.DrawString("Maker: " + Convert.ToString(row["SupplierCode"]) + " " + Convert.ToString(row["SupplierName"]),
-                    small, Brushes.Black, new RectangleF(box.Left + 4, y, box.Width - 8, rowH), left);
-                y += rowH; g.DrawLine(pen, box.Left, y, box.Right, y);
-
-                float bottom = box.Bottom - 4f;
-                float qrSize = Math.Min(bottom - y - 4f, box.Width * 0.46f);
-                if (qrSize > 30f)
-                {
-                    using (Bitmap qr = ComponentPoLabelSheet.CreateQr(Convert.ToString(row["QrPayload"])))
-                    {
-                        GraphicsState state = g.Save();
-                        g.InterpolationMode = InterpolationMode.NearestNeighbor;
-                        g.PixelOffsetMode = PixelOffsetMode.Half;
-                        g.DrawImage(qr, box.Left + 6f, y + 2f, qrSize, qrSize);
-                        g.Restore(state);
-                    }
-                    float tx = box.Left + qrSize + 14f, tw = box.Right - tx - 4f;
-                    g.DrawString("Quantity", small, Brushes.Black, new RectangleF(tx, y + 2f, tw, rowH), center);
-                    g.DrawString(qty, big, Brushes.Black, new RectangleF(tx, y + rowH, tw, rowH * 2.2f), center);
-                    g.DrawString(Convert.ToString(row["LotCount"], CultureInfo.InvariantCulture) + " tem nhỏ",
-                        bold, Brushes.Black, new RectangleF(tx, y + rowH * 3.3f, tw, rowH), center);
-                    g.DrawString(Convert.ToString(row["PalletNo"]), codeFont, Brushes.Black, new RectangleF(tx, y + rowH * 4.4f, tw, rowH * 1.4f), center);
-                }
-            }
+            var report = new Reports.ComponentPalletLabelReport { DataSource = ComponentPoLabelData.PreparePallet(pallets) };
+            return ComponentLabelReportPrinter.Print(owner, report, title);
         }
     }
 

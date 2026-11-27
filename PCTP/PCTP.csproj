@@ -496,6 +496,18 @@
     <Compile Include="Modules\KhoLinhKien\ComponentPoLabelPrint.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPalletLabel.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentLabelPicker.cs" />
+    <Compile Include="Modules\KhoLinhKien\Reports\ComponentCartonLabelReport.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoLinhKien\Reports\ComponentCartonLabelReport.Designer.cs">
+      <DependentUpon>ComponentCartonLabelReport.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoLinhKien\Reports\ComponentPalletLabelReport.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoLinhKien\Reports\ComponentPalletLabelReport.Designer.cs">
+      <DependentUpon>ComponentPalletLabelReport.cs</DependentUpon>
+    </Compile>
     <Compile Include="Modules\KhoLinhKien\ExcelNumberParser.cs" />
     <Compile Include="Modules\KhoLinhKien\UI\FormComponentPackSpec.cs">
       <SubType>Form</SubType>
@@ -1417,6 +1429,12 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\GHEPLOT_YMVN.resx">
       <DependentUpon>GHEPLOT_YMVN.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\KhoLinhKien\Reports\ComponentCartonLabelReport.resx">
+      <DependentUpon>ComponentCartonLabelReport.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\KhoLinhKien\Reports\ComponentPalletLabelReport.resx">
+      <DependentUpon>ComponentPalletLabelReport.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\GHEPLOT.resx">
       <DependentUpon>GHEPLOT.cs</DependentUpon>
