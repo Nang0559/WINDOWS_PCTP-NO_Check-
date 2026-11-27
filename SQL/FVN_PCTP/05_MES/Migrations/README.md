@@ -576,3 +576,8 @@ After applying: run Đồng bộ dữ liệu IFS with PRODUCTION_LINE ticked, th
 ### Migration 068 - IFS SITE / WORK_CENTER sync and Site-Department-Line link
 
 Apply after 067, in FVN_PCTP. Adds `IFS.FVN_Site` / `IFS.FVN_WorkCenter` (copies of IFSAPP.SITE / IFSAPP.WORK_CENTER), the `SITE` and `WORK_CENTER` entities in the selective IFS sync (own apply procedure `IFS.usp_ApplySiteWorkCenterBatch`; `IFS.usp_ApplySyncBatch` and the `PRODUCTION_LINE` entity from 067 are untouched), `dbo.FVN_ProductionDepartment.WorkCenterNo` and `MES.usp_FVN_SiteDepartmentLine_Link` / `_Unlink`. Sync never creates lines, departments or links by itself.
+
+
+### Migration 069 - IFS sync runtime SelectedEntities compatibility
+
+Apply after 068 in `FVN_PCTP`. Fixes the schema mismatch between the current application runtime (which uses `IFS.SyncBatch` / `IFS.SyncStageRow`) and migration 037 (which added `SelectedEntities` to `IFS.FVN_SyncBatch`). Adds `SelectedEntities`, `SiteRows`, and `WorkCenterRows` to the runtime batch table and permits the `SITE` / `WORK_CENTER` staging entity names. It is idempotent and does not rename or delete existing sync data.
