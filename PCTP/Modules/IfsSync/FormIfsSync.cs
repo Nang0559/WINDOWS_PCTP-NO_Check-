@@ -295,8 +295,8 @@ namespace PCTP.Modules.IfsSync
                                     "SQL: " + ex.Message, ex);
                             if (ex.Number == 207)
                                 throw new InvalidOperationException(
-                                    "Thiếu cột/bảng của đồng bộ Site và Work Center. Hãy chạy migration 068 " +
-                                    "(068_IFS_SiteWorkCenterSyncAndProductionLink.sql) trên FVN_PCTP. SQL: " + ex.Message, ex);
+                                    "Thiếu cột/bảng runtime đồng bộ IFS (SelectedEntities / SiteRows / WorkCenterRows hoặc Site/Work Center). " +
+                                    "Hãy chạy migration 068 và 069 trên FVN_PCTP. SQL: " + ex.Message, ex);
                             if (ex.Number == 229)
                                 throw new InvalidOperationException(
                                     "Các bảng đồng bộ có thể đã tồn tại nhưng tài khoản SQL của ứng dụng thiếu quyền SELECT. " +
@@ -305,7 +305,7 @@ namespace PCTP.Modules.IfsSync
                         }
                     }
 
-                    return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migration 012, 027, 028 và 037 đã sẵn sàng.";
+                    return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migrations 012, 027, 028, 037, 068 và 069 đã sẵn sàng.";
                 }), "Đang kiểm tra kết nối Oracle IFS và SQL Server FVN_PCTP...");
 
                 _status.Text = message;
