@@ -5,7 +5,8 @@ namespace PCTP.Modules.MesPlanning
 {
     /// <summary>
     /// File mẫu cho "Upload Excel kế hoạch…" / "Upload kế hoạch sản xuất theo ca". Cột khớp <c>ProductionPlanExcelReader</c>
-    /// (bắt buộc: SiteCode, PlanNo, PlanDate, LineNo, ShiftCode, ProductionLineCode, ProductPartNo, PlannedQty, UomCode).
+    /// (bắt buộc: PlanNo, PlanDate, LineNo, ShiftCode, ProductPartNo, PlannedQty, UomCode).
+    /// Site và Chuyền chọn trên màn hình upload nên không có trong file.
     /// </summary>
     public static class ProductionPlanTemplateDefinition
     {
@@ -15,12 +16,10 @@ namespace PCTP.Modules.MesPlanning
         {
             var columns = new List<ExcelTemplateColumn>
             {
-                new ExcelTemplateColumn("SiteCode", true, "Mã Site sản xuất. Phải thuộc Site bạn có quyền tạo (CREATE).", "FVN", 12, null, true),
                 new ExcelTemplateColumn("PlanNo", true, "Số kế hoạch. Nhiều dòng cùng PlanNo thuộc một kế hoạch.", "KH-2026-1201", 18, null, true),
                 new ExcelTemplateColumn("PlanDate", true, "Ngày kế hoạch (yyyy-mm-dd).", "2026-12-01", 14, "yyyy-mm-dd"),
                 new ExcelTemplateColumn("LineNo", true, "Số thứ tự dòng trong kế hoạch (số nguyên).", "1", 9, "0"),
                 new ExcelTemplateColumn("ShiftCode", true, "Mã ca sản xuất.", "CA1", 12, null, true),
-                new ExcelTemplateColumn("ProductionLineCode", true, "Mã chuyền / line sản xuất.", "LINE01", 18, null, true),
                 new ExcelTemplateColumn("ProductPartNo", true, "Mã thành phẩm cần sản xuất.", "FG-0001", 18, null, true),
                 new ExcelTemplateColumn("PlannedQty", true, "Số lượng kế hoạch (số).", "500", 12),
                 new ExcelTemplateColumn("UomCode", true, "Đơn vị tính.", "PCS", 10, null, true),
@@ -30,6 +29,7 @@ namespace PCTP.Modules.MesPlanning
             var notes = new List<string>
             {
                 "Điền dữ liệu vào sheet \"" + SheetName + "\" từ hàng 2; hàng 1 là tiêu đề, không đổi tên cột (không phân biệt hoa thường).",
+                "Site và Chuyền sản xuất chọn trên màn hình upload (không điền trong file); mỗi lần upload áp cho toàn bộ dòng của file. Cột SiteCode / ProductionLineCode của file cũ nếu còn sẽ bị bỏ qua.",
                 "Cột nền cam là bắt buộc, cột nền xám là tùy chọn. Có thể thêm cột khác, hệ thống bỏ qua cột lạ.",
                 "Upload tạo kế hoạch ở trạng thái Mới upload; sau đó Kiểm tra → Chốt kế hoạch trên màn hình Kế hoạch sản xuất.",
                 "Toàn bộ file chạy trong một transaction: một dòng lỗi thì cả file bị hủy.",

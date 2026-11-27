@@ -81,6 +81,9 @@
     <None Include="../PCTP/Modules/MesPlanning/ProductionLabels/ProductionPlanExcelReader.cs" Link="ProductionPlanExcelReader.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/ProductionLabels/ProductionScreenActions.cs" Link="ProductionScreenActions.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/UI/FormUploadKeHoachSanXuat.cs" Link="FormUploadKeHoachSanXuat.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/MesPlanning/UI/ProductionPlanTargetPanel.cs" Link="ProductionPlanTargetPanel.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/MesPlanning/ProductionPlanService.cs" Link="ProductionPlanService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/MesPlanning/ProductionPlanRepository.cs" Link="ProductionPlanRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoLinhKien/UI/FormKhoLinhKien.cs" Link="FormKhoLinhKien.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/PCTP_InternalTransfer.sql" Link="PCTP_InternalTransfer.source.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_InternalTransfer.sql')" />
     <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataInventory.ps1" Link="Invoke-PctpLiveDataInventory.source.ps1" CopyToOutputDirectory="PreserveNewest" />

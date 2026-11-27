@@ -63,6 +63,34 @@ public sealed class ExcelTemplateContractTests
     }
 
     [Fact]
+    public void Plan_site_and_line_are_chosen_in_the_ui_not_read_from_the_file()
+    {
+        string reader = Read("ProductionPlanExcelReader.source.cs");
+        string[] required = ReaderNames(reader, @"string\[\]\s*required\s*=\s*\{(?<list>[^}]*)\}");
+        Assert.DoesNotContain("SiteCode", required);
+        Assert.DoesNotContain("ProductionLineCode", required);
+        Assert.DoesNotContain("cell(r,\"SiteCode\")", reader);
+        Assert.DoesNotContain("cell(r,\"ProductionLineCode\")", reader);
+
+        var names = ProductionPlanTemplateDefinition.Create().Columns.Select(c => c.Name).ToList();
+        Assert.DoesNotContain("SiteCode", names);
+        Assert.DoesNotContain("ProductionLineCode", names);
+
+        // Cả form upload cũ và nút của màn hình layout đều dùng bộ chọn Site + Chuyền.
+        Assert.Contains("ProductionPlanTargetPanel", Read("FormUploadKeHoachSanXuat.source.cs"));
+        Assert.Contains("ProductionPlanTargetDialog.Pick", Read("ProductionScreenActions.source.cs"));
+        Assert.Contains("FVN_ProductionLotCodeMap", Read("ProductionPlanRepository.source.cs"));
+    }
+
+    [Fact]
+    public void Plan_import_rechecks_the_selected_line_against_the_site_line_catalog()
+    {
+        string service = Read("ProductionPlanService.source.cs");
+        Assert.Contains("GetProductionLines", service);
+        Assert.Contains("chưa khai báo hoặc đã ngừng hoạt động", service);
+    }
+
+    [Fact]
     public void Template_column_names_are_unique_and_match_header_trim_rule()
     {
         foreach (var def in new[] { ComponentPoTemplateDefinition.Create(), ProductionPlanTemplateDefinition.Create() })

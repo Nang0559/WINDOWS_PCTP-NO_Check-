@@ -15,6 +15,19 @@ namespace PCTP.Modules.MesPlanning
             return _repository.GetPlanLines(siteCode);
         }
 
+        public IReadOnlyList<string> GetUploadSites()
+        {
+            var session = AuthorizationGuard.Demand("MES.PLAN_UPLOAD", "CREATE");
+            return PCTP.Framework.Documents.DocumentSiteResolver.Candidates(session, "MES.PLAN_UPLOAD", _repository.GetActiveSites);
+        }
+
+        public System.Data.DataTable GetProductionLines(string siteCode)
+        {
+            if (string.IsNullOrWhiteSpace(siteCode)) throw new ArgumentException("Chưa chọn Site.", "siteCode");
+            AuthorizationGuard.DemandScope("MES.PLAN_UPLOAD", "SITE", siteCode.Trim(), siteCode.Trim());
+            return _repository.GetProductionLines(siteCode.Trim());
+        }
+
         public void ImportRows(IList<ProductionPlanImportRow> rows, string sourceFileName, string createdBy)
         {
             createdBy = AuthorizationGuard.ActorCode;
@@ -34,6 +47,17 @@ namespace PCTP.Modules.MesPlanning
                 if (r.LineNo <= 0 || r.PlannedQty <= 0) throw new ArgumentException("LineNo và PlannedQty phải lớn hơn 0.");
                 if (r.PlannedEnd.HasValue && r.PlannedStart.HasValue && r.PlannedEnd < r.PlannedStart)
                     throw new ArgumentException("Giờ kết thúc phải lớn hơn hoặc bằng giờ bắt đầu.");
+            }
+            // Chuyền do người dùng chọn trên UI; thủ tục SQL không kiểm tra mã chuyền nên kiểm lại ở đây theo danh mục chuyền của Site.
+            foreach (var bySite in rows.GroupBy(r => r.SiteCode.Trim(), StringComparer.OrdinalIgnoreCase))
+            {
+                var valid = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (System.Data.DataRow lr in _repository.GetProductionLines(bySite.Key).Rows)
+                    valid.Add(Convert.ToString(lr["LineCode"]).Trim());
+                var unknown = bySite.Select(r => r.ProductionLineCode.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault(c => !valid.Contains(c));
+                if (unknown != null)
+                    throw new ArgumentException("Chuyền \"" + unknown + "\" chưa khai báo hoặc đã ngừng hoạt động ở Site " + bySite.Key + ".");
             }
             _repository.ImportRows(rows, sourceFileName, createdBy);
         }

@@ -1214,6 +1214,9 @@
     <Compile Include="Modules\MesPlanning\UI\FormUploadKeHoachSanXuat.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Modules\MesPlanning\UI\ProductionPlanTargetPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Modules\MesPlanning\UI\FormProductionPlanWorkflow.cs">
       <SubType>Form</SubType>
     </Compile>

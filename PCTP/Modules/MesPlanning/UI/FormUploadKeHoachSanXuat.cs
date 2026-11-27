@@ -17,6 +17,7 @@ namespace PCTP.Modules.MesPlanning.UI
     public sealed class FormUploadKeHoachSanXuat : XtraForm
     {
         private readonly IProductionPlanService _service;
+        private readonly ProductionPlanTargetPanel _target = new ProductionPlanTargetPanel();
         private readonly TextEdit _file = new TextEdit();
         private readonly ComboBoxEdit _sheet = new ComboBoxEdit();
         private readonly GridControl _grid = new GridControl();
@@ -62,7 +63,7 @@ namespace PCTP.Modules.MesPlanning.UI
             top.Controls.Add(_file,0,0); top.Controls.Add(_choose,1,0);
             top.Controls.Add(_sheet,2,0); top.Controls.Add(_preview,3,0);
             top.Controls.Add(_managePlans,2,1); top.Controls.Add(_upload,3,1);
-            _status.Text = "Cột Excel yêu cầu: SiteCode, PlanNo, PlanDate, LineNo, ShiftCode, ProductionLineCode, ProductPartNo, PlannedQty, UomCode; PlannedStart/PlannedEnd tùy chọn.";
+            _status.Text = "Chọn Site và Chuyền ở trên. Cột Excel yêu cầu: PlanNo, PlanDate, LineNo, ShiftCode, ProductPartNo, PlannedQty, UomCode; PlannedStart/PlannedEnd tùy chọn.";
             _status.Dock = DockStyle.Fill; _status.Appearance.ForeColor = Color.DarkSlateGray;
             top.Controls.Add(_status,0,1); top.Controls.Add(_template,1,1);
             _grid.Dock = DockStyle.Fill;
@@ -72,7 +73,19 @@ namespace PCTP.Modules.MesPlanning.UI
             _gridView.OptionsView.ColumnAutoWidth = false;
             _gridView.OptionsSelection.MultiSelect = false;
             _gridView.OptionsView.ShowIndicator = true;
-            Controls.Add(_grid); Controls.Add(top);
+            _target.Dock = DockStyle.Top;
+            _target.SelectionChanged += TargetChanged;
+            Controls.Add(_grid); Controls.Add(top); Controls.Add(_target);
+            _target.Initialize(_service, null);
+            if (!string.IsNullOrEmpty(_target.Hint)) _status.Text = _target.Hint;
+        }
+
+        /// <summary>Đổi Site / Chuyền thì dữ liệu đã xem trước (gắn với lựa chọn cũ) phải xem trước lại.</summary>
+        private void TargetChanged(object sender, EventArgs e)
+        {
+            if (_rows.Count == 0) return;
+            _rows.Clear(); _grid.DataSource = null; _upload.Enabled = false;
+            _status.Text = "Đã đổi Site / Chuyền. Bấm Xem trước lại trước khi upload.";
         }
 
         private void ChooseClick(object sender, EventArgs e)
@@ -111,10 +124,11 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void PreviewClick(object sender, EventArgs e)
         {
+            if (!_target.IsComplete) { _status.Text = "Chọn Site và Chuyền sản xuất trước khi xem trước."; return; }
             if (string.IsNullOrWhiteSpace(_filePath) || string.IsNullOrWhiteSpace(_sheet.Text)) return;
             try
             {
-                _rows = ReadRows(_filePath, _sheet.Text);
+                _rows = ReadRows(_filePath, _sheet.Text, _target.SelectedSite, _target.SelectedLine);
                 _grid.DataSource = _rows.Select(x => new {
                     x.SiteCode,x.PlanNo,PlanDate=x.PlanDate.ToString("yyyy-MM-dd"),x.LineNo,x.ShiftCode,
                     x.ProductionLineCode,x.ProductPartNo,x.PlannedQty,x.UomCode,
@@ -123,14 +137,17 @@ namespace PCTP.Modules.MesPlanning.UI
                 }).ToList();
                 _gridView.BestFitColumns();
                 _upload.Enabled = _rows.Count > 0;
-                _status.Text = "Đọc được " + _rows.Count + " dòng. Upload sẽ chạy trong một transaction; nếu một dòng lỗi, toàn bộ batch rollback.";
+                var legacy = ProductionPlanExcelReader.LegacyColumnsPresent(_filePath, _sheet.Text);
+                _status.Text = "Đọc được " + _rows.Count + " dòng cho Site " + _target.SelectedSite + ", chuyền " + _target.SelectedLine +
+                    ". Upload chạy trong một transaction; nếu một dòng lỗi, toàn bộ batch rollback." +
+                    (legacy.Count > 0 ? " Cột " + string.Join(", ", legacy) + " trong file bị bỏ qua." : string.Empty);
             }
             catch (Exception ex) { _rows.Clear(); _upload.Enabled = false; _status.Text = "Lỗi dữ liệu Excel: " + ex.Message; }
         }
 
-        private static List<ProductionPlanImportRow> ReadRows(string path, string sheetName)
+        private static List<ProductionPlanImportRow> ReadRows(string path, string sheetName, string siteCode, string lineCode)
         {
-            return ProductionPlanExcelReader.Read(path, sheetName);
+            return ProductionPlanExcelReader.Read(path, sheetName, siteCode, lineCode);
         }
 
         private void UploadClick(object sender, EventArgs e)

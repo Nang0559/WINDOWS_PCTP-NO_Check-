@@ -7,6 +7,7 @@ using System.Linq;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using PCTP.Framework.UiLayout;
+using PCTP.Modules.MesPlanning.UI;
 using PCTP.Modules.KhoLinhKien;
 using PCTP.Security;
 using PCTP.Shared.UiMd;
@@ -21,10 +22,15 @@ namespace PCTP.Modules.MesPlanning
     {
         public const string Title = "Upload kế hoạch sản xuất";
 
-        /// <summary>Trả về dòng trạng thái, hoặc null khi người dùng hủy. Ném lỗi khi đọc / nhập thất bại.</summary>
-        public static string Run(IWin32Window owner, IProductionPlanService service)
+        /// <summary>
+        /// Trả về dòng trạng thái, hoặc null khi người dùng hủy. Ném lỗi khi đọc / nhập thất bại.
+        /// Site và Chuyền chọn trong hộp thoại (mặc định là Site của màn hình), không lấy từ file Excel.
+        /// </summary>
+        public static string Run(IWin32Window owner, IProductionPlanService service, string defaultSite)
         {
             if (service == null) throw new ArgumentNullException("service");
+            string siteCode, lineCode, lineText;
+            if (!ProductionPlanTargetDialog.Pick(owner, service, defaultSite, out siteCode, out lineCode, out lineText)) return null;
             string path;
             using (var dlg = new OpenFileDialog { Filter = "Excel (*.xlsx;*.xlsm)|*.xlsx;*.xlsm", Title = "Chọn file kế hoạch sản xuất theo ca" })
             {
@@ -36,18 +42,18 @@ namespace PCTP.Modules.MesPlanning
             string sheet = sheets.FirstOrDefault(n => string.Equals(n, "PLAN", StringComparison.OrdinalIgnoreCase)) ?? sheets.FirstOrDefault();
             if (sheet == null) throw new InvalidOperationException("File Excel không có sheet nào.");
 
-            List<ProductionPlanImportRow> rows = ProductionPlanExcelReader.Read(path, sheet);
+            List<ProductionPlanImportRow> rows = ProductionPlanExcelReader.Read(path, sheet, siteCode, lineCode);
             if (rows.Count == 0) throw new InvalidOperationException("Sheet \"" + sheet + "\" không có dòng kế hoạch nào.");
 
-            int plans = rows.Select(r => (r.SiteCode ?? string.Empty).Trim() + "|" + (r.PlanNo ?? string.Empty).Trim()).Distinct().Count();
-            string sites = string.Join(", ", rows.Select(r => (r.SiteCode ?? string.Empty).Trim().ToUpperInvariant())
-                .Where(x => x.Length > 0).Distinct().OrderBy(x => x, StringComparer.Ordinal));
+            int plans = rows.Select(r => (r.PlanNo ?? string.Empty).Trim()).Distinct().Count();
+            IList<string> legacy = ProductionPlanExcelReader.LegacyColumnsPresent(path, sheet);
             decimal total = rows.Sum(r => r.PlannedQty);
             string range = rows.Min(r => r.PlanDate).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) + " → " +
                            rows.Max(r => r.PlanDate).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
             string message = "Sheet \"" + sheet + "\": " + plans + " kế hoạch, " + rows.Count + " dòng, tổng SL " +
-                total.ToString("#,##0.###", CultureInfo.CurrentCulture) + ", ngày " + range +
-                (sites.Length > 0 ? " (Site: " + sites + ")" : string.Empty) + ".\r\n\r\n" +
+                total.ToString("#,##0.###", CultureInfo.CurrentCulture) + ", ngày " + range + ".\r\n" +
+                "Site: " + siteCode + " | Chuyền: " + lineText + "." +
+                (legacy.Count > 0 ? "\r\n(Cột " + string.Join(", ", legacy) + " trong file bị bỏ qua, dùng Site/Chuyền đã chọn.)" : string.Empty) + "\r\n\r\n" +
                 "Upload tạo kế hoạch ở trạng thái Mới upload. Toàn bộ file chạy trong một transaction, một dòng lỗi thì cả file bị hủy.\r\n\r\nTiếp tục upload?";
             if (XtraMessageBox.Show(owner, message, Title, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                 return null;
@@ -68,7 +74,7 @@ namespace PCTP.Modules.MesPlanning
                     var session = UserSession.Current;
                     return session != null && session.HasPermission(ProductionPlanStatus.Function, "CREATE");
                 },
-                (owner, site) => ProductionPlanUploadFlow.Run(owner, new ProductionPlanService(new ProductionPlanRepository())));
+                (owner, site) => ProductionPlanUploadFlow.Run(owner, new ProductionPlanService(new ProductionPlanRepository()), site));
         }
     }
 

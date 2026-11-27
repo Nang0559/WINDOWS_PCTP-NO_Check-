@@ -27,6 +27,36 @@ namespace PCTP.Modules.MesPlanning
             }
         }
 
+        public IList<string> GetActiveSites()
+        {
+            var sites = new List<string>();
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("SELECT SiteCode FROM dbo.FVN_PCTPSite WHERE IsActive=1 ORDER BY SiteCode", cn))
+            {
+                cn.Open();
+                using (var rd = cmd.ExecuteReader())
+                    while (rd.Read()) sites.Add(rd.GetString(0));
+            }
+            return sites;
+        }
+
+        public DataTable GetProductionLines(string siteCode)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"
+SELECT m.PlanProductionLineCode AS LineCode, m.LotLineCode, m.DepartmentCode, pl.LineName
+FROM MES.FVN_ProductionLotCodeMap m
+LEFT JOIN dbo.FVN_ProductionLine pl ON pl.SiteCode=m.SiteCode AND pl.LineCode=m.LotLineCode
+WHERE m.SiteCode=@SiteCode AND m.IsActive=1
+ORDER BY m.PlanProductionLineCode;", cn))
+            {
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = (siteCode ?? string.Empty).Trim();
+                var table = new DataTable();
+                using (var adapter = new SqlDataAdapter(cmd)) adapter.Fill(table);
+                return table;
+            }
+        }
+
         public void ImportRows(IList<ProductionPlanImportRow> rows, string sourceFileName, string createdBy)
         {
             if (rows == null || rows.Count == 0) throw new ArgumentException("Không có dòng kế hoạch để upload.");

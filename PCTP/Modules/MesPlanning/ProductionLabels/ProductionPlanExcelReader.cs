@@ -9,8 +9,9 @@ namespace PCTP.Modules.MesPlanning
 {
     /// <summary>
     /// Đọc file Excel kế hoạch sản xuất theo ca (hàng 1 là tiêu đề cột). Dùng chung cho form Upload kế hoạch cũ và nút
-    /// "Upload Excel kế hoạch…" của màn hình layout. Cột bắt buộc: SiteCode, PlanNo, PlanDate, LineNo, ShiftCode,
-    /// ProductionLineCode, ProductPartNo, PlannedQty, UomCode; PlannedStart / PlannedEnd tùy chọn.
+    /// "Upload Excel kế hoạch…" của màn hình layout. Site và Chuyền (ProductionLineCode) do người dùng chọn trên màn hình
+    /// upload và được truyền vào <see cref="Read"/>, KHÔNG đọc từ file (cột SiteCode / ProductionLineCode nếu còn trong file bị bỏ qua).
+    /// Cột bắt buộc: PlanNo, PlanDate, LineNo, ShiftCode, ProductPartNo, PlannedQty, UomCode; PlannedStart / PlannedEnd tùy chọn.
     /// </summary>
     public static class ProductionPlanExcelReader
     {
@@ -20,8 +21,29 @@ namespace PCTP.Modules.MesPlanning
                 return package.Workbook.Worksheets.Select(w => w.Name).ToList();
         }
 
-        public static List<ProductionPlanImportRow> Read(string path, string sheetName)
+        /// <summary>Cột Site / Chuyền của file mẫu cũ còn trong sheet (bị bỏ qua vì đã chọn trên màn hình upload).</summary>
+        public static IList<string> LegacyColumnsPresent(string path, string sheetName)
         {
+            using (var package = new ExcelPackage(new FileInfo(path)))
+            {
+                var ws = package.Workbook.Worksheets[sheetName];
+                var found = new List<string>();
+                if (ws == null || ws.Dimension == null) return found;
+                for (int c=1;c<=ws.Dimension.End.Column;c++)
+                {
+                    var h=(ws.Cells[1,c].Text ?? "").Trim();
+                    if (string.Equals(h,"SiteCode",StringComparison.OrdinalIgnoreCase) || string.Equals(h,"ProductionLineCode",StringComparison.OrdinalIgnoreCase))
+                        found.Add(h);
+                }
+                return found;
+            }
+        }
+
+        public static List<ProductionPlanImportRow> Read(string path, string sheetName, string siteCode, string productionLineCode)
+        {
+            siteCode=(siteCode ?? "").Trim(); productionLineCode=(productionLineCode ?? "").Trim();
+            if (siteCode.Length==0) throw new InvalidOperationException("Chưa chọn Site.");
+            if (productionLineCode.Length==0) throw new InvalidOperationException("Chưa chọn chuyền sản xuất.");
             using (var package = new ExcelPackage(new FileInfo(path)))
             {
                 var ws = package.Workbook.Worksheets[sheetName];
@@ -32,7 +54,7 @@ namespace PCTP.Modules.MesPlanning
                     var h=(ws.Cells[1,c].Text ?? "").Trim();
                     if (h.Length>0) headers[h]=c;
                 }
-                string[] required={"SiteCode","PlanNo","PlanDate","LineNo","ShiftCode","ProductionLineCode","ProductPartNo","PlannedQty","UomCode"};
+                string[] required={"PlanNo","PlanDate","LineNo","ShiftCode","ProductPartNo","PlannedQty","UomCode"};
                 foreach(var h in required) if(!headers.ContainsKey(h)) throw new InvalidOperationException("Thiếu cột bắt buộc: "+h);
                 Func<int,string,string> cell=(row,key)=>headers.ContainsKey(key)?(ws.Cells[row,headers[key]].Text ?? "").Trim():null;
                 var result=new List<ProductionPlanImportRow>();
@@ -51,8 +73,8 @@ namespace PCTP.Modules.MesPlanning
                     DateTime? startValue=DateTime.TryParse(startText,out start)?(DateTime?)start:null;
                     DateTime? endValue=DateTime.TryParse(endText,out end)?(DateTime?)end:null;
                     result.Add(new ProductionPlanImportRow {
-                        SiteCode=cell(r,"SiteCode"),PlanNo=cell(r,"PlanNo"),PlanDate=planDate,LineNo=lineNo,
-                        ShiftCode=cell(r,"ShiftCode"),ProductionLineCode=cell(r,"ProductionLineCode"),
+                        SiteCode=siteCode,PlanNo=cell(r,"PlanNo"),PlanDate=planDate,LineNo=lineNo,
+                        ShiftCode=cell(r,"ShiftCode"),ProductionLineCode=productionLineCode,
                         ProductPartNo=cell(r,"ProductPartNo"),PlannedQty=qty,UomCode=cell(r,"UomCode"),
                         PlannedStart=startValue,PlannedEnd=endValue
                     });
