@@ -5,6 +5,7 @@ using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
+using PCTP.Security;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -20,6 +21,9 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly GridView _view;
         private readonly LabelControl _status = new LabelControl { Dock = DockStyle.Bottom, Height = 26 };
         private readonly CheckEdit _onlyUnmapped = new CheckEdit { Text = "Chỉ chuyền chưa khai báo", Width = 190 };
+        private SimpleButton _editButton;
+        private SimpleButton _deactivateButton;
+        private bool CanConfigure { get { return UserSession.Current != null && UserSession.Current.HasPermission("MES.PRODUCTION_LINE_SETUP", "CREATE"); } }
 
         public FormProductionLineSetup(string siteCode)
             : this(siteCode, new ProductionLineSetupService(new ProductionLineSetupRepository())) { }
@@ -48,8 +52,14 @@ namespace PCTP.Modules.MesPlanning.UI
 
             var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 44, Padding = new Padding(6, 6, 6, 0) };
             bar.Controls.Add(Button("TẢI LẠI", 90, (s, e) => Reload()));
-            bar.Controls.Add(Button("Khai báo / Sửa…", 130, (s, e) => EditFocused()));
-            bar.Controls.Add(Button("Ngừng dùng", 100, (s, e) => DeactivateFocused()));
+            _editButton = Button("Khai báo / Sửa…", 130, (s, e) => EditFocused());
+            _deactivateButton = Button("Ngừng dùng", 100, (s, e) => DeactivateFocused());
+            _editButton.Enabled = CanConfigure;
+            _deactivateButton.Enabled = CanConfigure;
+            _editButton.ToolTip = CanConfigure ? "Khai báo / sửa mapping IFS → LOT" : "Bạn chỉ có quyền xem; cần MES.PRODUCTION_LINE_SETUP / CREATE.";
+            _deactivateButton.ToolTip = _editButton.ToolTip;
+            bar.Controls.Add(_editButton);
+            bar.Controls.Add(_deactivateButton);
             _onlyUnmapped.CheckedChanged += (s, e) => Reload();
             bar.Controls.Add(_onlyUnmapped);
 
