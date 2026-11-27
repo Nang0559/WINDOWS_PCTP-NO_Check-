@@ -32,7 +32,8 @@ namespace PCTP.Modules.MesPlanning
             var table = new DataTable();
             using (var cn = new SqlConnection(_connectionString))
             using (var cmd = new SqlCommand(@"
-SELECT SiteCode, ProductionLineCode, Description, CalendarId, TaktTime, DailyOperatingMinutes,
+SELECT SiteCode, SiteName, SiteExistsInIfs, SiteIsActive,
+       ProductionLineCode, Description, CalendarId, TaktTime, DailyOperatingMinutes,
        ExistsInIfs, IsKnownSite, LotLineCode, DepartmentCode, IsMapped, MapIsActive, SyncedAtUtc
 FROM MES.vFVN_ProductionLineSetup
 WHERE SiteCode = @Site
@@ -78,7 +79,7 @@ ORDER BY ProductionLineCode;", cn) { CommandTimeout = 60 })
             return _repository.List(site);
         }
 
-        /// <summary>Gán / sửa / ngừng một chuyền. Cần CREATE trên MES.PLAN_UPLOAD theo Site; SQL kiểm lại chuyền có trong IFS và ràng buộc chuyền LOT - bộ phận.</summary>
+        /// <summary>Gán / sửa / ngừng mapping IFS line → LOT line. Quyền CREATE + SITE thuộc MES.PRODUCTION_LINE_SETUP; SQL xác thực IFS site/line và quan hệ LOT line - department.</summary>
         public void Save(string siteCode, string planLineCode, string lotLineCode, string departmentCode, bool isActive)
         {
             string site = NormalizeSite(siteCode);
