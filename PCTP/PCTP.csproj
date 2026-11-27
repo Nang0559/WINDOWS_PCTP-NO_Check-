@@ -1195,6 +1195,13 @@
     <Compile Include="Modules\MesPlanning\UI\FormYeuCauVaXuatLinhKien.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionStatusCodes.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionLabelData.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionLabelReports.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionLabelCatalog.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionOrderLabelPrint.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionPlanExcelReader.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionScreenActions.cs" />
     <Compile Include="Modules\MesPlanning\ProductionPlanImportRow.cs" />
     <Compile Include="Modules\MesPlanning\IProductionPlanRepository.cs" />
     <Compile Include="Modules\MesPlanning\ProductionPlanRepository.cs" />

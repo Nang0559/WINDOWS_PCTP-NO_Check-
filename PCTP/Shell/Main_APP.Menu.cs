@@ -495,8 +495,13 @@ namespace PCTP
                 var info = PCTP.Framework.UiLayout.UiLayoutModule.CreateCatalog().Find(screenCode);
                 string site = ResolveDocumentSite(info.ViewFunctionCode);
                 if (site == null) return; // user cancelled the site chooser
+                // Kế hoạch / Lệnh sản xuất (migration 066) có nút riêng: upload Excel, workflow, in tem thùng / palet.
+                System.Collections.Generic.IEnumerable<PCTP.Framework.UiLayout.UiScreenAction> actions =
+                    PCTP.Modules.MesPlanning.ProductionScreenActions.Handles(info.ScreenCode)
+                        ? PCTP.Modules.MesPlanning.ProductionScreenActions.For(info.ScreenCode)
+                        : null;
                 FormWindowManager.ShowSingle(this,
-                    () => PCTP.Framework.UiLayout.UiLayoutModule.CreateScreenForm(info.ScreenCode, site),
+                    () => PCTP.Framework.UiLayout.UiLayoutModule.CreateScreenForm(info.ScreenCode, site, actions),
                     "UiScreen:" + info.ScreenCode);
             }
             catch (Exception ex)

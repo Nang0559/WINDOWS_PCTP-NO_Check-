@@ -73,6 +73,7 @@ namespace PCTP.Shared.Labels
                 if (_initialized) return;
                 _initialized = true;   // đặt trước: Register() chỉ ghi vào Items, không gọi lại Initialize
                 PCTP.Modules.KhoLinhKien.ComponentLabelCatalog.Register();
+                PCTP.Modules.MesPlanning.ProductionLabelCatalog.Register();
                 GhepLotLabelCatalog.Register();
             }
         }
