@@ -83,15 +83,22 @@ namespace PCTP.Modules.MesPlanning.UI
                 if (_onlyUnmapped.Checked)
                     table.DefaultView.RowFilter = "IsMapped = 0 OR MapIsActive = 0";
                 _grid.DataSource = table.DefaultView;
-                SetCaption("SiteCode", "Site"); SetCaption("ProductionLineCode", "Chuyền IFS"); SetCaption("Description", "Mô tả (IFS)");
+                SetCaption("SiteCode", "Site"); SetCaption("SiteName", "Tên Site (IFS)");
+                SetCaption("SiteExistsInIfs", "Site còn trong IFS"); SetCaption("SiteIsActive", "Site MES đang dùng");
+                SetCaption("ProductionLineCode", "Chuyền IFS"); SetCaption("Description", "Mô tả (IFS)");
                 SetCaption("CalendarId", "Calendar"); SetCaption("TaktTime", "Takt time"); SetCaption("DailyOperatingMinutes", "Phút vận hành / ngày");
                 SetCaption("ExistsInIfs", "Còn trong IFS"); SetCaption("IsKnownSite", "Site đã khai báo");
                 SetCaption("LotLineCode", "Chuyền LOT (3 ký tự)"); SetCaption("DepartmentCode", "Bộ phận (4 ký tự)");
                 SetCaption("IsMapped", "Đã khai báo"); SetCaption("MapIsActive", "Đang dùng"); SetCaption("SyncedAtUtc", "Đồng bộ IFS (UTC)");
                 _view.BestFitColumns();
-                SetStatus(lines == 0
-                    ? "Site " + _site + " chưa có chuyền nào từ IFS. Vào Đồng bộ dữ liệu IFS, chọn PRODUCTION_LINE rồi đồng bộ."
-                    : lines + " chuyền IFS của Site " + _site + ", " + unmapped + " chuyền chưa khai báo hoặc đã ngừng.", lines == 0);
+                bool siteInIfs = lines > 0 && !table.Rows[0].IsNull("SiteExistsInIfs") && Convert.ToBoolean(table.Rows[0]["SiteExistsInIfs"]);
+                bool siteActive = lines > 0 && !table.Rows[0].IsNull("SiteIsActive") && Convert.ToBoolean(table.Rows[0]["SiteIsActive"]);
+                string status = lines == 0
+                    ? "Site " + _site + " chưa có chuyền IFS. Kiểm tra IFS.FVN_Site / IFS.FVN_ProductionLine và đồng bộ SITE + PRODUCTION_LINE."
+                    : !siteInIfs ? "Site " + _site + " chưa được đồng bộ hoặc không còn trong IFS.FVN_Site."
+                    : !siteActive ? "Site " + _site + " chưa được khai báo hoạt động trong dbo.FVN_PCTPSite."
+                    : lines + " chuyền IFS của Site " + _site + ", " + unmapped + " chuyền chưa mapping LOT hoặc đã ngừng.";
+                SetStatus(status, lines == 0 || !siteInIfs || !siteActive);
             }
             catch (Exception ex) { SetStatus("Không tải được: " + ex.GetBaseException().Message, true); }
         }
