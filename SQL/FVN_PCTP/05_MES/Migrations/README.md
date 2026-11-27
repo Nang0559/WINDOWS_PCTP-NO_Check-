@@ -581,3 +581,10 @@ Apply after 067, in FVN_PCTP. Adds `IFS.FVN_Site` / `IFS.FVN_WorkCenter` (copies
 ### Migration 069 - IFS sync runtime SelectedEntities compatibility
 
 Apply after 068 in `FVN_PCTP`. Fixes the schema mismatch between the current application runtime (which uses `IFS.SyncBatch` / `IFS.SyncStageRow`) and migration 037 (which added `SelectedEntities` to `IFS.FVN_SyncBatch`). Adds `SelectedEntities`, `SiteRows`, and `WorkCenterRows` to the runtime batch table and permits the `SITE` / `WORK_CENTER` staging entity names. It is idempotent and does not rename or delete existing sync data.
+
+
+### Migration 075 - IFS Site / Production Line mapping consistency
+
+Apply after 067 and 068 in `FVN_PCTP`. Rebuilds `MES.vFVN_ProductionLineSetup` so the setup UI shows IFS Site name/presence, PCTP Site activation, all IFS production lines (including unmapped), and existing stale mappings. Adds SQL-side checks to `MES.usp_FVN_ProductionLotCodeMap_Save` and `MES.usp_FVN_ProductionPlan_ImportRow`: IFS Site must be present, IFS line must be active for the same Site, and the MES mapping must be active for the composite key `(SiteCode, PlanProductionLineCode)`. The matching C# build uses IFS descriptions in the upload line selector and disables mapping edits unless the user has `MES.PRODUCTION_LINE_SETUP / CREATE`.
+
+Do not drop similarly named objects: `IFS.FVN_ProductionLine` is the IFS mirror; `dbo.FVN_ProductionLine` is the 3-character LOT-line master; `MES.FVN_ProductionLotCodeMap` is the bridge. `IFS.FVN_Site` is the IFS mirror while `dbo.FVN_PCTPSite` is the PCTP allow-list. They are separate responsibilities, not duplicate tables. Optional stale-map preview/deactivation is in `SQL/FVN_PCTP/05_MES/Diagnostics/ProductionLineMappingInventoryAndCleanup.sql` (read-only by default).
