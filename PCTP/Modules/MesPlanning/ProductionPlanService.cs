@@ -48,7 +48,7 @@ namespace PCTP.Modules.MesPlanning
                 if (r.PlannedEnd.HasValue && r.PlannedStart.HasValue && r.PlannedEnd < r.PlannedStart)
                     throw new ArgumentException("Giờ kết thúc phải lớn hơn hoặc bằng giờ bắt đầu.");
             }
-            // Chuyền do người dùng chọn trên UI; thủ tục SQL không kiểm tra mã chuyền nên kiểm lại ở đây theo danh mục chuyền của Site.
+            // Validate the composite IFS key (SiteCode + ProductionLineCode). Migration 075 also adds SQL-side mapping validation.
             foreach (var bySite in rows.GroupBy(r => r.SiteCode.Trim(), StringComparer.OrdinalIgnoreCase))
             {
                 var valid = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -57,7 +57,7 @@ namespace PCTP.Modules.MesPlanning
                 var unknown = bySite.Select(r => r.ProductionLineCode.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)
                     .FirstOrDefault(c => !valid.Contains(c));
                 if (unknown != null)
-                    throw new ArgumentException("Chuyền \"" + unknown + "\" chưa khai báo hoặc đã ngừng hoạt động ở Site " + bySite.Key + ".");
+                    throw new ArgumentException("Chuyền IFS \"" + unknown + "\" chưa có mapping LOT đang hoạt động cho Site " + bySite.Key + " (MES.FVN_ProductionLotCodeMap: SiteCode + PlanProductionLineCode).");
             }
             _repository.ImportRows(rows, sourceFileName, createdBy);
         }
