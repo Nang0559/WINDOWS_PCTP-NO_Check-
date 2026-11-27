@@ -72,6 +72,21 @@ namespace PCTP.Modules.MesPlanning
         }
     }
 
+    /// <summary>Nút "Tải template kế hoạch…" cạnh nút upload: lưu file Excel mẫu đúng cột reader yêu cầu.</summary>
+    public static class ProductionPlanTemplateAction
+    {
+        public static UiScreenAction Create()
+        {
+            return new UiScreenAction("Tải template kế hoạch…", 170,
+                () =>
+                {
+                    var session = UserSession.Current;
+                    return session != null && session.HasPermission(ProductionPlanStatus.Function, "CREATE");
+                },
+                (owner, site) => PCTP.Shared.Helpers.ExcelTemplateFlow.Run(owner, ProductionPlanTemplateDefinition.Create()));
+        }
+    }
+
     /// <summary>
     /// Nút workflow của màn hình Kế hoạch sản xuất (Kiểm tra / Chốt kế hoạch / Hủy KH) và Lệnh sản xuất (Phát hành / Bắt đầu / Tạm dừng /
     /// Tiếp tục / Hoàn thành / Đóng lệnh / Hủy lệnh), cùng khuôn với <see cref="ComponentPoWorkflowActions"/>:
@@ -213,6 +228,7 @@ namespace PCTP.Modules.MesPlanning
             if (string.Equals(screenCode, PlanScreenCode, StringComparison.Ordinal))
             {
                 actions.Add(ProductionPlanUploadAction.Create());
+                actions.Add(ProductionPlanTemplateAction.Create());
                 actions.AddRange(ProductionWorkflowActions.CreatePlanSteps());
             }
             else if (string.Equals(screenCode, OrderScreenCode, StringComparison.Ordinal))

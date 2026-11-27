@@ -487,6 +487,7 @@
     <Compile Include="Modules\KhoCore\Services\IStockHistoryService.cs" />
     <Compile Include="Modules\KhoCore\Services\StockHistoryService.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoUploadAction.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentPoTemplateDefinition.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoStatus.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoStatusCodes.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPoWorkflowActions.cs" />
@@ -800,6 +801,8 @@
     <Compile Include="Shared\Enums\StockTransactionType.cs" />
     <Compile Include="Shared\Helpers\DinhDanhKeyHelper.cs" />
     <Compile Include="Shared\Helpers\DateText.cs" />
+    <Compile Include="Shared\Helpers\ExcelTemplateDefinition.cs" />
+    <Compile Include="Shared\Helpers\ExcelTemplateWriter.cs" />
     <Compile Include="Shared\Helpers\FormWindowManager.cs" />
     <Compile Include="Shared\Helpers\IWaitFormService.cs" />
     <Compile Include="Shared\Helpers\WaitFormHelper.cs" />
@@ -1203,6 +1206,7 @@
     <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionPlanExcelReader.cs" />
     <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionScreenActions.cs" />
     <Compile Include="Modules\MesPlanning\ProductionPlanImportRow.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionPlanTemplateDefinition.cs" />
     <Compile Include="Modules\MesPlanning\IProductionPlanRepository.cs" />
     <Compile Include="Modules\MesPlanning\ProductionPlanRepository.cs" />
     <Compile Include="Modules\MesPlanning\IProductionPlanService.cs" />

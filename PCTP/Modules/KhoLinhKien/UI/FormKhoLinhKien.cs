@@ -58,6 +58,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
         private readonly GridControl _poEventsGrid = new GridControl();
         private readonly GridView _poEventsView = new GridView();
         private readonly SimpleButton _btnUpload = new SimpleButton();
+        private readonly SimpleButton _btnTemplate = new SimpleButton();
         private readonly SimpleButton _btnValidate = new SimpleButton();
         private readonly SimpleButton _btnRelease = new SimpleButton();
         private readonly SimpleButton _btnClose = new SimpleButton();
@@ -257,6 +258,8 @@ namespace PCTP.Modules.KhoLinhKien.UI
             bar.Controls.Add(MakeButton("Tải lại", 80, (s, e) => LoadPoOrders()));
             SetupButton(_btnUpload, "Upload Excel PO…", 130, UploadClick, Can(FnPo, "CREATE"));
             bar.Controls.Add(_btnUpload);
+            SetupButton(_btnTemplate, "Tải template PO…", 130, TemplateClick, Can(FnPo, "CREATE"));
+            bar.Controls.Add(_btnTemplate);
             ConfigureAction(_btnValidate, "Kiểm tra PO", 110, ComponentPoStatus.Validated);
             ConfigureAction(_btnRelease, "Phát hành + sinh LOT/QR", 170, ComponentPoStatus.Released);
             ConfigureAction(_btnClose, "Đóng PO", 90, ComponentPoStatus.Closed);
@@ -634,6 +637,20 @@ namespace PCTP.Modules.KhoLinhKien.UI
             {
                 SetStatus("Upload thất bại: " + ex.Message);
                 XtraMessageBox.Show(this, ex.Message, ComponentPoUploadFlow.Title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void TemplateClick(object sender, EventArgs e)
+        {
+            try
+            {
+                string status = PCTP.Shared.Helpers.ExcelTemplateFlow.Run(this, ComponentPoTemplateDefinition.Create());
+                if (status != null) SetStatus(status);
+            }
+            catch (Exception ex)
+            {
+                SetStatus("Không tạo được template: " + ex.Message);
+                XtraMessageBox.Show(this, ex.Message, "Tải template PO", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 

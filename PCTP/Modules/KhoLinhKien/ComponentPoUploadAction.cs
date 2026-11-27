@@ -115,4 +115,19 @@ namespace PCTP.Modules.KhoLinhKien
                     new WorkflowTransitionService(new ComponentPoWorkflowRepository()))));
         }
     }
+
+    /// <summary>Nút "Tải template PO…" cạnh nút upload: lưu file Excel mẫu đúng cột reader yêu cầu.</summary>
+    public static class ComponentPoTemplateAction
+    {
+        public static UiScreenAction Create()
+        {
+            return new UiScreenAction("Tải template PO…", 130,
+                () =>
+                {
+                    var session = UserSession.Current;
+                    return session != null && session.HasPermission(ComponentPoStatus.Function, "CREATE");
+                },
+                (owner, site) => PCTP.Shared.Helpers.ExcelTemplateFlow.Run(owner, ComponentPoTemplateDefinition.Create()));
+        }
+    }
 }

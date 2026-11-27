@@ -415,7 +415,8 @@ namespace PCTP
         {
             var actions = new System.Collections.Generic.List<PCTP.Framework.UiLayout.UiScreenAction>
             {
-                PCTP.Modules.KhoLinhKien.ComponentPoUploadAction.Create()
+                PCTP.Modules.KhoLinhKien.ComponentPoUploadAction.Create(),
+                PCTP.Modules.KhoLinhKien.ComponentPoTemplateAction.Create()
             };
             actions.AddRange(PCTP.Modules.KhoLinhKien.ComponentPoWorkflowActions.CreateSteps());
             actions.AddRange(PCTP.Modules.KhoLinhKien.ComponentPoLabelActions.Create());

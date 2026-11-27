@@ -20,6 +20,9 @@
     <Compile Include="../PCTP/Modules/MesPlanning/ProductionFlowTaskPolicy.cs" Link="ProductionFlowTaskPolicy.source.cs" />
     <Compile Include="../PCTP/Modules/KhoLinhKien/ComponentPoBravoMapper.cs" Link="ComponentPoBravoMapper.source.cs" />
     <Compile Include="../PCTP/Modules/KhoLinhKien/ExcelNumberParser.cs" Link="ExcelNumberParser.source.cs" />
+    <Compile Include="../PCTP/Shared/Helpers/ExcelTemplateDefinition.cs" Link="ExcelTemplateDefinition.source.cs" />
+    <Compile Include="../PCTP/Modules/KhoLinhKien/ComponentPoTemplateDefinition.cs" Link="ComponentPoTemplateDefinition.source.cs" />
+    <Compile Include="../PCTP/Modules/MesPlanning/ProductionLabels/ProductionPlanTemplateDefinition.cs" Link="ProductionPlanTemplateDefinition.source.cs" />
     <Compile Include="../PCTP/Modules/KhoLinhKien/ComponentPackSplit.cs" Link="ComponentPackSplit.source.cs" />
     <Compile Include="../PCTP/Modules/KhoLinhKien/ComponentPoStatusCodes.cs" Link="ComponentPoStatusCodes.source.cs" />
     <Compile Include="../PCTP/Modules/MesPlanning/ProductionLabels/ProductionStatusCodes.cs" Link="ProductionStatusCodes.source.cs" />
@@ -73,6 +76,12 @@
     <None Include="../PCTP/Modules/XuatKho/FormChuyenHangNoiBo.cs" Link="FormChuyenHangNoiBo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuatKho/FormThuHoiHangNoiBo.cs" Link="FormThuHoiHangNoiBo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shell/Main_APP.Menu.cs" Link="Main_APP.Menu.internal-transfer.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoLinhKien/ComponentPoStatus.cs" Link="ComponentPoStatus.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoLinhKien/ComponentPoUploadAction.cs" Link="ComponentPoUploadAction.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/MesPlanning/ProductionLabels/ProductionPlanExcelReader.cs" Link="ProductionPlanExcelReader.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/MesPlanning/ProductionLabels/ProductionScreenActions.cs" Link="ProductionScreenActions.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/MesPlanning/UI/FormUploadKeHoachSanXuat.cs" Link="FormUploadKeHoachSanXuat.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoLinhKien/UI/FormKhoLinhKien.cs" Link="FormKhoLinhKien.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/PCTP_InternalTransfer.sql" Link="PCTP_InternalTransfer.source.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_InternalTransfer.sql')" />
     <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataInventory.ps1" Link="Invoke-PctpLiveDataInventory.source.ps1" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataProfile.ps1" Link="Invoke-PctpLiveDataProfile.source.ps1" CopyToOutputDirectory="PreserveNewest" />
