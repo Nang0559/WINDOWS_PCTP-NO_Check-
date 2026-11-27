@@ -125,7 +125,7 @@ BEGIN TRY
             N'IF NOT EXISTS (SELECT 1 FROM IFS.FVN_Site WHERE SiteCode=@SiteCode AND IsPresentInIfs=1)' + CHAR(13) + CHAR(10) +
             N'   THROW 57520, ''Site is not present in IFS.FVN_Site; synchronize SITE before uploading a production plan.'', 1;' + CHAR(13) + CHAR(10) +
             N'  IF NOT EXISTS (SELECT 1 FROM IFS.FVN_ProductionLine WHERE SiteCode=@SiteCode AND ProductionLineCode=@ProductionLineCode AND IsActive=1)' + CHAR(13) + CHAR(10) +
-            N'   THROW 57521, ''IFS production line is missing/inactive for this Site. Check (SiteCode, ProductionLineCode).' ', 1;' + CHAR(13) + CHAR(10) +
+            N'   THROW 57521, ''IFS production line is missing/inactive for this Site. Check (SiteCode, ProductionLineCode).' + CHAR(39) + N', 1;' + CHAR(13) + CHAR(10) +
             N'  IF NOT EXISTS (SELECT 1 FROM MES.FVN_ProductionLotCodeMap WHERE SiteCode=@SiteCode AND PlanProductionLineCode=@ProductionLineCode AND IsActive=1 AND LEN(LTRIM(RTRIM(LotLineCode)))=3 AND LEN(LTRIM(RTRIM(DepartmentCode)))=4)' + CHAR(13) + CHAR(10) +
             N'   THROW 57522, ''Production line has no active LOT mapping for this Site. Check MES.FVN_ProductionLotCodeMap (SiteCode + PlanProductionLineCode).'', 1;' + CHAR(13) + CHAR(10));
     END;
