@@ -598,15 +598,13 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
             if (customerCode == "0100002")
             {
-                PCTP.QRCODE_HVN.Report.GHEPLOT_YMVN report = new PCTP.QRCODE_HVN.Report.GHEPLOT_YMVN();
-                report.DataSource = loadDATArtYMVN();
+                XtraReport report = PCTP.Shared.Labels.LabelReportService.CreateReport("GHEPLOT_YMVN", loadDATArtYMVN());
                 ReportPrintTool printTool = new ReportPrintTool(report);
                 printTool.ShowPreviewDialog();
             }
             else
             {
-                PCTP.QRCODE_HVN.Report.GHEPLOT report = new PCTP.QRCODE_HVN.Report.GHEPLOT();
-                report.DataSource = loadDATArt();
+                XtraReport report = PCTP.Shared.Labels.LabelReportService.CreateReport("GHEPLOT", loadDATArt());
                 ReportPrintTool printTool = new ReportPrintTool(report);
                 printTool.ShowPreviewDialog();
             }

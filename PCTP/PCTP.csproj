@@ -496,6 +496,14 @@
     <Compile Include="Modules\KhoLinhKien\ComponentPoLabelPrint.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentPalletLabel.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentLabelPicker.cs" />
+    <Compile Include="Modules\KhoLinhKien\ComponentLabelCatalog.cs" />
+    <Compile Include="Shared\Labels\LabelCatalog.cs" />
+    <Compile Include="Shared\Labels\LabelLayoutStore.cs" />
+    <Compile Include="Shared\Labels\LabelReportService.cs" />
+    <Compile Include="Shared\Labels\GhepLotLabelCatalog.cs" />
+    <Compile Include="Shared\Labels\FormLabelCenter.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\KhoLinhKien\Reports\ComponentCartonLabelReport.cs">
       <SubType>Component</SubType>
     </Compile>

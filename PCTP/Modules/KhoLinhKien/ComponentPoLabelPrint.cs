@@ -16,6 +16,7 @@ using DevExpress.XtraReports.UI;
 using PCTP.Framework.UiLayout;
 using PCTP.Infrastructure.Security;
 using PCTP.Security;
+using PCTP.Shared.Labels;
 
 namespace PCTP.Modules.KhoLinhKien
 {
@@ -153,26 +154,9 @@ namespace PCTP.Modules.KhoLinhKien
         }
     }
 
-    /// <summary>In báo cáo tem (XtraReport) ra máy in người dùng chọn. Trả false nếu hủy hộp thoại in.</summary>
-    internal static class ComponentLabelReportPrinter
-    {
-        public static bool Print(IWin32Window owner, XtraReport report, string title)
-        {
-            using (report)
-            using (var dialog = new PrintDialog { PrinterSettings = new PrinterSettings(), UseEXDialog = true })
-            {
-                report.DisplayName = title;
-                if (dialog.ShowDialog(owner) != DialogResult.OK) return false;
-                using (var tool = new ReportPrintTool(report))
-                    tool.Print(dialog.PrinterSettings.PrinterName);
-                return true;
-            }
-        }
-    }
-
     /// <summary>
     /// Tem thùng linh kiện: ComponentCartonLabelReport (A4 ngang, 4 cột x 4 hàng = 16 tem/trang, mỗi ô khoảng 72 x 47 mm).
-    /// Bố cục chỉnh trong Report Designer; mỗi tem một LOT: Date | Stt | Time, PartNo, PartName, Maker | Quantity,
+    /// Bố cục chỉnh trong Report Designer (menu Quản trị → Thiết kế layout tem); mỗi tem một LOT: Date | Stt | Time, PartNo, PartName, Maker | Quantity,
     /// mã QR (QrPayload của LOT), Quantity / DeptName-INVOICE và số LOT ở dòng cuối.
     /// </summary>
     public static class ComponentPoLabelSheet
@@ -185,8 +169,8 @@ namespace PCTP.Modules.KhoLinhKien
 
         public static bool Print(IWin32Window owner, DataTable labels, string title)
         {
-            var report = new Reports.ComponentCartonLabelReport { DataSource = ComponentPoLabelData.PrepareCarton(labels, DateTime.Now) };
-            return ComponentLabelReportPrinter.Print(owner, report, title);
+            // Xem trước như Ghép LOT; chỉ trả true (để luồng ghi lịch sử in) khi người dùng thật sự bấm In.
+            return LabelReportService.PreviewAndPrint(owner, ComponentLabelCatalog.Carton, labels, title);
         }
     }
 

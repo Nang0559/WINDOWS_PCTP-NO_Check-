@@ -14,6 +14,7 @@ using DevExpress.XtraEditors;
 using PCTP.Framework.UiLayout;
 using PCTP.Infrastructure.Security;
 using PCTP.Security;
+using PCTP.Shared.Labels;
 
 namespace PCTP.Modules.KhoLinhKien
 {
@@ -150,8 +151,7 @@ namespace PCTP.Modules.KhoLinhKien
 
         public static bool Print(IWin32Window owner, DataTable pallets, string title)
         {
-            var report = new Reports.ComponentPalletLabelReport { DataSource = ComponentPoLabelData.PreparePallet(pallets) };
-            return ComponentLabelReportPrinter.Print(owner, report, title);
+            return LabelReportService.PreviewAndPrint(owner, ComponentLabelCatalog.Pallet, pallets, title);
         }
     }
 

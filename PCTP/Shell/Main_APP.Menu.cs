@@ -138,6 +138,10 @@ namespace PCTP
                 "menuUiMenuDesigner",
                 "Thiết kế menu (Tùy chọn trình đơn)",
                 OpenUiMenuDesigner));
+            _menuQuanTri.Elements.Add(CreateMenuItem(
+                "menuLabelCenter",
+                "Thiết kế layout tem (tem thùng / palet / ghép LOT)",
+                OpenLabelCenter));
             accordionControlElement20.Elements.Add(CreateMenuItem(
                 "menuChangePassword",
                 "Đổi mật khẩu đăng nhập",
@@ -216,6 +220,7 @@ namespace PCTP
                 ["menuDocumentDesigner"] = "ADMIN.DOCUMENT_DESIGNER",
                 ["menuUiDataSourceDesigner"] = "ADMIN.DOCUMENT_DESIGNER",
                 ["menuUiMenuDesigner"] = "ADMIN.DOCUMENT_DESIGNER",
+                ["menuLabelCenter"] = "ADMIN.DOCUMENT_DESIGNER",
                 ["menuPhieuDatHangLinhKienUi"] = PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode,
                 ["menuDieuChinhTonKhoLot"] = "WAREHOUSE.STOCK_ADJUST",
                 ["menuHangChoGiao"] = "SHIPPING.DISPATCH",
@@ -362,6 +367,13 @@ namespace PCTP
                     PCTP.Modules.MesPlanning.Documents.MesDocumentModule.CreateDesigner(),
                     PCTP.Modules.MesPlanning.Documents.MesDocumentModule.CreateMenuDesigner())),
                 "Thiết kế giao diện");
+        }
+
+        /// <summary>Trung tâm layout tem dùng chung (Report Designer + xem trước / in thử). VIEW kiểm theo menu; EDIT kiểm lại khi thiết kế / khôi phục.</summary>
+        private void OpenLabelCenter(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this, () => new PCTP.Shared.Labels.FormLabelCenter()),
+                "Thiết kế layout tem");
         }
 
         /// <summary>Phiếu đặt hàng linh kiện vẽ từ layout đã duyệt. VIEW + SITE được kiểm lại trong UiScreenRuntime và SQL.</summary>

@@ -1004,7 +1004,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 if (first.IsYmvn) gearByPayload[ReadText(tem, "LOTGHEP")] = first.GearName ?? string.Empty;
             }
 
-            if (gearByPayload.Count == 0) return new GHEPLOT { DataSource = reportData };
+            if (gearByPayload.Count == 0) return PCTP.Shared.Labels.LabelReportService.CreateReport("GHEPLOT", reportData);
             if (gearByPayload.Count != picked.Count)
                 throw new InvalidOperationException("Các tem được tích đang lẫn tem YMVN (có Gear) và tem khách khác. Hãy in riêng từng loại.");
             if (!reportData.Columns.Contains("Model") || !reportData.Columns.Contains("ItemLotCode"))
@@ -1018,7 +1018,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     throw new InvalidOperationException("Không tìm thấy Gear cho tem LOT '" + payload + "'. Hãy lập lại tem.");
                 row["Model"] = gear;
             }
-            return new GHEPLOT_YMVN { DataSource = reportData };
+            return PCTP.Shared.Labels.LabelReportService.CreateReport("GHEPLOT_YMVN", reportData);
         }
 
         private void RevalidateStock(IList<DataRow> picked)
