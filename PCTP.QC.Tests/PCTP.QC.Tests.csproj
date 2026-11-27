@@ -18,6 +18,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../PCTP/Modules/MesPlanning/ProductionFlowTaskPolicy.cs" Link="ProductionFlowTaskPolicy.source.cs" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/067_IFS_SiteWorkCenterSyncAndProductionLink.sql" Link="067_IFS_SiteWorkCenterSyncAndProductionLink.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/IfsSync/IfsSyncService.cs" Link="IfsSyncService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/IfsSync/SiteDepartmentLineRepository.cs" Link="SiteDepartmentLineRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../PCTP/Modules/KhoLinhKien/ComponentPoBravoMapper.cs" Link="ComponentPoBravoMapper.source.cs" />
     <Compile Include="../PCTP/Modules/KhoLinhKien/ExcelNumberParser.cs" Link="ExcelNumberParser.source.cs" />
     <Compile Include="../PCTP/Shared/Helpers/ExcelTemplateDefinition.cs" Link="ExcelTemplateDefinition.source.cs" />

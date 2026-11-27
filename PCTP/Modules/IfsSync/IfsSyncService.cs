@@ -23,6 +23,8 @@ namespace PCTP.Modules.IfsSync
         public int WarehouseRows { get; internal set; }
         public int SupplierRows { get; internal set; }
         public int ProductionLineRows { get; internal set; }
+        public int SiteRows { get; internal set; }
+        public int WorkCenterRows { get; internal set; }
         public string Status { get; internal set; }
     }
 
@@ -78,7 +80,11 @@ namespace PCTP.Modules.IfsSync
                 { "WAREHOUSE", "SELECT CONTRACT, WAREHOUSE_ID, DESCRIPTION, OBJKEY, OBJVERSION FROM IFSAPP.WAREHOUSE ORDER BY CONTRACT, WAREHOUSE_ID" },
                 { "SUPPLIER", "SELECT SUPPLIER_ID, NAME, OBJKEY, OBJVERSION FROM IFSAPP.SUPPLIER_INFO_GENERAL ORDER BY SUPPLIER_ID" },
                 // Logical Unit ProductionLine (frmProdLineMgt). SELECT * giữ nguyên mọi cột IFS trong PayloadJson.
-                { "PRODUCTION_LINE", "SELECT * FROM IFSAPP.PRODUCTION_LINE ORDER BY CONTRACT, PRODUCTION_LINE" }
+                { "PRODUCTION_LINE", "SELECT * FROM IFSAPP.PRODUCTION_LINE ORDER BY CONTRACT, PRODUCTION_LINE" },
+                // Site và Work Center (= bộ phận sản xuất PCTP). SELECT * để payload JSON giữ đủ cột IFS;
+                // IFS.usp_ApplySiteWorkCenterBatch chỉ đọc các khóa JSON đã biết và bỏ qua phần còn lại.
+                { "SITE", "SELECT * FROM IFSAPP.SITE ORDER BY CONTRACT" },
+                { "WORK_CENTER", "SELECT * FROM IFSAPP.WORK_CENTER ORDER BY CONTRACT, WORK_CENTER_NO" }
             };
 
         public IfsSyncResult SyncAll(Action<string> phaseChanged)
@@ -157,7 +163,9 @@ SET Status='STAGED',
     BomComponentRows=@BomComponentRows,
     WarehouseRows=@WarehouseRows,
     SupplierRows=@SupplierRows,
-    ProductionLineRows=@ProductionLineRows
+    ProductionLineRows=@ProductionLineRows,
+    SiteRows=@SiteRows,
+    WorkCenterRows=@WorkCenterRows
 WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                     {
                         command.Parameters.AddWithValue("@PartCatalogRows", GetCount(counts, "PART_CATALOG"));
@@ -168,6 +176,8 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                         command.Parameters.AddWithValue("@WarehouseRows", GetCount(counts, "WAREHOUSE"));
                         command.Parameters.AddWithValue("@SupplierRows", GetCount(counts, "SUPPLIER"));
                         command.Parameters.AddWithValue("@ProductionLineRows", GetCount(counts, "PRODUCTION_LINE"));
+                        command.Parameters.AddWithValue("@SiteRows", GetCount(counts, "SITE"));
+                        command.Parameters.AddWithValue("@WorkCenterRows", GetCount(counts, "WORK_CENTER"));
                         command.Parameters.AddWithValue("@SyncBatchId", batchId);
                         if (command.ExecuteNonQuery() != 1)
                             throw new InvalidOperationException("Không thể chuyển SyncBatch sang STAGED.");
@@ -177,6 +187,19 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                     if (phaseChanged != null)
                         phaseChanged("Giai đoạn 2/2: Đang Apply " + entities.Count +
                             " nhóm dữ liệu đã chọn vào FVN_PCTP...");
+
+                    // Site/Work Center có proc apply riêng (không đụng IFS.usp_ApplySyncBatch). Chạy TRƯỚC khi batch
+                    // chuyển APPLIED: nếu lỗi, batch được đánh dấu FAILED và các entity khác chưa được apply.
+                    if (counts.ContainsKey("SITE") || counts.ContainsKey("WORK_CENTER"))
+                    {
+                        using (var command = new SqlCommand("IFS.usp_ApplySiteWorkCenterBatch", connection))
+                        {
+                            command.CommandType = CommandType.StoredProcedure;
+                            command.CommandTimeout = 600;
+                            command.Parameters.AddWithValue("@SyncBatchId", batchId);
+                            command.ExecuteNonQuery();
+                        }
+                    }
 
                     using (var command = new SqlCommand("IFS.usp_ApplySyncBatch", connection))
                     {
@@ -197,6 +220,8 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                         WarehouseRows = GetCount(counts, "WAREHOUSE"),
                         SupplierRows = GetCount(counts, "SUPPLIER"),
                         ProductionLineRows = GetCount(counts, "PRODUCTION_LINE"),
+                        SiteRows = GetCount(counts, "SITE"),
+                        WorkCenterRows = GetCount(counts, "WORK_CENTER"),
                         Status = "APPLIED"
                     };
                 }
@@ -427,7 +452,11 @@ VALUES (@SyncMode, @SelectedEntities, 'RUNNING', SYSUTCDATETIME(), @InitiatedBy)
                     ? ReadString(reader, "SUPPLIER_ID")
                     : entityName == "PRODUCTION_LINE"
                         ? ReadString(reader, "PRODUCTION_LINE")
-                        : ReadString(reader, "PART_NO");
+                        : entityName == "SITE"
+                            ? ReadString(reader, "CONTRACT")
+                            : entityName == "WORK_CENTER"
+                                ? ReadString(reader, "WORK_CENTER_NO")
+                                : ReadString(reader, "PART_NO");
             if (string.IsNullOrWhiteSpace(partNo))
                 throw new InvalidOperationException(entityName == "WAREHOUSE"
                     ? "WAREHOUSE có dòng thiếu WAREHOUSE_ID."
@@ -435,7 +464,11 @@ VALUES (@SyncMode, @SelectedEntities, 'RUNNING', SYSUTCDATETIME(), @InitiatedBy)
                         ? "SUPPLIER_INFO_GENERAL có dòng thiếu SUPPLIER_ID."
                         : entityName == "PRODUCTION_LINE"
                             ? "PRODUCTION_LINE có dòng thiếu PRODUCTION_LINE."
-                            : entityName + " có dòng thiếu PART_NO.");
+                            : entityName == "SITE"
+                                ? "SITE có dòng thiếu CONTRACT."
+                                : entityName == "WORK_CENTER"
+                                    ? "WORK_CENTER có dòng thiếu WORK_CENTER_NO (kiểm tra tên cột của view IFSAPP.WORK_CENTER)."
+                                    : entityName + " có dòng thiếu PART_NO.");
 
             string siteCode = (entityName == "PART_CATALOG" || entityName == "SUPPLIER") ? null : ReadString(reader, "CONTRACT");
             if (entityName != "PART_CATALOG" && entityName != "SUPPLIER" && string.IsNullOrWhiteSpace(siteCode))

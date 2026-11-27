@@ -572,3 +572,7 @@ Cause: a table named `MES.FVN_UiMenuProfile`, `FVN_UiMenuProfileRole` or `FVN_Ui
 Apply after 066, in FVN_PCTP. Adds `IFS.FVN_ProductionLine` (copy of IFSAPP.PRODUCTION_LINE, key SiteCode = CONTRACT + ProductionLineCode), the `PRODUCTION_LINE` entity in the selective IFS sync, `MES.vFVN_ProductionLineSetup` and `MES.usp_FVN_ProductionLotCodeMap_Save`.
 After applying: run Đồng bộ dữ liệu IFS with PRODUCTION_LINE ticked, then Sản xuất -> Khai báo chuyền sản xuất theo Site to give each IFS line its 3-character LOT line code and 4-character department code (this is what the plan upload screen lists). Typed columns are read from the IFS payload by column name (DESCRIPTION, CALENDAR_ID, TAKT_*, DAILY_OPERATING_MINUTES, ...); if a name differs in your IFS version the typed column stays NULL but the full row is kept in `SourcePayloadJson`.
 
+
+### Migration 068 - IFS SITE / WORK_CENTER sync and Site-Department-Line link
+
+Apply after 067, in FVN_PCTP. Adds `IFS.FVN_Site` / `IFS.FVN_WorkCenter` (copies of IFSAPP.SITE / IFSAPP.WORK_CENTER), the `SITE` and `WORK_CENTER` entities in the selective IFS sync (own apply procedure `IFS.usp_ApplySiteWorkCenterBatch`; `IFS.usp_ApplySyncBatch` and the `PRODUCTION_LINE` entity from 067 are untouched), `dbo.FVN_ProductionDepartment.WorkCenterNo` and `MES.usp_FVN_SiteDepartmentLine_Link` / `_Unlink`. Sync never creates lines, departments or links by itself.

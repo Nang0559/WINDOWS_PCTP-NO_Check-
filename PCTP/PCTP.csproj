@@ -562,6 +562,7 @@
     <Compile Include="Infrastructure\Sql\DataAccessStatus.cs" />
     <Compile Include="Infrastructure\Sql\SQL.cs" />
     <Compile Include="Modules\IfsSync\IfsSyncService.cs" />
+    <Compile Include="Modules\IfsSync\SiteDepartmentLineRepository.cs" />
     <Compile Include="Modules\IfsSync\FormIfsSync.cs">
       <SubType>Form</SubType>
     </Compile>
