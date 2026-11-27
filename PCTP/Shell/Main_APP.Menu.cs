@@ -89,6 +89,8 @@ namespace PCTP
             };
             // Màn hình dựng từ layout đã duyệt (Bravo style); có nút Upload Excel PO. Chuột phải để khai báo dữ liệu / layout.
             _menuLinhKien.Elements.Add(CreateMenuItem("menuPhieuDatHangLinhKienUi", "Đặt hàng linh kiện (Upload PO)", OpenPhieuDatHangLinhKienUi));
+            // Khai báo SL / thùng (Quantity) và SL / palet (MaxCloseQty): phát hành PO chia tem thùng / tem palet theo quy cách này.
+            _menuLinhKien.Elements.Add(CreateMenuItem("menuQuyCachDongGoi", "Quy cách đóng gói (thùng / palet)", OpenQuyCachDongGoi));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Kiểm kê hàng về (QR)", OpenNhanLinhKien));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuKhoLinhKien", "Kho linh kiện PART (PO / QR / Tồn / Cấp WIP)", OpenKhoLinhKien));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuChungTuYeuCauLinhKien", "Chứng từ yêu cầu linh kiện", OpenChungTuYeuCauLinhKien));
@@ -222,6 +224,7 @@ namespace PCTP
                 ["menuUiMenuDesigner"] = "ADMIN.DOCUMENT_DESIGNER",
                 ["menuLabelCenter"] = "ADMIN.DOCUMENT_DESIGNER",
                 ["menuPhieuDatHangLinhKienUi"] = PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode,
+                ["menuQuyCachDongGoi"] = PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode,
                 ["menuDieuChinhTonKhoLot"] = "WAREHOUSE.STOCK_ADJUST",
                 ["menuHangChoGiao"] = "SHIPPING.DISPATCH",
                 ["menuIfsMasterDataSync"] = "MASTERDATA.IFS_SYNC",
@@ -374,6 +377,22 @@ namespace PCTP
         {
             OpenFromMenu(() => FormWindowManager.ShowSingle(this, () => new PCTP.Shared.Labels.FormLabelCenter()),
                 "Thiết kế layout tem");
+        }
+
+        /// <summary>
+        /// Quy cách đóng gói linh kiện (SL / thùng, SL / palet, đồng bộ Bravo B20ItemQuyCach). VIEW kiểm theo menu; Site chọn theo phạm vi
+        /// của tài khoản (như màn hình PO); thêm / sửa / upload / đồng bộ cần CREATE và được service + SQL kiểm lại.
+        /// </summary>
+        private void OpenQuyCachDongGoi(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                string site = ResolveDocumentSite(PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode);
+                if (site == null) return; // user cancelled the site chooser
+                FormWindowManager.ShowSingle(this,
+                    () => new PCTP.Modules.KhoLinhKien.UI.FormComponentPackSpec(site),
+                    "PackSpec:" + site);
+            }, "Quy cách đóng gói");
         }
 
         /// <summary>Phiếu đặt hàng linh kiện vẽ từ layout đã duyệt. VIEW + SITE được kiểm lại trong UiScreenRuntime và SQL.</summary>
@@ -547,6 +566,7 @@ namespace PCTP
             if (title.IndexOf("Upload kế hoạch", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PLAN_UPLOAD";
             if (title.IndexOf("Nhận linh kiện", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.RECEIPT";
             if (title.IndexOf("Phiếu đặt hàng", StringComparison.OrdinalIgnoreCase) >= 0) return PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode;
+            if (title.IndexOf("Quy cách đóng gói", StringComparison.OrdinalIgnoreCase) >= 0) return PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode;
             if (title.IndexOf("linh kiện", StringComparison.OrdinalIgnoreCase) >= 0 && title.IndexOf("Truy xuất", StringComparison.OrdinalIgnoreCase) < 0) return "MES.COMPONENT_ISSUE";
             if (title.IndexOf("Tách LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "LOT.SPLIT";
             if (title.IndexOf("Ghép LOT", StringComparison.OrdinalIgnoreCase) >= 0) return "LOT.MERGE";

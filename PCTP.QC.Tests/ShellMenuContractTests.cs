@@ -42,6 +42,33 @@ public sealed class ShellMenuContractTests
     }
 
     [Fact]
+    public void Pack_spec_screen_has_its_own_menu_item_gated_by_the_component_po_function()
+    {
+        string menu = Read("Main_APP.Menu.internal-transfer.source.cs");
+        int group = menu.IndexOf("Name = \"menuLinhKien\"", StringComparison.Ordinal);
+        int end = menu.IndexOf("_menuSanXuat = new", group, StringComparison.Ordinal);
+        string block = menu.Substring(group, end - group);
+        int po = block.IndexOf("\"menuPhieuDatHangLinhKienUi\"", StringComparison.Ordinal);
+        int spec = block.IndexOf("\"menuQuyCachDongGoi\"", StringComparison.Ordinal);
+        int receipt = block.IndexOf("\"menuNhanLinhKien\"", StringComparison.Ordinal);
+        Assert.True(po >= 0 && spec > po && receipt > spec, "Quy cách đóng gói nằm giữa Đặt hàng và Kiểm kê hàng về.");
+
+        Assert.Matches("\\[\"menuQuyCachDongGoi\"\\]\\s*=\\s*PCTP\\.Framework\\.UiLayout\\.UiLayoutModule\\.ComponentPoFunctionCode", menu);
+
+        int open = menu.IndexOf("private void OpenQuyCachDongGoi", StringComparison.Ordinal);
+        Assert.True(open >= 0);
+        string body = menu.Substring(open, Math.Min(900, menu.Length - open));
+        Assert.Contains("FormComponentPackSpec(site)", body);
+        Assert.Contains("ResolveDocumentSite(PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode)", body);
+
+        // The title rule must come before the generic "linh kiện" rule, which would demand MES.COMPONENT_ISSUE.
+        int map = menu.IndexOf("private static string ResolveFunctionCodeFromTitle", StringComparison.Ordinal);
+        int titleRule = menu.IndexOf("\"Quy cách đóng gói\"", map, StringComparison.Ordinal);
+        int generic = menu.IndexOf("\"MES.COMPONENT_ISSUE\"", map, StringComparison.Ordinal);
+        Assert.True(titleRule > map && titleRule < generic);
+    }
+
+    [Fact]
     public void Component_po_screen_is_opened_with_the_upload_action()
     {
         string menu = Read("Main_APP.Menu.internal-transfer.source.cs");
