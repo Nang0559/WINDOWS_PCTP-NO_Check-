@@ -290,8 +290,8 @@ namespace PCTP.Modules.IfsSync
                         {
                             if (ex.Number == 208)
                                 throw new InvalidOperationException(
-                                    "Không tìm thấy một hoặc nhiều bảng đồng bộ (IFS.SyncBatch, IFS.SyncStageRow, IFS.FVN_Supplier) trong FVN_PCTP. " +
-                                    "Hãy kiểm tra đúng database/schema và trạng thái migration 012. " +
+                                    "Không tìm thấy một hoặc nhiều bảng đồng bộ (IFS.FVN_SyncBatch, IFS.FVN_SyncStageRow, IFS.FVN_Supplier) trong FVN_PCTP. " +
+                                    "Hãy kiểm tra đúng database/schema và trạng thái migration 027/037/068/069. " +
                                     "SQL: " + ex.Message, ex);
                             if (ex.Number == 207)
                                 throw new InvalidOperationException(
@@ -437,7 +437,7 @@ SELECT TOP (100)
        b.UpdateCount,
        b.ErrorSummary,
        (SELECT COUNT(*) FROM IFS.SyncError e WHERE e.SyncBatchId=b.SyncBatchId) AS ErrorCount
-FROM IFS.SyncBatch b
+FROM IFS.FVN_SyncBatch b
 ORDER BY b.SyncBatchId DESC;", connection))
                 {
                     var table = new DataTable();
@@ -470,7 +470,7 @@ ORDER BY b.SyncBatchId DESC;", connection))
     SELECT TOP (1) SyncBatchId, SyncMode, SelectedEntities, Status, StartedAtUtc, CompletedAtUtc, ErrorSummary,
            PartCatalogRows, InventoryPartRows, BomHeaderRows, BomAlternativeRows,
            BomComponentRows, WarehouseRows, SupplierRows, ProductionLineRows, SiteRows, WorkCenterRows
-    FROM IFS.SyncBatch
+    FROM IFS.FVN_SyncBatch
     ORDER BY SyncBatchId DESC
 )
 SELECT v.EntityName, v.SourceObject, v.TargetObject, v.SourceRows, v.TargetRows,
@@ -554,7 +554,7 @@ FROM
     UNION ALL SELECT N'WORK_CENTER', N'IFSAPP.WORK_CENTER', N'IFS.FVN_WorkCenter',
            (SELECT COUNT_BIG(*) FROM IFS.FVN_WorkCenter)
 ) v
-WHERE NOT EXISTS (SELECT 1 FROM IFS.SyncBatch);";
+WHERE NOT EXISTS (SELECT 1 FROM IFS.FVN_SyncBatch);";
                 using (var connection = new SqlConnection(TargetConnectionString))
                 using (var adapter = new SqlDataAdapter(sql, connection))
                 {
