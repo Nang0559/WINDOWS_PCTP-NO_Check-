@@ -125,4 +125,16 @@ public sealed class IfsSiteWorkCenterSyncContractTests
         Assert.Contains("MES.usp_FVN_SiteDepartmentLine_Link", src);
         Assert.Contains("MES.usp_FVN_SiteDepartmentLine_Unlink", src);
     }
+    [Fact]
+    public void Migration069_AddsSelectedEntitiesToTheRuntimeBatchTable()
+    {
+        var sql = File.ReadAllText(Path.Combine(AppContext.BaseDirectory,
+            "069_IFS_SyncRuntimeSelectedEntitiesCompatibility.sql"));
+        Assert.Contains("ALTER TABLE IFS.SyncBatch ADD SelectedEntities", sql);
+        Assert.Contains("COL_LENGTH(N'IFS.SyncBatch', N'SiteRows')", sql);
+        Assert.Contains("COL_LENGTH(N'IFS.SyncBatch', N'WorkCenterRows')", sql);
+        Assert.Contains("ALTER TABLE IFS.SyncStageRow", sql);
+        Assert.Contains("MigrationVersion = '069'", sql);
+    }
+
 }
