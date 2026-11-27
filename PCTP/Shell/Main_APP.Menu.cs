@@ -104,6 +104,7 @@ namespace PCTP
                 Expanded = true
             };
             _menuSanXuat.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoChuyenSanXuat", "Khai báo chuyền sản xuất theo Site", OpenKhaiBaoChuyenSanXuat));
             _menuSanXuat.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
             // Control Tower và BOM được thêm ở AddMesBomNavigation (cần kiểm quyền riêng từng mục).
 
@@ -216,6 +217,7 @@ namespace PCTP
                 ["menuKhoLinhKien"] = "WAREHOUSE.COMPONENT_STOCK",
                 ["menuNhanLinhKien"] = "WAREHOUSE.COMPONENT_RECEIPT",
                 ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
+                ["menuKhaiBaoChuyenSanXuat"] = "MES.PLAN_UPLOAD",
                 ["menuDieuHanhSanXuat"] = "MES.PRODUCTION_EXECUTION",
                 ["menuYeuCauXuatLinhKien"] = "MES.COMPONENT_DEMAND",
                 ["menuChungTuYeuCauLinhKien"] = "MES.COMPONENT_DEMAND",
@@ -570,6 +572,7 @@ namespace PCTP
             if (title.IndexOf("Kho linh kiện", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.COMPONENT_STOCK";
             if (title.IndexOf("Điều hành sản xuất", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PRODUCTION_EXECUTION";
             if (title.IndexOf("Upload kế hoạch", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PLAN_UPLOAD";
+            if (title.IndexOf("Khai báo chuyền", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PLAN_UPLOAD";
             if (title.IndexOf("Nhận linh kiện", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.RECEIPT";
             if (title.IndexOf("Phiếu đặt hàng", StringComparison.OrdinalIgnoreCase) >= 0) return PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode;
             if (title.IndexOf("Quy cách đóng gói", StringComparison.OrdinalIgnoreCase) >= 0) return PCTP.Framework.UiLayout.UiLayoutModule.ComponentPoFunctionCode;
@@ -675,6 +678,19 @@ namespace PCTP
                 this,
                 () => new PCTP.Modules.MesPlanning.UI.FormUploadKeHoachSanXuat()),
                 "Upload kế hoạch sản xuất");
+        }
+
+        /// <summary>Gán chuyền IFS (PRODUCTION_LINE đã đồng bộ) của một Site với mã chuyền LOT 3 ký tự và mã bộ phận 4 ký tự. Quyền MES.PLAN_UPLOAD (CREATE + SITE).</summary>
+        private void OpenKhaiBaoChuyenSanXuat(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                string site = ResolveDocumentSite("MES.PLAN_UPLOAD");
+                if (site == null) return; // user cancelled the site chooser
+                FormWindowManager.ShowSingle(this,
+                    () => new PCTP.Modules.MesPlanning.UI.FormProductionLineSetup(site),
+                    "ProductionLineSetup:" + site);
+            }, "Khai báo chuyền sản xuất");
         }
 
         private void OpenYeuCauXuatLinhKien(object sender, EventArgs e)

@@ -1209,6 +1209,10 @@
     <Compile Include="Modules\MesPlanning\ProductionLabels\ProductionPlanTemplateDefinition.cs" />
     <Compile Include="Modules\MesPlanning\IProductionPlanRepository.cs" />
     <Compile Include="Modules\MesPlanning\ProductionPlanRepository.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionLineSetup.cs" />
+    <Compile Include="Modules\MesPlanning\UI\FormProductionLineSetup.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\MesPlanning\IProductionPlanService.cs" />
     <Compile Include="Modules\MesPlanning\ProductionPlanService.cs" />
     <Compile Include="Modules\MesPlanning\UI\FormUploadKeHoachSanXuat.cs">

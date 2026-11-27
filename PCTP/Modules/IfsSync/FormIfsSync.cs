@@ -25,7 +25,7 @@ namespace PCTP.Modules.IfsSync
         private readonly SimpleButton _checkButton = new SimpleButton();
         private readonly SimpleButton _syncButton = new SimpleButton();
         private readonly SimpleButton _selectiveSyncButton = new SimpleButton();
-        private readonly CheckBox[] _entityChecks = new CheckBox[7];
+        private readonly CheckBox[] _entityChecks = new CheckBox[8];
         private readonly SimpleButton _refreshButton = new SimpleButton();
         private readonly IWaitFormService _waitForm;
         private bool _isRunning;
@@ -95,7 +95,7 @@ namespace PCTP.Modules.IfsSync
                 WrapContents = true,
                 AutoScroll = true
             };
-            string[] entityNames = { "PART_CATALOG", "INVENTORY_PART", "BOM_HEADER", "BOM_ALTERNATIVE", "BOM_COMPONENT", "WAREHOUSE", "SUPPLIER" };
+            string[] entityNames = { "PART_CATALOG", "INVENTORY_PART", "BOM_HEADER", "BOM_ALTERNATIVE", "BOM_COMPONENT", "WAREHOUSE", "SUPPLIER", "PRODUCTION_LINE" };
             for (int i = 0; i < entityNames.Length; i++)
             {
                 _entityChecks[i] = new CheckBox { Text = entityNames[i], AutoSize = true, Margin = new Padding(8, 6, 18, 4) };
@@ -382,7 +382,8 @@ namespace PCTP.Modules.IfsSync
                     "BOM_ALTERNATIVE: " + result.BomAlternativeRows + Environment.NewLine +
                     "BOM_COMPONENT: " + result.BomComponentRows + Environment.NewLine +
                     "WAREHOUSE: " + result.WarehouseRows + Environment.NewLine +
-                    "SUPPLIER: " + result.SupplierRows;
+                    "SUPPLIER: " + result.SupplierRows + Environment.NewLine +
+                    "PRODUCTION_LINE: " + result.ProductionLineRows;
                 RefreshHistory();
                 XtraMessageBox.Show(this, _details.Text, "Đồng bộ hoàn tất",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -460,7 +461,7 @@ ORDER BY b.SyncBatchId DESC;", connection))
 (
     SELECT TOP (1) SyncBatchId, SyncMode, SelectedEntities, Status, StartedAtUtc, CompletedAtUtc, ErrorSummary,
            PartCatalogRows, InventoryPartRows, BomHeaderRows, BomAlternativeRows,
-           BomComponentRows, WarehouseRows, SupplierRows
+           BomComponentRows, WarehouseRows, SupplierRows, ProductionLineRows
     FROM IFS.SyncBatch
     ORDER BY SyncBatchId DESC
 )
@@ -501,6 +502,9 @@ CROSS APPLY
     UNION ALL
     SELECT N'SUPPLIER', N'IFSAPP.SUPPLIER_INFO_GENERAL', N'IFS.FVN_Supplier',
            l.SupplierRows, (SELECT COUNT_BIG(*) FROM IFS.FVN_Supplier)
+    UNION ALL
+    SELECT N'PRODUCTION_LINE', N'IFSAPP.PRODUCTION_LINE', N'IFS.FVN_ProductionLine',
+           l.ProductionLineRows, (SELECT COUNT_BIG(*) FROM IFS.FVN_ProductionLine)
 ) v
 OUTER APPLY
 (
@@ -529,6 +533,8 @@ FROM
            (SELECT COUNT_BIG(*) FROM MES.FVN_IfsWarehouse)
     UNION ALL SELECT N'SUPPLIER', N'IFSAPP.SUPPLIER_INFO_GENERAL', N'IFS.FVN_Supplier',
            (SELECT COUNT_BIG(*) FROM IFS.FVN_Supplier)
+    UNION ALL SELECT N'PRODUCTION_LINE', N'IFSAPP.PRODUCTION_LINE', N'IFS.FVN_ProductionLine',
+           (SELECT COUNT_BIG(*) FROM IFS.FVN_ProductionLine)
 ) v
 WHERE NOT EXISTS (SELECT 1 FROM IFS.SyncBatch);";
                 using (var connection = new SqlConnection(TargetConnectionString))
@@ -544,7 +550,7 @@ WHERE NOT EXISTS (SELECT 1 FROM IFS.SyncBatch);";
             catch (Exception ex)
             {
                 _entities.DataSource = null;
-                _details.Text = "Không tải được trạng thái entity. Kiểm tra migration 027–028 và quyền SELECT. " + ex.Message;
+                _details.Text = "Không tải được trạng thái entity. Kiểm tra migration 027–028 và 067 và quyền SELECT. " + ex.Message;
             }
         }
 

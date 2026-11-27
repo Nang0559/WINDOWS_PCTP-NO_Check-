@@ -22,6 +22,7 @@ namespace PCTP.Modules.IfsSync
         public int BomComponentRows { get; internal set; }
         public int WarehouseRows { get; internal set; }
         public int SupplierRows { get; internal set; }
+        public int ProductionLineRows { get; internal set; }
         public string Status { get; internal set; }
     }
 
@@ -75,7 +76,9 @@ namespace PCTP.Modules.IfsSync
                 { "BOM_ALTERNATIVE", "SELECT * FROM IFSAPP.MANUF_STRUCT_ALTERNATE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO" },
                 { "BOM_COMPONENT", "SELECT * FROM IFSAPP.MANUF_STRUCTURE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO, LINE_ITEM_NO" },
                 { "WAREHOUSE", "SELECT CONTRACT, WAREHOUSE_ID, DESCRIPTION, OBJKEY, OBJVERSION FROM IFSAPP.WAREHOUSE ORDER BY CONTRACT, WAREHOUSE_ID" },
-                { "SUPPLIER", "SELECT SUPPLIER_ID, NAME, OBJKEY, OBJVERSION FROM IFSAPP.SUPPLIER_INFO_GENERAL ORDER BY SUPPLIER_ID" }
+                { "SUPPLIER", "SELECT SUPPLIER_ID, NAME, OBJKEY, OBJVERSION FROM IFSAPP.SUPPLIER_INFO_GENERAL ORDER BY SUPPLIER_ID" },
+                // Logical Unit ProductionLine (frmProdLineMgt). SELECT * giữ nguyên mọi cột IFS trong PayloadJson.
+                { "PRODUCTION_LINE", "SELECT * FROM IFSAPP.PRODUCTION_LINE ORDER BY CONTRACT, PRODUCTION_LINE" }
             };
 
         public IfsSyncResult SyncAll(Action<string> phaseChanged)
@@ -153,7 +156,8 @@ SET Status='STAGED',
     BomAlternativeRows=@BomAlternativeRows,
     BomComponentRows=@BomComponentRows,
     WarehouseRows=@WarehouseRows,
-    SupplierRows=@SupplierRows
+    SupplierRows=@SupplierRows,
+    ProductionLineRows=@ProductionLineRows
 WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                     {
                         command.Parameters.AddWithValue("@PartCatalogRows", GetCount(counts, "PART_CATALOG"));
@@ -163,6 +167,7 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                         command.Parameters.AddWithValue("@BomComponentRows", GetCount(counts, "BOM_COMPONENT"));
                         command.Parameters.AddWithValue("@WarehouseRows", GetCount(counts, "WAREHOUSE"));
                         command.Parameters.AddWithValue("@SupplierRows", GetCount(counts, "SUPPLIER"));
+                        command.Parameters.AddWithValue("@ProductionLineRows", GetCount(counts, "PRODUCTION_LINE"));
                         command.Parameters.AddWithValue("@SyncBatchId", batchId);
                         if (command.ExecuteNonQuery() != 1)
                             throw new InvalidOperationException("Không thể chuyển SyncBatch sang STAGED.");
@@ -191,6 +196,7 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                         BomComponentRows = GetCount(counts, "BOM_COMPONENT"),
                         WarehouseRows = GetCount(counts, "WAREHOUSE"),
                         SupplierRows = GetCount(counts, "SUPPLIER"),
+                        ProductionLineRows = GetCount(counts, "PRODUCTION_LINE"),
                         Status = "APPLIED"
                     };
                 }
@@ -419,13 +425,17 @@ VALUES (@SyncMode, @SelectedEntities, 'RUNNING', SYSUTCDATETIME(), @InitiatedBy)
                 ? ReadString(reader, "WAREHOUSE_ID")
                 : entityName == "SUPPLIER"
                     ? ReadString(reader, "SUPPLIER_ID")
-                    : ReadString(reader, "PART_NO");
+                    : entityName == "PRODUCTION_LINE"
+                        ? ReadString(reader, "PRODUCTION_LINE")
+                        : ReadString(reader, "PART_NO");
             if (string.IsNullOrWhiteSpace(partNo))
                 throw new InvalidOperationException(entityName == "WAREHOUSE"
                     ? "WAREHOUSE có dòng thiếu WAREHOUSE_ID."
                     : entityName == "SUPPLIER"
                         ? "SUPPLIER_INFO_GENERAL có dòng thiếu SUPPLIER_ID."
-                        : entityName + " có dòng thiếu PART_NO.");
+                        : entityName == "PRODUCTION_LINE"
+                            ? "PRODUCTION_LINE có dòng thiếu PRODUCTION_LINE."
+                            : entityName + " có dòng thiếu PART_NO.");
 
             string siteCode = (entityName == "PART_CATALOG" || entityName == "SUPPLIER") ? null : ReadString(reader, "CONTRACT");
             if (entityName != "PART_CATALOG" && entityName != "SUPPLIER" && string.IsNullOrWhiteSpace(siteCode))

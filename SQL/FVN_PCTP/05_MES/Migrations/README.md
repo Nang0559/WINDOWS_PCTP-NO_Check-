@@ -566,3 +566,9 @@ After applying: open Thiết kế menu, change a profile and press Lưu, close t
 ### Menu migrations 059/060 - schema drift (Msg 207 on DisplayName / NodeId / ParentNodeId)
 
 Cause: a table named `MES.FVN_UiMenuProfile`, `FVN_UiMenuProfileRole` or `FVN_UiMenuNode` already existed with other columns, and `CREATE TABLE ... IF OBJECT_ID IS NULL` kept it. Fix: re-run `059_MES_UiMenuProfiles.sql` (it now renames the three tables with their constraints and indexes to `*_Legacy_<UTC time>` and re-creates them; no data is deleted, nothing is dynamic SQL), then run `060_MES_UiMenuProfileOrderDelete.sql`. 060 now stops with error 60004 and skips its remaining batches when the structure is still wrong. Menu profiles stored in the legacy tables must be re-entered in the designer (or copied from `*_Legacy_*` by hand).
+
+### Migration 067 - IFS PRODUCTION_LINE sync and production line setup
+
+Apply after 066, in FVN_PCTP. Adds `IFS.FVN_ProductionLine` (copy of IFSAPP.PRODUCTION_LINE, key SiteCode = CONTRACT + ProductionLineCode), the `PRODUCTION_LINE` entity in the selective IFS sync, `MES.vFVN_ProductionLineSetup` and `MES.usp_FVN_ProductionLotCodeMap_Save`.
+After applying: run Đồng bộ dữ liệu IFS with PRODUCTION_LINE ticked, then Sản xuất -> Khai báo chuyền sản xuất theo Site to give each IFS line its 3-character LOT line code and 4-character department code (this is what the plan upload screen lists). Typed columns are read from the IFS payload by column name (DESCRIPTION, CALENDAR_ID, TAKT_*, DAILY_OPERATING_MINUTES, ...); if a name differs in your IFS version the typed column stays NULL but the full row is kept in `SourcePayloadJson`.
+
