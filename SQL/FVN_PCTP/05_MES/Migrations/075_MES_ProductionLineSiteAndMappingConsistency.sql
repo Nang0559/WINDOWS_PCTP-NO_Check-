@@ -23,11 +23,10 @@ IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '0
     THROW 57502, 'Migrations 067 and 068 must be registered before 075.', 1;
 IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '075')
     RETURN;
-GO
 
 /* Setup view: every IFS line appears, even when no LOT mapping exists.
    A stale mapping is also shown so it can be reviewed/deactivated. */
-CREATE OR ALTER VIEW MES.vFVN_ProductionLineSetup
+EXEC(N'CREATE OR ALTER VIEW MES.vFVN_ProductionLineSetup
 AS
 SELECT l.SiteCode,
        fs.SiteName,
@@ -73,8 +72,7 @@ WHERE NOT EXISTS
     SELECT 1 FROM IFS.FVN_ProductionLine AS l
     WHERE l.SiteCode = m.SiteCode
       AND l.ProductionLineCode = m.PlanProductionLineCode
-);
-GO
+);');
 
 BEGIN TRY
     BEGIN TRANSACTION;
