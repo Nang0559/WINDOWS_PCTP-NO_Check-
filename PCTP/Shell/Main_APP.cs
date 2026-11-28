@@ -50,6 +50,7 @@ namespace PCTP
             if (UserSession.Current == null)
                 throw new UnauthorizedAccessException("PCTP yêu cầu đăng nhập trước khi mở màn hình chính.");
             InitializeComponent();
+            EnsureActiveSite();
             _waitForm = new WaitFormService(this);
             _wmsHelp = new WmsHelpService();
             EnsureShellNavigation();

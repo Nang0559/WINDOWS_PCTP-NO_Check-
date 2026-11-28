@@ -1,4 +1,4 @@
-using DevExpress.XtraBars.Navigation;
+﻿using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraEditors;
 using PCTP.Modules.BaoCao.UI;
 using PCTP.Modules.GiaoHangKhach.SubForm;
@@ -39,6 +39,7 @@ namespace PCTP
         private AccordionControlElement _menuLinhKien;
         private AccordionControlElement _menuSanXuat;
         private AccordionControlElement _menuQuanTri;
+        private AccordionControlElement _menuIfsMap;
 
         private void BuildStandardMenus()
         {
@@ -91,8 +92,7 @@ namespace PCTP
             _menuLinhKien.Elements.Add(CreateMenuItem("menuPhieuDatHangLinhKienUi", "Đặt hàng linh kiện (Upload PO)", OpenPhieuDatHangLinhKienUi));
             // Khai báo SL / thùng (Quantity) và SL / palet (MaxCloseQty): phát hành PO chia tem thùng / tem palet theo quy cách này.
             _menuLinhKien.Elements.Add(CreateMenuItem("menuQuyCachDongGoi", "Quy cách đóng gói (thùng / palet)", OpenQuyCachDongGoi));
-            // Khai báo Slot nào là kho PART / WIP và map sang MES Location (IFS): điều kiện để Kiểm kê hàng về có Slot nhập kho.
-            _menuLinhKien.Elements.Add(CreateMenuItem("menuSlotMesLocation", "Map Slot kho ↔ MES Location (IFS)", OpenSlotMesLocation));
+            // "Map Slot kho ↔ MES Location (IFS)" đã chuyển sang nhóm "Đồng bộ & Map IFS".
             _menuLinhKien.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Kiểm kê hàng về (QR)", OpenNhanLinhKien));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuKhoLinhKien", "Quản lý linh kiện MES (PO / Tem / Nhập / Xuất / Tồn LotNo)", OpenKhoLinhKien));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuChungTuYeuCauLinhKien", "Chứng từ yêu cầu linh kiện", OpenChungTuYeuCauLinhKien));
@@ -106,12 +106,7 @@ namespace PCTP
                 Expanded = true
             };
             _menuSanXuat.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
-            _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoSite", "Khai báo Site PCTP (cho phép / tạm ngưng)", OpenKhaiBaoSite));
-            // Thứ tự khai báo dữ liệu gốc (mỗi bước chỉ chọn mã đã khai báo ở bước trước): ① → ② → ③ → ④.
-            _menuSanXuat.Elements.Add(CreateMenuItem("menuMaBoPhan4", "① Work Center IFS ↔ mã bộ phận 4 ký tự (LOT)", OpenMaBoPhan4));
-            _menuSanXuat.Elements.Add(CreateMenuItem("menuMaChuyen5Va3", "② Mã chuyền 5 ký tự ↔ 3 ký tự (LOT)", OpenMaChuyen5Va3));
-            _menuSanXuat.Elements.Add(CreateMenuItem("menuLienKetWorkCenter", "③ Liên kết Work Center IFS ↔ Bộ phận", OpenLienKetWorkCenter));
-            _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoChuyenSanXuat", "④ Khai báo chuyền sản xuất theo Site", OpenKhaiBaoChuyenSanXuat));
+            // Khai báo Site / Work Center / chuyền đã chuyển sang nhóm "Đồng bộ & Map IFS".
             _menuSanXuat.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES (Live Execution Console)", OpenDieuHanhSanXuat));
             // Control Tower và BOM được thêm ở AddMesBomNavigation (cần kiểm quyền riêng từng mục).
 
@@ -132,10 +127,7 @@ namespace PCTP
                 "menuSecurityAdmin",
                 "Quản trị tài khoản & phân quyền",
                 OpenSecurityAdministration));
-            _menuQuanTri.Elements.Add(CreateMenuItem(
-                "menuIfsMasterDataSync",
-                "Đồng bộ dữ liệu IFS → FVN_PCTP",
-                OpenIfsMasterDataSync));
+            // "Đồng bộ dữ liệu IFS → FVN_PCTP" đã chuyển sang nhóm "Đồng bộ & Map IFS".
             _menuQuanTri.Elements.Add(CreateMenuItem(
                 "menuDocumentDesigner",
                 "Thiết kế giao diện (PCTP UI Designer)",
@@ -160,6 +152,26 @@ namespace PCTP
                 "menuSignOut",
                 "Đăng xuất",
                 OpenSignOut));
+
+            // ── 2e. Đồng bộ & Map IFS: mọi chức năng đồng bộ IFS và map danh mục IFS → PCTP gom một nhóm ──
+            // Thứ tự theo chuỗi IFS → Site → Work Center → Chuyền → Kho → Location → Slot.
+            _menuIfsMap = new AccordionControlElement(ElementStyle.Group)
+            {
+                Name = "menuIfsMap",
+                Text = "Đồng bộ & Map IFS",
+                Expanded = true
+            };
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuIfsMapCenter", "Trung tâm đồng bộ & Map IFS", OpenIfsMapCenter));
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuIfsMasterDataSync", "Đồng bộ dữ liệu IFS → FVN_PCTP", OpenIfsMasterDataSync));
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuKhaiBaoSite", "Khai báo Site PCTP (cho phép / tạm ngưng)", OpenKhaiBaoSite));
+            // Thứ tự khai báo dữ liệu gốc (mỗi bước chỉ chọn mã đã khai báo ở bước trước): ① → ② → ③ → ④.
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuMaBoPhan4", "① Work Center IFS ↔ mã bộ phận 4 ký tự (LOT)", OpenMaBoPhan4));
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuMaChuyen5Va3", "② Mã chuyền 5 ký tự ↔ 3 ký tự (LOT)", OpenMaChuyen5Va3));
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuLienKetWorkCenter", "③ Liên kết Work Center IFS ↔ Bộ phận", OpenLienKetWorkCenter));
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuKhaiBaoChuyenSanXuat", "④ Khai báo chuyền sản xuất theo Site", OpenKhaiBaoChuyenSanXuat));
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuWarehouseIfsMap", "⑤ Map Kho PCTP ↔ Kho IFS", OpenWarehouseIfsMap));
+            // Khai báo Slot nào là kho PART / WIP và map sang MES Location (IFS): điều kiện để Kiểm kê hàng về có Slot nhập kho.
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuSlotMesLocation", "⑥ Map Slot kho ↔ MES Location (IFS)", OpenSlotMesLocation));
 
             // ── 3. Xử lý LOT ───────────────────────────────────────────
             // Tách LOT là luồng nghiệp vụ; form tự chọn mẫu in Ghép LOT theo CustomerCode.
@@ -209,11 +221,12 @@ namespace PCTP
             mainAccordionGroup.Elements.Add(accordionControlElement28);   // Tra Cứu & Báo Cáo
             // "Màn hình UI" (RefreshUiScreenMenu) được chèn ở đây, trước Công Cụ.
             mainAccordionGroup.Elements.Add(accordionControlElement20);   // Công Cụ
+            mainAccordionGroup.Elements.Add(_menuIfsMap);                 // Đồng bộ & Map IFS
             mainAccordionGroup.Elements.Add(_menuQuanTri);                // Quản trị hệ thống
         }
 
         private static readonly HashSet<string> AutoHiddenGroups =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "menuLinhKien", "menuSanXuat", "menuQuanTri" };
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "menuLinhKien", "menuSanXuat", "menuQuanTri", "menuIfsMap" };
 
         private static readonly Dictionary<string, string> MenuFunctionMap =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -223,6 +236,8 @@ namespace PCTP
                 ["menuKhoTonTP"] = "WAREHOUSE.STOCK_VIEW",
                 ["menuKhoLinhKien"] = "WAREHOUSE.COMPONENT_STOCK",
                 ["menuSlotMesLocation"] = "WAREHOUSE.SLOT_MES_LOCATION",
+                ["menuIfsMapCenter"] = "MES.IFS_MAP_CENTER",
+                ["menuWarehouseIfsMap"] = "WAREHOUSE.WAREHOUSE_IFS_MAP",
                 ["menuMesComponentConsole"] = "WAREHOUSE.COMPONENT_STOCK",
                 ["menuNhanLinhKien"] = "WAREHOUSE.COMPONENT_RECEIPT",
                 ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
@@ -580,6 +595,9 @@ namespace PCTP
         private static string ResolveFunctionCodeFromTitle(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return null;
+            if (title.IndexOf("Trung tâm đồng bộ", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.IFS_MAP_CENTER";
+            if (title.IndexOf("Map Kho PCTP", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.WAREHOUSE_IFS_MAP";
+            if (title.IndexOf("Map Slot", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.SLOT_MES_LOCATION";
             if (title.IndexOf("Kho linh kiện", StringComparison.OrdinalIgnoreCase) >= 0) return "WAREHOUSE.COMPONENT_STOCK";
             if (title.IndexOf("Điều hành sản xuất", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PRODUCTION_EXECUTION";
             if (title.IndexOf("Upload kế hoạch", StringComparison.OrdinalIgnoreCase) >= 0) return "MES.PLAN_UPLOAD";
@@ -686,6 +704,32 @@ namespace PCTP
                     () => new PCTP.Modules.KhoLinhKien.UI.FormSlotMesLocation(site),
                     "SlotMesLocation:" + site);
             }, "Map Slot ↔ MES Location");
+        }
+
+        /// <summary>Trung tâm đồng bộ &amp; map IFS (hub): số liệu map từng công đoạn của một Site. Quyền MES.IFS_MAP_CENTER (VIEW + SITE).</summary>
+        private void OpenIfsMapCenter(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                string site = ResolveDocumentSite("MES.IFS_MAP_CENTER");
+                if (site == null) return; // user cancelled the site chooser
+                FormWindowManager.ShowSingle(this,
+                    () => new PCTP.Modules.IfsSync.FormIfsMapCenter(site),
+                    "IfsMapCenter:" + site);
+            }, "Trung tâm đồng bộ & Map IFS");
+        }
+
+        /// <summary>Map Kho PCTP (dbo.FVN_Warehouse) ↔ Kho IFS của một Site. Quyền WAREHOUSE.WAREHOUSE_IFS_MAP (VIEW/EDIT + SITE).</summary>
+        private void OpenWarehouseIfsMap(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                string site = ResolveDocumentSite("WAREHOUSE.WAREHOUSE_IFS_MAP");
+                if (site == null) return; // user cancelled the site chooser
+                FormWindowManager.ShowSingle(this,
+                    () => new PCTP.Modules.IfsSync.FormWarehouseIfsMap(site),
+                    "WarehouseIfsMap:" + site);
+            }, "Map Kho PCTP ↔ Kho IFS");
         }
 
         private void OpenNhanLinhKien(object sender, EventArgs e)
@@ -900,6 +944,29 @@ namespace PCTP
                     while (rd.Read()) sites.Add(rd.GetString(0));
             }
             return sites;
+        }
+
+        /// <summary>
+        /// Xác định Site làm việc của phiên (ActiveSiteStore) khi App.config không cố định PctpSiteCode:
+        /// một Site hợp lệ thì dùng luôn, nhiều Site thì hỏi một lần. Không có Site thì để trống (màn hình kho sẽ từ chối với thông báo rõ).
+        /// </summary>
+        private void EnsureActiveSite()
+        {
+            if (!string.IsNullOrWhiteSpace(System.Configuration.ConfigurationManager.AppSettings[AppSettingsSiteContext.SettingKey]))
+                return; // máy ép cố định một Site
+            try
+            {
+                var session = UserSession.Current;
+                if (session == null) return;
+                var sites = DocumentSiteResolver.Candidates(session, "WAREHOUSE.STOCK_VIEW", LoadActiveSites);
+                if (sites.Count == 0) return;
+                string chosen = sites.Count == 1 ? sites[0] : PickSite(sites, "làm việc (Kho / Layout kho)");
+                if (!string.IsNullOrWhiteSpace(chosen)) ActiveSiteStore.Set(chosen);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("EnsureActiveSite: " + ex.Message);
+            }
         }
 
         private string PickSite(IReadOnlyList<string> sites, string functionCode)
