@@ -270,7 +270,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 148));
 
             _header.Dock = DockStyle.Fill;
             _header.Title = "QUY TRÌNH & LUỒNG DỮ LIỆU QUẢN LÝ LINH KIỆN MES";
@@ -300,14 +300,16 @@ namespace PCTP.Modules.KhoLinhKien.UI
         private Control BuildContextPanel()
         {
             var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 9, RowCount = 2, Padding = new Padding(8, 4, 8, 2) };
+            // 4 cặp (nhãn tự co + ô nhập chia đều phần còn lại) rồi MỘT cột nút cố định đủ rộng cho 3 nút;
+            // cột nút trước đây là AutoSize nên bị 4 cột phần trăm ép hẹp, làm "IN TEM LOT" / "LÀM MỚI" bị khuất.
             for (int c = 0; c < 4; c++)
             {
                 grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
                 grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
             }
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400));
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
             Action<int, int, string, TextEdit> put = (row, col, caption, edit) =>
             {
@@ -339,13 +341,14 @@ namespace PCTP.Modules.KhoLinhKien.UI
             _ctxRefresh.Text = "LÀM MỚI"; _ctxRefresh.Width = 110; _ctxRefresh.Height = 30;
             _ctxRefresh.Click += (s, e) => RefreshContextData();
 
-            var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0) };
+            var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0), Padding = new Padding(0, 3, 0, 0) };
+            _ctxIssue.Margin = new Padding(0, 0, 8, 0); _ctxPrint.Margin = new Padding(0, 0, 8, 0); _ctxRefresh.Margin = new Padding(0);
             actions.Controls.Add(_ctxIssue);
             actions.Controls.Add(_ctxPrint);
             actions.Controls.Add(_ctxRefresh);
             grid.Controls.Add(actions, 8, 1);
 
-            return new GroupControl { Text = "THÔNG TIN LINH KIỆN & THAO TÁC NHANH (ACTIVE CONTEXT)", Dock = DockStyle.Fill, Controls = { grid } };
+            return new GroupControl { Text = "THÔNG TIN LINH KIỆN && THAO TÁC NHANH (ACTIVE CONTEXT)", Dock = DockStyle.Fill, Controls = { grid } };
         }
 
         private void RefreshContextData()

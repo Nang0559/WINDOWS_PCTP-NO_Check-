@@ -42,8 +42,10 @@ namespace PCTP.Shared.MesControls
             {
                 using (var f = new Font("Segoe UI", 9.5F, FontStyle.Regular))
                 {
-                    SizeF s = g.MeasureString(_runtime, f, 800, StringFormat.GenericTypographic);
-                    var r = new RectangleF(ClientSize.Width - s.Width - 48, 10, s.Width + 40, 30);
+                    // Đo bằng cùng StringFormat dùng để vẽ (GenericTypographic đo hẹp hơn nên chữ cuối bị cắt) và chừa lề phải.
+                    SizeF s = g.MeasureString(_runtime, f, 2000, StringFormat.GenericDefault);
+                    float badgeWidth = Math.Min(ClientSize.Width - 16, s.Width + 52);
+                    var r = new RectangleF(ClientSize.Width - badgeWidth - 12, 10, badgeWidth, 30);
                     using (var p = Round(r, 7f))
                     using (var fill = new SolidBrush(Color.FromArgb(232, 247, 238)))
                     using (var border = new Pen(Color.FromArgb(86, 190, 128), 1.2f))
@@ -55,7 +57,7 @@ namespace PCTP.Shared.MesControls
                         g.FillEllipse(dot, r.X + 12, r.Y + 11, 9, 9);
                     using (var tb = new SolidBrush(Color.FromArgb(20, 90, 50)))
                     using (var fmt = new StringFormat { LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap })
-                        g.DrawString(_runtime, f, tb, new RectangleF(r.X + 28, r.Y, r.Width - 30, r.Height), fmt);
+                        g.DrawString(_runtime, f, tb, new RectangleF(r.X + 28, r.Y, r.Width - 34, r.Height), fmt);
                     badgeLeft = r.Left;
                 }
             }

@@ -99,6 +99,8 @@
     <None Include="../PCTP/Modules/MesPlanning/ProductionPlanService.cs" Link="ProductionPlanService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/ProductionPlanRepository.cs" Link="ProductionPlanRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoLinhKien/UI/FormKhoLinhKien.cs" Link="FormKhoLinhKien.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/MesPlanning/UI/MesFlowCanvasControl.cs" Link="MesFlowCanvasControl.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Shared/MesControls/FvnMesConsoleChromeControls.cs" Link="FvnMesConsoleChromeControls.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/UI/FormDieuHanhSanXuat.cs" Link="FormDieuHanhSanXuat.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/UI/MesComponentFlowMapControl.cs" Link="MesComponentFlowMapControl.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/PCTP_InternalTransfer.sql" Link="PCTP_InternalTransfer.source.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_InternalTransfer.sql')" />

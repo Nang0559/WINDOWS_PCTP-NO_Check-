@@ -45,7 +45,8 @@ namespace PCTP.QC.Tests
             string form = Source("FormKhoLinhKien.source.cs");
             Assert.Contains("FvnConsoleHeaderControl", form);
             Assert.Contains("FvnConsoleStatusBarControl", form);
-            Assert.Contains("THÔNG TIN LINH KIỆN & THAO TÁC NHANH (ACTIVE CONTEXT)", form);
+            // "&&" = ký tự & hiển thị thật (một "&" đơn bị hiểu là phím tắt và biến mất khỏi tiêu đề).
+        Assert.Contains("THÔNG TIN LINH KIỆN && THAO TÁC NHANH (ACTIVE CONTEXT)", form);
             Assert.Contains("XUẤT LINH KIỆN", form);
             Assert.Contains("IN TEM LOT", form);
         }
