@@ -28,6 +28,10 @@ namespace PCTP.Shared.MesControls
             View.OptionsView.ColumnAutoWidth = false;
             View.OptionsSelection.MultiSelect = false;
             View.OptionsSelection.EnableAppearanceFocusedCell = false;
+            // Header có thể xuống dòng (LOT / trạng thái / cảnh báo) thay vì bị cắt ngang.
+            View.Appearance.HeaderPanel.Options.UseTextOptions = true;
+            View.Appearance.HeaderPanel.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
+            View.ColumnPanelRowHeight = 42;
             View.FocusRectStyle = DrawFocusRectStyle.RowFocus;
             Controls.Add(Grid);
         }
