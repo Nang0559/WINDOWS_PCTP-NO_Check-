@@ -281,10 +281,9 @@ namespace PCTP
 
 
         /// <summary>
-        /// Adds the entries that need their own permission check. Production items (Control Tower dòng chảy sản xuất,
-        /// Product Structure) go to "Sản xuất MES"; the component-flow Control Tower goes to "Linh kiện PART" so every
-        /// component screen lives in one group. "Quản lý linh kiện MES" (<c>menuKhoLinhKien</c>) is already created in
-        /// <see cref="BuildStandardMenus"/>; it is not registered a second time here.
+        /// Adds MES entry points with their own permission checks. Production items (Control Tower dòng chảy sản xuất,
+        /// Product Structure) go to "Sản xuất MES"; component Control Tower and the restored "Điều hành linh kiện MES"
+        /// entry go to "Linh kiện PART". The standard "Quản lý linh kiện MES" menu remains in BuildStandardMenus.
         /// </summary>
         private void AddMesBomNavigation()
         {
