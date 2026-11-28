@@ -1,4 +1,4 @@
-\xef\xbb\xbfusing System.Drawing;
+﻿using System.Drawing;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
