@@ -10,6 +10,8 @@ The MES navigation is registered in `Shell/Main_APP.cs`. It opens these function
 | Production plan upload | `Modules/MesPlanning/UI/FormUploadKeHoachSanXuat.cs` | Excel file/sheet selection, preview, validation and transactional import |
 | Plan worklist/workflow | `Modules/MesPlanning/UI/FormProductionPlanWorkflow.cs` | Plan list, VALIDATE, FIRM, CANCEL, workflow timeline and selecting a FIRM plan line |
 | Production execution | `Modules/MesPlanning/UI/FormDieuHanhSanXuat.cs` | Production order, production LOT, routing, labels, actual component consumption and operation execution |
+
+`FormDieuHanhSanXuat` UI rules: buttons are enabled by permission AND by the current workflow status (order: Created→Released→Running⇄Paused→Completed→Closed; operation: PREPARE→READY→START⇄PAUSE), a status badge, an order stepper and a one-line "next step" hint guide the operator, and the grid lists the user's FIRM plan lines/orders (from `IProductionFlowService.GetDashboard`) — selecting a row loads it into the form. COMPLETE/CLOSE/PAUSE ask for confirmation. SQL/Service remain authoritative.
 | LOT genealogy | `Modules/MesPlanning/UI/FormTruyXuatLinhKien.cs` | Upstream/downstream trace from actual consumption and production facts |
 | Workflow history | `Modules/MesPlanning/UI/FormProductionWorkflowTimeline.cs` | Read-only plan/order/LOT event history |
 
