@@ -290,11 +290,11 @@ FROM
           FROM MES.FVN_IfsWarehouse iw WHERE iw.IsActive = 1) w
     GROUP BY w.SiteCode
     UNION ALL
-    SELECT loc.SiteCode, 'LOCATION', 5, COUNT(*),
-           SUM(CASE WHEN EXISTS (SELECT 1 FROM dbo.FVN_SlotMesLocation sm WHERE sm.SiteCode = loc.SiteCode AND sm.LocationNo = loc.LocationNo
-                                 AND sm.IsPrimary = 1 AND sm.IsActive = 1) THEN 1 ELSE 0 END),
-           MAX(loc.SyncedAtUtc)
-    FROM MES.FVN_IfsInventoryLocation loc WHERE loc.IsActive = 1 GROUP BY loc.SiteCode
+    SELECT loc.SiteCode, 'LOCATION', 5, COUNT(*), SUM(CASE WHEN m.LocationNo IS NOT NULL THEN 1 ELSE 0 END), MAX(loc.SyncedAtUtc)
+    FROM MES.FVN_IfsInventoryLocation loc
+    LEFT JOIN (SELECT DISTINCT SiteCode, LocationNo FROM dbo.FVN_SlotMesLocation WHERE IsPrimary = 1 AND IsActive = 1) m
+           ON m.SiteCode = loc.SiteCode AND m.LocationNo = loc.LocationNo
+    WHERE loc.IsActive = 1 GROUP BY loc.SiteCode
     UNION ALL
     SELECT v.SiteCode, 'SLOT', 6, COUNT(*), SUM(CASE WHEN v.MapStatus = 'READY' THEN 1 ELSE 0 END), NULL
     FROM MES.vw_FVN_SlotMesLocationStatus v GROUP BY v.SiteCode
