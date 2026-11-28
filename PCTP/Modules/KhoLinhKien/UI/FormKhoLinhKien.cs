@@ -47,6 +47,9 @@ namespace PCTP.Modules.KhoLinhKien.UI
         private readonly IProductionTraceService _trace;
 
         private readonly XtraTabControl _tabs = new XtraTabControl();
+        // Tab "Nhập xuất tồn linh kiện" chứa các bước PO / nhận / tồn / điều chuyển / xuất trong một tab con.
+        private readonly XtraTabControl _opsTabs = new XtraTabControl();
+        private XtraTabPage _tabOps;
         private readonly LabelControl _status = new LabelControl();
 
         // Tab 0 - PO
@@ -141,12 +144,17 @@ namespace PCTP.Modules.KhoLinhKien.UI
             _tabs.Dock = DockStyle.Fill;
 
             _tabFlow = new XtraTabPage { Text = "QUẢN LÝ LINH KIỆN (Component Flow Console)" }; BuildFlowTab(_tabFlow); _tabs.TabPages.Add(_tabFlow);
-            if (Can(FnPo, "VIEW")) { _tabPo = new XtraTabPage { Text = "0. Yêu cầu mua hàng (PO)" }; BuildPoTab(_tabPo); _tabs.TabPages.Add(_tabPo); }
-            if (Can(FnReceipt, "VIEW")) { _tabReceipt = new XtraTabPage { Text = "1. Nhận linh kiện (QR)" }; BuildReceiptTab(_tabReceipt); _tabs.TabPages.Add(_tabReceipt); }
-            _tabStock = new XtraTabPage { Text = "2. Tồn kho PART" }; BuildStockTab(_tabStock); _tabs.TabPages.Add(_tabStock);
-            if (Can(FnTransfer, "VIEW")) { _tabTransfer = new XtraTabPage { Text = "3. Điều chuyển LOT" }; BuildTransferTab(_tabTransfer); _tabs.TabPages.Add(_tabTransfer); }
-            if (Can(FnDemand, "VIEW") && Can(FnIssue, "VIEW")) { _tabIssue = new XtraTabPage { Text = "4. Xuất theo nhu cầu SX" }; BuildIssueTab(_tabIssue); _tabs.TabPages.Add(_tabIssue); }
-            if (Can(FnTrace, "VIEW")) { _tabTrace = new XtraTabPage { Text = "5. Truy xuất LOT → thành phẩm" }; BuildTraceTab(_tabTrace); _tabs.TabPages.Add(_tabTrace); }
+            if (Can(FnPo, "VIEW")) { _tabPo = new XtraTabPage { Text = "0. Yêu cầu mua hàng (PO)" }; BuildPoTab(_tabPo); _opsTabs.TabPages.Add(_tabPo); }
+            if (Can(FnReceipt, "VIEW")) { _tabReceipt = new XtraTabPage { Text = "1. Nhận linh kiện (QR)" }; BuildReceiptTab(_tabReceipt); _opsTabs.TabPages.Add(_tabReceipt); }
+            _tabStock = new XtraTabPage { Text = "2. Tồn kho PART" }; BuildStockTab(_tabStock); _opsTabs.TabPages.Add(_tabStock);
+            if (Can(FnTransfer, "VIEW")) { _tabTransfer = new XtraTabPage { Text = "3. Điều chuyển LOT" }; BuildTransferTab(_tabTransfer); _opsTabs.TabPages.Add(_tabTransfer); }
+            if (Can(FnDemand, "VIEW") && Can(FnIssue, "VIEW")) { _tabIssue = new XtraTabPage { Text = "4. Xuất theo nhu cầu SX" }; BuildIssueTab(_tabIssue); _opsTabs.TabPages.Add(_tabIssue); }
+            if (Can(FnTrace, "VIEW")) { _tabTrace = new XtraTabPage { Text = "Truy vết LotNo vật tư" }; BuildTraceTab(_tabTrace); _tabs.TabPages.Add(_tabTrace); }
+
+            _opsTabs.Dock = DockStyle.Fill;
+            _tabOps = new XtraTabPage { Text = "Nhập xuất tồn linh kiện" };
+            _tabOps.Controls.Add(_opsTabs);
+            _tabs.TabPages.Insert(1, _tabOps);   // sau tab Component Flow Console, trước tab Truy vết
 
             _tabs.SelectedTabPage = _tabFlow;
             _tabs.SelectedPageChanged += (s, e) => { if (_tabs.SelectedTabPage == _tabFlow) UpdateFlowMap(); };
@@ -331,7 +339,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
             {
                 case "upload":
                     if (_tabPo == null) return;
-                    _tabs.SelectedTabPage = _tabPo;
+                    GoTab(_tabPo);
                     if (_btnUpload.Enabled) _btnUpload.PerformClick();
                     break;
                 case "validate": ClickPoAction(_btnValidate); break;
@@ -351,13 +359,19 @@ namespace PCTP.Modules.KhoLinhKien.UI
         {
             if (_tabPo == null) return;
             if (button.Enabled) { button.PerformClick(); return; }
-            _tabs.SelectedTabPage = _tabPo;
+            GoTab(_tabPo);
             SetStatus("Chọn một PO ở trạng thái phù hợp trong danh sách để thực hiện bước này.");
         }
 
         private void GoTab(XtraTabPage page)
         {
-            if (page != null) _tabs.SelectedTabPage = page;
+            if (page == null) return;
+            if (page.TabControl == _opsTabs)
+            {
+                _tabs.SelectedTabPage = _tabOps;
+                _opsTabs.SelectedTabPage = page;
+            }
+            else _tabs.SelectedTabPage = page;
         }
 
         // ── Nhận ngữ cảnh từ MES CONTROL TOWER - Dòng chảy linh kiện (CHỌN DÒNG LINH KIỆN) ──
@@ -416,7 +430,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
                     case "STOCK": target = _tabStock; break;
                     default: target = _tabFlow; break;
                 }
-                _tabs.SelectedTabPage = target ?? _tabFlow;
+                GoTab(target ?? _tabFlow);
                 UpdateFlowMap();
                 SetStatus("Đã nạp ngữ cảnh từ Control Tower: PO " + ctx.PoNo +
                     (string.IsNullOrWhiteSpace(ctx.LotNo) ? string.Empty : " / LotNo " + ctx.LotNo) + ".");
@@ -978,7 +992,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
                     "-" + _xferKey.Substring(0, 4).ToUpperInvariant();
                 _btnTransfer.Enabled = Can(FnTransfer, "CONFIRM");
                 LoadTransferHistory(site);
-                _tabs.SelectedTabPage = _tabTransfer;
+                GoTab(_tabTransfer);
             }
             catch (Exception ex) { SetStatus(ex.Message); }
         }
@@ -1057,7 +1071,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
             int index = _traceSite.Properties.Items.IndexOf(site);
             if (index >= 0) _traceSite.SelectedIndex = index;
             _traceDirection.SelectedIndex = 0;
-            _tabs.SelectedTabPage = _tabTrace;
+            GoTab(_tabTrace);
             RunTrace();
         }
 

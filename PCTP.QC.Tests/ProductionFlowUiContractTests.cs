@@ -19,7 +19,12 @@ namespace PCTP.QC.Tests
             string form = Source("FormMesProductionControlTower.source.cs");
             Assert.Contains("FvnFlowStepperControl", form);
             Assert.Contains("FvnHoldListControl", form);
-            Assert.Contains("LayoutControl", form);
+            // Bố cục hiện tại dùng TableLayoutPanel (đã thay LayoutControl ở commit "Rebuild production Control Tower layout").
+            Assert.Contains("TableLayoutPanel", form);
+            Assert.DoesNotContain("LayoutControl ", form);
+            Assert.Contains("FvnFlowStageCardsControl", form);
+            Assert.Contains("CHỌN DÒNG FIRM", form);
+            Assert.Contains("PreloadContext", form);
             Assert.Contains("OpenSelectedTimeline", form);
             Assert.DoesNotContain("MemoEdit", form);
             Assert.DoesNotContain("SplitterPosition = 840", form);
