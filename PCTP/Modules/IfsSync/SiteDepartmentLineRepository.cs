@@ -17,6 +17,9 @@ namespace PCTP.Modules.IfsSync
         /// <summary>Các dòng LOT code map không còn khớp Line/Department (rỗng = hợp lệ).</summary>
         DataTable GetLotCodeMapIssues(string siteCode);
 
+        /// <summary>Các bất nhất dữ liệu gốc của Site (MES.vw_FVN_MasterDataConsistency), kể cả Work Center ↔ chuyền IFS ↔ mapping.</summary>
+        DataTable GetConsistency(string siteCode);
+
         void Link(string siteCode, string workCenterNo, string departmentCode, string lineCode,
             string lineName, string departmentName);
 
@@ -76,6 +79,17 @@ SELECT SiteCode, PlanProductionLineCode, LotLineCode, DepartmentCode, IntegrityS
 FROM MES.vw_FVN_LotCodeMapIntegrity
 WHERE SiteCode = @SiteCode AND IntegrityStatus <> 'OK'
 ORDER BY PlanProductionLineCode;", site);
+        }
+
+        public DataTable GetConsistency(string siteCode)
+        {
+            string site = RequireSite(siteCode);
+            AuthorizationGuard.DemandScope(FunctionCode, "SITE", site, site);
+            return Query(@"
+SELECT IssueCode, Severity, SiteCode, ObjectKey, Detail
+FROM MES.vw_FVN_MasterDataConsistency
+WHERE SiteCode = @SiteCode
+ORDER BY CASE Severity WHEN 'ERROR' THEN 0 WHEN 'WARN' THEN 1 ELSE 2 END, IssueCode, ObjectKey;", site);
         }
 
         public void Link(string siteCode, string workCenterNo, string departmentCode, string lineCode,

@@ -563,6 +563,13 @@
     <Compile Include="Infrastructure\Sql\SQL.cs" />
     <Compile Include="Modules\IfsSync\IfsSyncService.cs" />
     <Compile Include="Modules\IfsSync\SiteDepartmentLineRepository.cs" />
+    <Compile Include="Modules\IfsSync\SiteSetupRepository.cs" />
+    <Compile Include="Modules\IfsSync\FormSiteSetup.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\IfsSync\FormWorkCenterDepartmentLink.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\IfsSync\FormIfsSync.cs">
       <SubType>Form</SubType>
     </Compile>

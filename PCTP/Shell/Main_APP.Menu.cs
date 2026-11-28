@@ -104,7 +104,9 @@ namespace PCTP
                 Expanded = true
             };
             _menuSanXuat.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoSite", "Khai báo Site PCTP (cho phép / tạm ngưng)", OpenKhaiBaoSite));
             _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoChuyenSanXuat", "Khai báo chuyền sản xuất theo Site", OpenKhaiBaoChuyenSanXuat));
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuLienKetWorkCenter", "Liên kết Work Center IFS ↔ Bộ phận", OpenLienKetWorkCenter));
             _menuSanXuat.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
             // Control Tower và BOM được thêm ở AddMesBomNavigation (cần kiểm quyền riêng từng mục).
 
@@ -218,6 +220,8 @@ namespace PCTP
                 ["menuNhanLinhKien"] = "WAREHOUSE.COMPONENT_RECEIPT",
                 ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
                 ["menuKhaiBaoChuyenSanXuat"] = "MES.PRODUCTION_LINE_SETUP",
+                ["menuKhaiBaoSite"] = "MES.SITE_SETUP",
+                ["menuLienKetWorkCenter"] = "MES.SITE_DEPARTMENT_LINE",
                 ["menuDieuHanhSanXuat"] = "MES.PRODUCTION_EXECUTION",
                 ["menuYeuCauXuatLinhKien"] = "MES.COMPONENT_DEMAND",
                 ["menuChungTuYeuCauLinhKien"] = "MES.COMPONENT_DEMAND",
@@ -691,6 +695,29 @@ namespace PCTP
                     () => new PCTP.Modules.MesPlanning.UI.FormProductionLineSetup(site),
                     "ProductionLineSetup:" + site);
             }, "Khai báo chuyền sản xuất");
+        }
+
+        /// <summary>Danh sách Site PCTP được phép (dbo.FVN_PCTPSite): cho phép / bật / tạm ngưng / đổi tên. Quyền MES.SITE_SETUP; Site chỉ cho phép khi đã đồng bộ từ IFS.</summary>
+        private void OpenKhaiBaoSite(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(
+                this,
+                () => new PCTP.Modules.IfsSync.FormSiteSetup(),
+                "SiteSetup"),
+                "Khai báo Site PCTP");
+        }
+
+        /// <summary>Liên kết Work Center IFS với bộ phận PCTP của Site; SQL chặn khi lệch chuyền IFS với mapping. Quyền MES.SITE_DEPARTMENT_LINE (VIEW/EDIT + SITE).</summary>
+        private void OpenLienKetWorkCenter(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                string site = ResolveDocumentSite("MES.SITE_DEPARTMENT_LINE");
+                if (site == null) return; // user cancelled the site chooser
+                FormWindowManager.ShowSingle(this,
+                    () => new PCTP.Modules.IfsSync.FormWorkCenterDepartmentLink(site),
+                    "WorkCenterLink:" + site);
+            }, "Liên kết Work Center");
         }
 
         private void OpenYeuCauXuatLinhKien(object sender, EventArgs e)
