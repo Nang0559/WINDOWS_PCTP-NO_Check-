@@ -296,6 +296,10 @@ namespace PCTP
             // Dòng chảy linh kiện thuộc nhóm "Linh kiện PART" (cùng nhóm với Quản lý linh kiện MES), không thuộc "Sản xuất MES".
             AddMesMenuItem(_menuLinhKien ?? _menuSanXuat, "menuMesComponentFlow", "MES Control Tower - Dòng chảy linh kiện",
                 "WAREHOUSE.COMPONENT_STOCK", () => new FormMesComponentControlTower());
+            // Khôi phục entry point "Điều hành linh kiện" đã bị bỏ trong commit site-lookup.
+            // Đây là màn hình nghiệp vụ FormKhoLinhKien; không thay thế Control Tower chỉ đọc.
+            AddMesMenuItem(_menuLinhKien ?? _menuSanXuat, "menuMesComponentConsole", "Điều hành linh kiện MES",
+                "WAREHOUSE.COMPONENT_STOCK", () => new FormKhoLinhKien());
 
             var bomItem = new AccordionControlElement
             {
