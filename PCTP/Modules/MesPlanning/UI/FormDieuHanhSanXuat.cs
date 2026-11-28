@@ -133,7 +133,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _service = service ?? throw new ArgumentNullException(nameof(service));
             _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
             _flow = flow;
-            Text = "Điều hành sản xuất MES";
+            Text = "Điều hành sản xuất MES - Live Execution Console";
             StartPosition = FormStartPosition.CenterParent;
             Size = new Size(1280, 820);
             MinimumSize = new Size(1000, 680);
@@ -181,7 +181,7 @@ namespace PCTP.Modules.MesPlanning.UI
         // ---------------------------------------------------------------- Tab 0: Sơ đồ quy trình
         private XtraTabPage BuildFlowTab()
         {
-            var page = new XtraTabPage { Text = "Sơ đồ quy trình" };
+            var page = new XtraTabPage { Text = "BẢNG ĐIỀU HÀNH RUNTIME" };
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Padding = new Padding(8) };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
@@ -287,7 +287,7 @@ namespace PCTP.Modules.MesPlanning.UI
         // ---------------------------------------------------------------- Tab 1: Lệnh và LOT
         private XtraTabPage BuildOrderTab()
         {
-            var page = new XtraTabPage { Text = "Lệnh và LOT" };
+            var page = new XtraTabPage { Text = "LỆNH / LOT / GHI NHẬN" };
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(8) };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -562,7 +562,7 @@ namespace PCTP.Modules.MesPlanning.UI
         // ---------------------------------------------------------------- Tab 3: Tiêu hao linh kiện
         private XtraTabPage BuildConsumeTab()
         {
-            var page = new XtraTabPage { Text = "Tiêu hao LOT linh kiện" };
+            var page = new XtraTabPage { Text = "TIÊU HAO LOT LINH KIỆN" };
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(8) };
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 55));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
