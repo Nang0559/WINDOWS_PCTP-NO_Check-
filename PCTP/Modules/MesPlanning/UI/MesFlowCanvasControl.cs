@@ -220,7 +220,7 @@ namespace PCTP.Modules.MesPlanning.UI
                     if (i == _activeLane) g.FillRectangle(tint, l.X0, 4, l.X1 - l.X0, 500);
                     if (i > 0) g.DrawLine(sep, l.X0, 8, l.X0, 500);
                     g.DrawString(l.Title, font, i == _activeLane ? activeBrush : normalBrush,
-                        new RectangleF(l.X0 + 4, 4, l.X1 - l.X0 - 8, 30), center);
+                        new RectangleF(l.X0 + 4, 4, l.X1 - l.X0 - 8, 50), center);
                 }
             }
         }

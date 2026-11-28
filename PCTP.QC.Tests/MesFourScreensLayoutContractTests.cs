@@ -49,5 +49,18 @@ namespace PCTP.QC.Tests
             Assert.Contains("XUẤT LINH KIỆN", form);
             Assert.Contains("IN TEM LOT", form);
         }
+
+        [Fact]
+        public void ComponentFlowMapKeepsSixLaneTitlesAndStockControlPill()
+        {
+            string map = Source("MesComponentFlowMapControl.source.cs");
+            Assert.Contains("UPLOAD PO LINH KIỆN", map);
+            Assert.Contains("PHÁT HÀNH TEM THÙNG / TEM PALLET", map);
+            Assert.Contains("NHẬP KHO LINH KIỆN", map);
+            Assert.Contains("TIẾP NHẬN YÊU CẦU LINH KIỆN", map);
+            Assert.Contains("XUẤT LINH KIỆN", map);
+            Assert.Contains("QUẢN LÝ TỒN THEO LOTNO & TỒN TOÀN NHÀ MÁY", map);
+            Assert.Contains("KIỂM SOÁT TỒN KHO THEO LOT", map);
+        }
     }
 }

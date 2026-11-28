@@ -100,6 +100,7 @@
     <None Include="../PCTP/Modules/MesPlanning/ProductionPlanRepository.cs" Link="ProductionPlanRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoLinhKien/UI/FormKhoLinhKien.cs" Link="FormKhoLinhKien.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/UI/FormDieuHanhSanXuat.cs" Link="FormDieuHanhSanXuat.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/MesPlanning/UI/MesComponentFlowMapControl.cs" Link="MesComponentFlowMapControl.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/PCTP_InternalTransfer.sql" Link="PCTP_InternalTransfer.source.sql" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../SQL/PCTP_InternalTransfer.sql')" />
     <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataInventory.ps1" Link="Invoke-PctpLiveDataInventory.source.ps1" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataProfile.ps1" Link="Invoke-PctpLiveDataProfile.source.ps1" CopyToOutputDirectory="PreserveNewest" />

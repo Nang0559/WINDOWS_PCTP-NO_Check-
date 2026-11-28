@@ -23,11 +23,11 @@ namespace PCTP.Modules.MesPlanning.UI
             var note = Color.FromArgb(70, 80, 95);
 
             AddLane("UPLOAD PO LINH KIỆN", 0, 205);
-            AddLane("TEM THÙNG / TEM PALLET", 205, 410);
+            AddLane("PHÁT HÀNH TEM THÙNG / TEM PALLET", 205, 410);
             AddLane("NHẬP KHO LINH KIỆN", 410, 615);
-            AddLane("TIẾP NHẬN YÊU CẦU", 615, 900);
+            AddLane("TIẾP NHẬN YÊU CẦU LINH KIỆN", 615, 900);
             AddLane("XUẤT LINH KIỆN", 900, 1090);
-            AddLane("QUẢN LÝ TỒN THEO LOTNO", 1090, MesFlowCanvasControl.CanvasWidth);
+            AddLane("QUẢN LÝ TỒN THEO LOTNO & TỒN TOÀN NHÀ MÁY", 1090, MesFlowCanvasControl.CanvasWidth);
 
             // Cột 0 - Upload PO
             AddBox(22, 56, 160, 46, "Đơn hàng mua linh kiện (PO)", "NCC: Supplier A, B, C");
@@ -88,7 +88,7 @@ namespace PCTP.Modules.MesPlanning.UI
             AddNode("stock", "TỒN KHO PART &\nTRA CỨU LOTNO", 1102, 120, 174, 44, green);
             AddNode("transfer", "ĐIỀU CHUYỂN LOT", 1102, 190, 174, 40, purple);
             AddNode("trace", "TRUY VẾT LOTNO\nVẬT TƯ", 1102, 256, 174, 44, slate);
-            AddPill("stockctl", "KIỂM SOÁT TỒN THEO LOT", 1108, 320, 162, 24, green, true);
+            AddPill("stockctl", "KIỂM SOÁT TỒN KHO THEO LOT", 1102, 320, 174, 24, green, true);
             AddNote(1104, 356, "Tồn chưa tiêu hao sản xuất\n& tồn toàn nhà máy", false, note);
             AddConnector(true, 1075, 182, 1102, 182);
             AddConnector(false, 1189, 164, 1189, 190);
