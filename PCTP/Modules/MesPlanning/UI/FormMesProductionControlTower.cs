@@ -93,25 +93,37 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void BuildUi()
         {
+            // Control Tower: bộ lọc + 5 chặng KPI + lưới dòng Firm + trạng thái.
+            // Không thực hiện posting/transition tại màn hình giám sát.
             var root = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, Padding = new Padding(12),
-                ColumnCount = 1, RowCount = 4
+                Dock = DockStyle.Fill,
+                Padding = new Padding(12),
+                ColumnCount = 1,
+                RowCount = 4
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
 
-            var header = new PanelControl { Dock = DockStyle.Fill, BorderStyle = BorderStyles.NoBorder };
+            var header = new PanelControl
+            {
+                Dock = DockStyle.Fill,
+                BorderStyle = BorderStyles.NoBorder,
+                Padding = new Padding(4, 4, 4, 0)
+            };
             _filters.Dock = DockStyle.Left;
-            _filters.Width = 700;
+            _filters.Width = 760;
             header.Controls.Add(_filters);
 
             var actionPanel = new FlowLayoutPanel
             {
-                Dock = DockStyle.Right, Width = 440, WrapContents = false,
-                FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(0, 12, 0, 0)
+                Dock = DockStyle.Right,
+                Width = _selectionMode ? 250 : 540,
+                WrapContents = false,
+                FlowDirection = FlowDirection.RightToLeft,
+                Padding = new Padding(0, 12, 0, 0)
             };
             if (_selectionMode)
             {
@@ -121,9 +133,9 @@ namespace PCTP.Modules.MesPlanning.UI
             }
             else
             {
-                ConfigureAction(_openProduction, "TÁC VỤ SẢN XUẤT", UserSession.Current.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"));
+                ConfigureAction(_openProduction, "ĐIỀU HÀNH SX", UserSession.Current.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"));
                 _openProduction.Click += (s, e) => OpenProduction();
-                ConfigureAction(_openPart, "TÁC VỤ LINH KIỆN", UserSession.Current.HasPermission("MES.COMPONENT_DEMAND", "VIEW") && UserSession.Current.HasPermission("MES.COMPONENT_ISSUE", "VIEW"));
+                ConfigureAction(_openPart, "DÒNG LINH KIỆN", UserSession.Current.HasPermission("MES.COMPONENT_DEMAND", "VIEW") && UserSession.Current.HasPermission("MES.COMPONENT_ISSUE", "VIEW"));
                 _openPart.Click += (s, e) => OpenPart();
                 ConfigureAction(_openPlan, "KẾ HOẠCH", UserSession.Current.HasPermission("MES.PLAN_UPLOAD", "VIEW"));
                 _openPlan.Click += (s, e) => OpenPlan();
@@ -139,14 +151,7 @@ namespace PCTP.Modules.MesPlanning.UI
             }
             header.Controls.Add(actionPanel);
 
-            var kpis = _stageStrip;
-
-            var split = new SplitContainerControl { Dock = DockStyle.Fill, Horizontal = false };
-            split.SizeChanged += (s, e) =>
-            {
-                int available = split.ClientSize.Width;
-                if (available > 700) split.SplitterPosition = Math.Max(420, (int)(available * 0.68));
-            };
+            _stageStrip.Dock = DockStyle.Fill;
             _taskGrid.Dock = DockStyle.Fill;
             _taskGrid.View.RowCellStyle += View_RowCellStyle;
             _taskGrid.View.CustomColumnDisplayText += (s, e) =>
@@ -156,11 +161,11 @@ namespace PCTP.Modules.MesPlanning.UI
                 else if (e.Column.FieldName == "FlowStage")
                 {
                     string stage = Convert.ToString(e.Value);
-                    e.DisplayText = stage == "PLAN" ? "Kế hoạch" :
-                        stage == "COMPONENTS" ? "Cấp linh kiện" :
-                        stage == "ORDER" ? "Chờ lệnh SX" :
-                        stage == "PRODUCTION" ? "Đang sản xuất" :
-                        stage == "DONE" ? "Hoàn thành" : stage;
+                    e.DisplayText = stage == "PLAN" ? "01 Kế hoạch" :
+                        stage == "COMPONENTS" ? "02 Cấp linh kiện" :
+                        stage == "ORDER" ? "03 Lệnh sản xuất" :
+                        stage == "PRODUCTION" ? "04 Sản xuất thực tế" :
+                        stage == "DONE" ? "05 Hoàn thành" : stage;
                 }
                 else if (e.Column.FieldName == "WaitingAt")
                 {
@@ -181,48 +186,17 @@ namespace PCTP.Modules.MesPlanning.UI
                 if (_selectionMode) SelectCurrentFirmPlan();
                 else OpenSelectedTimeline();
             };
-            _details.Dock = DockStyle.Fill;
-            _details.Dock = DockStyle.Fill;
-            _details.AutoSizeMode = LabelAutoSizeMode.None;
-            _details.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
-            _details.Text = "Chọn một dòng để xem chi tiết dòng chảy, bộ phận liên quan và điểm đang chờ.";
-            var detailPanel = new PanelControl { Dock = DockStyle.Fill, BorderStyle = BorderStyles.NoBorder, Padding = new Padding(8) };
-            detailPanel.AutoScroll = true;
-            var detailTitle = new LabelControl
-            {
-                Dock = DockStyle.Top, Height = 28, Text = "CHI TIẾT DÒNG CHẢY / ĐIỂM CHỜ",
-
-            };
-            _scopeBadge.Dock = DockStyle.Top;
-            _holdAlert.Dock = DockStyle.Top;
-            _progressSummary.Dock = DockStyle.Bottom;
-            detailPanel.Controls.Add(_details);
-            detailPanel.Controls.Add(_holdList);
-            detailPanel.Controls.Add(_flowStepper);
-            detailPanel.Controls.Add(_progressSummary);
-            detailPanel.Controls.Add(_holdAlert);
-            detailPanel.Controls.Add(_scopeBadge);
-            detailPanel.Controls.Add(detailTitle);
-            split.Panel1.Controls.Add(_taskGrid);
-            var detailLayout = new LayoutControl { Dock = DockStyle.Fill };
-            var detailGroup = new LayoutControlGroup { GroupBordersVisible = false };
-            detailLayout.Root = detailGroup;
-            detailLayout.Controls.Add(detailPanel);
-            var detailItem = detailGroup.AddItem();
-            detailItem.Control = detailPanel;
-            detailItem.TextVisible = false;
-            split.Panel2.Controls.Add(detailLayout);
 
             var footer = new PanelControl { Dock = DockStyle.Fill, BorderStyle = BorderStyles.NoBorder };
             _onlyMyTasks.Text = "Chỉ việc của tôi";
             _onlyMyTasks.Dock = DockStyle.Left;
-            _onlyMyTasks.Width = 130;
+            _onlyMyTasks.Width = 145;
             _onlyMyTasks.CheckedChanged += (s, e) =>
                 _taskGrid.View.ActiveFilterString = _onlyMyTasks.Checked ? "[IsActionable] = true" : string.Empty;
             _status.Dock = DockStyle.Fill;
             _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _refreshStamp.Dock = DockStyle.Right;
-            _refreshStamp.Width = 240;
+            _refreshStamp.Width = 220;
             _refreshStamp.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
             _refreshStamp.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             footer.Controls.Add(_status);
@@ -230,8 +204,8 @@ namespace PCTP.Modules.MesPlanning.UI
             footer.Controls.Add(_onlyMyTasks);
 
             root.Controls.Add(header, 0, 0);
-            root.Controls.Add(kpis, 0, 1);
-            root.Controls.Add(split, 0, 2);
+            root.Controls.Add(_stageStrip, 0, 1);
+            root.Controls.Add(_taskGrid, 0, 2);
             root.Controls.Add(footer, 0, 3);
             Controls.Add(root);
         }
