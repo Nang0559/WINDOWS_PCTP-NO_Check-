@@ -1272,6 +1272,10 @@
     <Compile Include="Modules\KhoLinhKien\UI\FormKiemKeHangVeScan.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Modules\KhoLinhKien\UI\FormSlotMesLocation.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoLinhKien\SlotMesLocationRepository.cs" />
     <Compile Include="Infrastructure\Repositories\PhieuTrackingRepository.cs" />
     <Compile Include="Modules\NhapKho\Repository\StockTPRepository.cs" />
     <Compile Include="Modules\KhoVatLy\Report\RpInNhapKho.cs">

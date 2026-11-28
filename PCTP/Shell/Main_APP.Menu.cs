@@ -91,6 +91,8 @@ namespace PCTP
             _menuLinhKien.Elements.Add(CreateMenuItem("menuPhieuDatHangLinhKienUi", "Đặt hàng linh kiện (Upload PO)", OpenPhieuDatHangLinhKienUi));
             // Khai báo SL / thùng (Quantity) và SL / palet (MaxCloseQty): phát hành PO chia tem thùng / tem palet theo quy cách này.
             _menuLinhKien.Elements.Add(CreateMenuItem("menuQuyCachDongGoi", "Quy cách đóng gói (thùng / palet)", OpenQuyCachDongGoi));
+            // Khai báo Slot nào là kho PART / WIP và map sang MES Location (IFS): điều kiện để Kiểm kê hàng về có Slot nhập kho.
+            _menuLinhKien.Elements.Add(CreateMenuItem("menuSlotMesLocation", "Map Slot kho ↔ MES Location (IFS)", OpenSlotMesLocation));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Kiểm kê hàng về (QR)", OpenNhanLinhKien));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuKhoLinhKien", "Quản lý linh kiện MES (PO / Tem / Nhập / Xuất / Tồn LotNo)", OpenKhoLinhKien));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuChungTuYeuCauLinhKien", "Chứng từ yêu cầu linh kiện", OpenChungTuYeuCauLinhKien));
@@ -220,6 +222,7 @@ namespace PCTP
                 ["menuThuHoiHangNoiBo"] = "WAREHOUSE.MOVE",
                 ["menuKhoTonTP"] = "WAREHOUSE.STOCK_VIEW",
                 ["menuKhoLinhKien"] = "WAREHOUSE.COMPONENT_STOCK",
+                ["menuSlotMesLocation"] = "WAREHOUSE.SLOT_MES_LOCATION",
                 ["menuMesComponentConsole"] = "WAREHOUSE.COMPONENT_STOCK",
                 ["menuNhanLinhKien"] = "WAREHOUSE.COMPONENT_RECEIPT",
                 ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
@@ -670,6 +673,19 @@ namespace PCTP
                 this,
                 () => new PCTP.Modules.KhoLinhKien.UI.FormKhoLinhKien()),
                 "Kho linh kiện PART");
+        }
+
+        /// <summary>Map Slot kho ↔ MES Location (IFS) và vùng PART / WIP. Quyền WAREHOUSE.SLOT_MES_LOCATION (VIEW/EDIT + SITE).</summary>
+        private void OpenSlotMesLocation(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                string site = ResolveDocumentSite("WAREHOUSE.SLOT_MES_LOCATION");
+                if (site == null) return; // user cancelled the site chooser
+                FormWindowManager.ShowSingle(this,
+                    () => new PCTP.Modules.KhoLinhKien.UI.FormSlotMesLocation(site),
+                    "SlotMesLocation:" + site);
+            }, "Map Slot ↔ MES Location");
         }
 
         private void OpenNhanLinhKien(object sender, EventArgs e)

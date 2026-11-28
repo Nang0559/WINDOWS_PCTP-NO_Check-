@@ -22,6 +22,7 @@
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/079_MES_LineCodeCrossRef5To3.sql" Link="079_MES_LineCodeCrossRef5To3.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/080_MES_DepartmentCodeCrossRefAndMaintenance.sql" Link="080_MES_DepartmentCodeCrossRefAndMaintenance.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/081_MES_StrictMasterDataChain.sql" Link="081_MES_StrictMasterDataChain.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/083_MES_SlotMesLocationMapping.sql" Link="083_MES_SlotMesLocationMapping.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/079b_MES_LineCodeCrossRefSeed.sql" Link="079b_MES_LineCodeCrossRefSeed.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/078_MES_WorkCenterLinkCodesFromIfs.sql" Link="078_MES_WorkCenterLinkCodesFromIfs.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/076_MES_MasterDataUnification.sql" Link="076_MES_MasterDataUnification.sql" CopyToOutputDirectory="PreserveNewest" />
@@ -99,6 +100,10 @@
     <None Include="../PCTP/Modules/MesPlanning/ProductionPlanService.cs" Link="ProductionPlanService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/ProductionPlanRepository.cs" Link="ProductionPlanRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoLinhKien/UI/FormKhoLinhKien.cs" Link="FormKhoLinhKien.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoLinhKien/UI/FormSlotMesLocation.cs" Link="FormSlotMesLocation.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoLinhKien/SlotMesLocationRepository.cs" Link="SlotMesLocationRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/NhapKho/ComponentReceiving/ComponentSlotLookupRepository.cs" Link="ComponentSlotLookupRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoLinhKien/UI/FormKiemKeHangVeScan.cs" Link="FormKiemKeHangVeScan.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/UI/MesFlowCanvasControl.cs" Link="MesFlowCanvasControl.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/MesControls/FvnMesConsoleChromeControls.cs" Link="FvnMesConsoleChromeControls.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/MesPlanning/UI/FormDieuHanhSanXuat.cs" Link="FormDieuHanhSanXuat.source.cs" CopyToOutputDirectory="PreserveNewest" />

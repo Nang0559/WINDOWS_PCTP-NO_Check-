@@ -33,6 +33,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
 
         // Slot gần nhất người dùng chọn — nhớ trong phiên làm việc để mỗi yêu cầu mới không phải chọn lại.
         private static int? _lastSlotId;
+        private readonly SimpleButton _mapSlot = new SimpleButton();
 
         private readonly IComponentReceivingService _receiving;
         private readonly IComponentReceivingQueryService _query;
@@ -169,6 +170,14 @@ namespace PCTP.Modules.KhoLinhKien.UI
             _banner.Appearance.TextOptions.VAlignment = VertAlignment.Center;
             _banner.Padding = new Padding(12, 0, 12, 0);
             _bannerPanel.Controls.Add(_banner);
+            // Site chưa có Slot PART map sang MES Location: mở thẳng màn khai báo thay vì chỉ báo lỗi.
+            _mapSlot.Text = "Map Slot ↔ Location…";
+            _mapSlot.Dock = DockStyle.Right;
+            _mapSlot.Width = 190;
+            _mapSlot.Visible = false;
+            _mapSlot.ToolTip = "Mở màn Map Slot kho ↔ MES Location (IFS); đóng lại để tải lại danh sách Slot.";
+            _mapSlot.Click += (s, e) => OpenSlotMapping();
+            _bannerPanel.Controls.Add(_mapSlot);
 
             // 4) Lưới tem
             _grid.Dock = DockStyle.Fill;
@@ -273,15 +282,33 @@ namespace PCTP.Modules.KhoLinhKien.UI
 
         // ───────────────────────────── Dữ liệu ─────────────────────────────
 
+        private void OpenSlotMapping()
+        {
+            try
+            {
+                using (var form = new FormSlotMesLocation(_siteCode)) form.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                SetStatus("Không mở được màn Map Slot: " + ex.GetBaseException().Message, Kind.Error);
+                return;
+            }
+            LoadSlots();
+        }
+
         private void LoadSlots()
         {
             try
             {
                 DataTable slots = _slotLookup.GetActiveSlots(_siteCode);
                 _slot.Properties.DataSource = slots;
+                bool wasMissing = _mapSlot.Visible;
+                _mapSlot.Visible = slots.Rows.Count == 0;
                 if (slots.Rows.Count == 0)
-                    SetStatus("Site " + _siteCode + " chưa có Slot PART hoạt động được map sang MES Location.", Kind.Warning);
-                else if (slots.Rows.Count == 1)
+                    SetStatus("Site " + _siteCode + " chưa có Slot PART hoạt động được map sang MES Location. Bấm \"Map Slot ↔ Location…\" để khai báo.", Kind.Warning);
+                else if (wasMissing)
+                    SetStatus("Đã có " + slots.Rows.Count + " Slot PART sẵn sàng. Chọn Slot rồi quét tem.", Kind.Success);
+                if (slots.Rows.Count == 1)
                     _slot.EditValue = slots.Rows[0]["SlotId"];
                 else if (_lastSlotId.HasValue && slots.Select("SlotId = " + _lastSlotId.Value).Length > 0)
                     _slot.EditValue = _lastSlotId.Value;
