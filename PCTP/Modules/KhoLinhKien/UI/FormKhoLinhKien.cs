@@ -97,7 +97,11 @@ namespace PCTP.Modules.KhoLinhKien.UI
         private readonly GridControl _traceGrid = new GridControl();
         private readonly GridView _traceView = new GridView();
 
-        private XtraTabPage _tabPo, _tabReceipt, _tabStock, _tabTransfer, _tabIssue, _tabTrace;
+        private XtraTabPage _tabPo, _tabReceipt, _tabStock, _tabTransfer, _tabIssue, _tabTrace, _tabFlow;
+
+        // Tab "Sơ đồ quy trình"
+        private readonly MesComponentFlowMapControl _flowMap = new MesComponentFlowMapControl();
+        private readonly LabelControl _mapHint = new LabelControl();
 
         public FormKhoLinhKien()
             : this(new ComponentPurchaseOrderService(new ComponentPurchaseOrderRepository(),
@@ -136,6 +140,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
         {
             _tabs.Dock = DockStyle.Fill;
 
+            _tabFlow = new XtraTabPage { Text = "Sơ đồ quy trình" }; BuildFlowTab(_tabFlow); _tabs.TabPages.Add(_tabFlow);
             if (Can(FnPo, "VIEW")) { _tabPo = new XtraTabPage { Text = "0. Yêu cầu mua hàng (PO)" }; BuildPoTab(_tabPo); _tabs.TabPages.Add(_tabPo); }
             if (Can(FnReceipt, "VIEW")) { _tabReceipt = new XtraTabPage { Text = "1. Nhận linh kiện (QR)" }; BuildReceiptTab(_tabReceipt); _tabs.TabPages.Add(_tabReceipt); }
             _tabStock = new XtraTabPage { Text = "2. Tồn kho PART" }; BuildStockTab(_tabStock); _tabs.TabPages.Add(_tabStock);
@@ -143,7 +148,9 @@ namespace PCTP.Modules.KhoLinhKien.UI
             if (Can(FnDemand, "VIEW") && Can(FnIssue, "VIEW")) { _tabIssue = new XtraTabPage { Text = "4. Xuất theo nhu cầu SX" }; BuildIssueTab(_tabIssue); _tabs.TabPages.Add(_tabIssue); }
             if (Can(FnTrace, "VIEW")) { _tabTrace = new XtraTabPage { Text = "5. Truy xuất LOT → thành phẩm" }; BuildTraceTab(_tabTrace); _tabs.TabPages.Add(_tabTrace); }
 
-            _tabs.SelectedTabPage = _tabStock;
+            _tabs.SelectedTabPage = _tabFlow;
+            _tabs.SelectedPageChanged += (s, e) => { if (_tabs.SelectedTabPage == _tabFlow) UpdateFlowMap(); };
+            UpdateFlowMap();
 
             _status.Dock = DockStyle.Bottom;
             _status.AutoSizeMode = LabelAutoSizeMode.None;
@@ -243,6 +250,103 @@ namespace PCTP.Modules.KhoLinhKien.UI
             spin.Properties.MaxValue = 1000000000;
         }
 
+        // ── Tab "Sơ đồ quy trình" (MesComponentFlowMapControl) ──
+
+        private void BuildFlowTab(XtraTabPage page)
+        {
+            _mapHint.Dock = DockStyle.Top;
+            _mapHint.AutoSizeMode = LabelAutoSizeMode.None;
+            _mapHint.Height = 32;
+            _mapHint.Padding = new Padding(10, 0, 0, 0);
+            _mapHint.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            _mapHint.Appearance.BackColor = Color.FromArgb(232, 241, 252);
+            _mapHint.Appearance.ForeColor = Color.FromArgb(20, 70, 130);
+            _mapHint.Appearance.Options.UseBackColor = true;
+            _mapHint.Appearance.Options.UseForeColor = true;
+
+            _flowMap.Dock = DockStyle.Fill;
+            _flowMap.NodeClicked += FlowNodeClicked;
+
+            page.Controls.Add(_flowMap);
+            page.Controls.Add(_mapHint);
+        }
+
+        private int SelectedPoStatus()
+        {
+            if (_tabPo == null || _poView.FocusedRowHandle < 0) return -1;
+            DataRow row = _poView.GetFocusedDataRow();
+            if (row == null || row["StatusCode"] == DBNull.Value) return -1;
+            return Convert.ToInt32(row["StatusCode"]);
+        }
+
+        private void UpdateFlowMap()
+        {
+            int status = SelectedPoStatus();
+            bool live = status >= 0 && status < ComponentPoStatus.Cancelled;
+            _flowMap.ApplyPoStatus(status);
+
+            // Ô thuộc quy trình PO: luôn bấm được nếu có tab PO (bấm khi chưa đủ điều kiện sẽ chuyển sang tab PO để chọn PO).
+            bool hasPo = _tabPo != null;
+            _flowMap.SetNode("upload", _btnUpload.Enabled && hasPo ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, hasPo,
+                hasPo ? "Upload file Excel PO (Bravo) để tạo PO nháp." : "Bạn không có quyền xem tab Yêu cầu mua hàng.");
+            _flowMap.SetNode("validate", live && status >= ComponentPoStatus.Validated ? FlowNodeVisual.Done
+                : _btnValidate.Enabled ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, hasPo,
+                "Kiểm tra PO ở trạng thái Nháp. Chọn PO ở tab 0 trước.");
+            _flowMap.SetNode("release", live && status >= ComponentPoStatus.Released ? FlowNodeVisual.Done
+                : _btnRelease.Enabled ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, hasPo,
+                "Phát hành PO đã kiểm tra và sinh LOT/QR. Chọn PO ở tab 0 trước.");
+
+            bool hasReceipt = _tabReceipt != null;
+            _flowMap.SetNode("receive", !hasReceipt ? FlowNodeVisual.Disabled
+                : live && status >= ComponentPoStatus.Received ? FlowNodeVisual.Done
+                : status == ComponentPoStatus.PartiallyReceived ? FlowNodeVisual.Current
+                : FlowNodeVisual.Ready, hasReceipt,
+                hasReceipt ? "Mở tab Nhận linh kiện (quét QR)." : "Bạn không có quyền xem tab Nhận linh kiện.");
+            _flowMap.SetNode("stock", FlowNodeVisual.Ready, true, "Mở tab Tồn kho PART.");
+            _flowMap.SetNode("transfer", _tabTransfer != null ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, _tabTransfer != null,
+                "Mở tab Điều chuyển LOT.");
+            _flowMap.SetNode("issue", _tabIssue != null ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, _tabIssue != null,
+                "Mở tab Xuất theo nhu cầu sản xuất (PART → WIP).");
+            _flowMap.SetNode("trace", _tabTrace != null ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, _tabTrace != null,
+                "Mở tab Truy xuất LOT → thành phẩm.");
+
+            _mapHint.Text = status < 0
+                ? "Bấm một ô trên sơ đồ để mở bước tương ứng. Chọn PO ở tab 0 để sơ đồ hiển thị trạng thái PO."
+                : "PO đang chọn: " + ComponentPoStatus.Text(status) + ".";
+        }
+
+        private void FlowNodeClicked(object sender, FlowNodeEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case "upload":
+                    if (_tabPo == null) return;
+                    _tabs.SelectedTabPage = _tabPo;
+                    if (_btnUpload.Enabled) _btnUpload.PerformClick();
+                    break;
+                case "validate": ClickPoAction(_btnValidate); break;
+                case "release": ClickPoAction(_btnRelease); break;
+                case "receive": GoTab(_tabReceipt); break;
+                case "stock": GoTab(_tabStock); break;
+                case "transfer": GoTab(_tabTransfer); break;
+                case "issue": GoTab(_tabIssue); break;
+                case "trace": GoTab(_tabTrace); break;
+            }
+        }
+
+        private void ClickPoAction(SimpleButton button)
+        {
+            if (_tabPo == null) return;
+            if (button.Enabled) { button.PerformClick(); return; }
+            _tabs.SelectedTabPage = _tabPo;
+            SetStatus("Chọn một PO ở trạng thái phù hợp trong danh sách để thực hiện bước này.");
+        }
+
+        private void GoTab(XtraTabPage page)
+        {
+            if (page != null) _tabs.SelectedTabPage = page;
+        }
+
         // ── Tab 0: Yêu cầu mua hàng ──
 
         private void BuildPoTab(XtraTabPage page)
@@ -269,6 +373,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
             ConfigureView(_poGrid, _poView);
             _poView.OptionsView.ShowAutoFilterRow = true;
             _poView.FocusedRowChanged += (s, e) => OnPoSelected();
+            _poView.FocusedRowChanged += (s, e) => UpdateFlowMap();
             _poView.RowStyle += PoRowStyle;
 
             ConfigureView(_poLinesGrid, _poLinesView);

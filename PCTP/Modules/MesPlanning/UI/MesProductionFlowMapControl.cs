@@ -1,267 +1,124 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Windows.Forms;
+\xef\xbb\xbfusing System.Drawing;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
-    public enum FlowNodeVisual { Disabled, Ready, Done, Current }
-
-    public sealed class FlowNodeEventArgs : EventArgs
-    {
-        public FlowNodeEventArgs(string key) { Key = key; }
-        public string Key { get; private set; }
-    }
-
     /// <summary>
-    /// Sơ đồ luồng điều hành sản xuất 5 cột (Khởi tạo → Phát hành → LOT &amp; BOM → Vận hành → Hoàn thành &amp; đóng).
-    /// Mỗi ô vừa hiển thị trạng thái (đã xong / đang ở bước này / có thể bấm / chưa thể bấm) vừa là nút lệnh.
-    /// Control chỉ vẽ và phát sự kiện; việc cho phép bấm do form quyết định (quyền + trạng thái workflow).
+    /// Sơ đồ "Quy trình &amp; luồng dữ liệu điều hành sản xuất MES" 5 cột:
+    /// Khởi tạo &amp; lập kế hoạch → Phát hành lệnh → Tạo LOT sản xuất &amp; BOM → Vận hành sản xuất thực tế → Hoàn thành &amp; đóng lệnh.
+    /// Mỗi ô lệnh vừa hiển thị trạng thái (đã xong / đang ở bước này / có thể bấm / chưa thể bấm) vừa là nút lệnh;
+    /// các nhãn (DRAFT, RELEASED, LOT CREATED, RUNNING, PAUSED, COMPLETED, CLOSED) sáng lên theo trạng thái lệnh.
+    /// Khóa ô lệnh: select, create, release, lot, consume, output, start, pause, resume, complete, close, history.
+    /// Khóa nhãn: draft, released, lotcreated, running, paused, completed, closed, ok, ng.
     /// </summary>
-    public sealed class MesProductionFlowMapControl : Control
+    public sealed class MesProductionFlowMapControl : MesFlowCanvasControl
     {
-        private sealed class Node
-        {
-            public string Key, Caption, Tip = string.Empty;
-            public int Lane, Row;
-            public Color Accent;
-            public FlowNodeVisual Visual = FlowNodeVisual.Disabled;
-            public bool Enabled;
-            public RectangleF Bounds;
-        }
-
-        private static readonly string[] LaneTitles =
-        {
-            "KHỞI TẠO & LẬP KẾ HOẠCH", "PHÁT HÀNH LỆNH", "TẠO LOT SẢN XUẤT & BOM",
-            "VẬN HÀNH SẢN XUẤT", "HOÀN THÀNH & ĐÓNG LỆNH"
-        };
-
-        private readonly List<Node> _nodes = new List<Node>();
-        private readonly Dictionary<string, Node> _byKey = new Dictionary<string, Node>();
-        private readonly List<KeyValuePair<string, string>> _arrows = new List<KeyValuePair<string, string>>();
-        private readonly ToolTip _toolTip = new ToolTip();
-        private Node _hot;
-        private int _activeLane = -1;
-
-        public event EventHandler<FlowNodeEventArgs> NodeClicked;
-
         public MesProductionFlowMapControl()
         {
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
-                ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
-            Height = 214;
-            MinimumSize = new Size(760, 190);
-            Font = new Font("Segoe UI", 9F);
-
             var blue = Color.FromArgb(46, 110, 190);
-            Add("select", "CHỌN KẾ HOẠCH FIRM", 0, 0, blue);
-            Add("create", "TẠO LỆNH TỪ KẾ HOẠCH", 0, 1, blue);
-            Add("release", "RELEASE LỆNH", 1, 0, blue);
-            Add("lot", "GHI NHẬN OK/NG + TẠO LOT", 2, 0, blue);
-            Add("consume", "TIÊU HAO LOT LINH KIỆN", 2, 1, Color.FromArgb(96, 84, 170));
-            Add("start", "START LỆNH", 3, 0, Color.FromArgb(34, 139, 84));
-            Add("pause", "PAUSE LỆNH", 3, 1, Color.FromArgb(214, 122, 0));
-            Add("resume", "RESUME LỆNH", 3, 2, blue);
-            Add("complete", "COMPLETE LỆNH", 4, 0, Color.FromArgb(0, 112, 160));
-            Add("close", "CLOSE LỆNH", 4, 1, Color.FromArgb(84, 100, 120));
-            Add("history", "LỊCH SỬ LỆNH", 4, 2, Color.FromArgb(110, 120, 135));
+            var green = Color.FromArgb(34, 139, 84);
+            var orange = Color.FromArgb(214, 122, 0);
+            var purple = Color.FromArgb(96, 84, 170);
+            var teal = Color.FromArgb(0, 112, 160);
+            var slate = Color.FromArgb(84, 100, 120);
+            var gray = Color.FromArgb(110, 120, 135);
+            var note = Color.FromArgb(70, 80, 95);
 
-            Link("select", "create"); Link("create", "release"); Link("release", "lot");
-            Link("lot", "consume"); Link("lot", "start"); Link("start", "pause"); Link("pause", "resume");
-            Link("start", "complete"); Link("complete", "close"); Link("close", "history");
+            AddLane("KHỞI TẠO & LẬP KẾ HOẠCH", 0, 233);
+            AddLane("PHÁT HÀNH LỆNH", 233, 438);
+            AddLane("TẠO LOT SẢN XUẤT & BOM", 438, 644);
+            AddLane("VẬN HÀNH SẢN XUẤT THỰC TẾ", 644, 1059);
+            AddLane("HOÀN THÀNH & ĐÓNG LỆNH", 1059, MesFlowCanvasControl.CanvasWidth);
+
+            // Cột 0
+            AddBox(45, 56, 157, 48, "Kế hoạch sản xuất FIRM", "(ProductionPlanLineId)");
+            AddBox(91, 128, 64, 25, "OrderNo", null);
+            AddNode("select", "CHỌN KẾ HOẠCH FIRM", 34, 177, 179, 38, blue);
+            AddNode("create", "TẠO LỆNH TỪ KẾ HOẠCH", 34, 226, 179, 38, blue);
+            AddNote(116, 216, "&", true, note);
+            AddPill("draft", "DRAFT / KHỞI TẠO", 66, 281, 115, 24, gray, false);
+            AddNote(187, 140, "ProductionPlanLineId\nOrderNo", false, note);
+            AddConnector(false, 123, 104, 123, 128);
+            AddConnector(true, 123, 153, 123, 177);
+            AddConnector(false, 123, 264, 123, 281);
+
+            // Cột 1
+            AddNode("release", "RELEASE LỆNH", 253, 192, 165, 40, blue);
+            AddPill("released", "RELEASED / ĐÃ PHÁT HÀNH", 256, 253, 160, 24, blue, false);
+            AddBox(265, 303, 142, 25, "Tạo ProductionOrderId", null);
+            AddNote(392, 150, "ProductionOrderId", false, note);
+            AddConnector(true, 213, 215, 233, 215, 233, 212, 253, 212);
+            AddConnector(false, 335, 232, 335, 253);
+            AddConnector(true, 335, 277, 335, 303);
+
+            // Cột 2
+            AddNode("lot", "TẠO LOT SẢN XUẤT", 459, 192, 164, 40, blue);
+            AddPill("lotcreated", "LOT CREATED / ĐÃ TẠO LOT", 461, 253, 160, 24, gray, false);
+            AddBox(477, 303, 128, 25, "Tạo ProductionLotId", null);
+            AddNote(547, 342, "Component LOT", false, note);
+            AddNode("consume", "TIÊU HAO LOT\nLINH KIỆN", 459, 374, 164, 51, purple);
+            AddNote(459, 432, "Truy vấn Cấu trúc Sản phẩm BOM\n(Bill of Materials)\n•  Quét/Trừ tồn LOT linh kiện\n•  Khớp danh mục BOM vật tư", false, note);
+            AddConnector(true, 418, 212, 459, 212);
+            AddConnector(false, 541, 232, 541, 253);
+            AddConnector(true, 541, 277, 541, 303);
+            AddConnector(true, 541, 328, 541, 374);
+
+            // Cột 3 - vận hành
+            AddGroup(665, 56, 374, 278, "VẬN HÀNH & THEO DÕI SẢN XUẤT", "(Production Runtime)");
+            AddPill("running", "RUNNING\nĐANG SẢN XUẤT", 789, 120, 126, 40, green, false);
+            AddNode("start", "START LỆNH", 683, 192, 126, 40, green);
+            AddNode("pause", "PAUSE LỆNH", 894, 192, 126, 40, orange);
+            AddPill("paused", "PAUSED / TẠM DỪNG", 894, 238, 126, 22, orange, false);
+            AddNode("resume", "RESUME LỆNH", 789, 271, 126, 40, blue);
+            AddConnector(true, 746, 192, 746, 140, 789, 140);
+            AddConnector(true, 915, 140, 957, 140, 957, 192);
+            AddConnector(true, 957, 260, 957, 291, 915, 291);
+            AddConnector(true, 789, 291, 746, 291, 746, 232);
+            AddConnector(true, 623, 212, 683, 212);
+            // nhánh từ LOT / tiêu hao sang ghi nhận sản lượng
+            AddConnector(false, 623, 399, 644, 399, 644, 212);
+            AddConnector(true, 644, 399, 644, 420, 681, 420);
+
+            // Ghi nhận sản lượng
+            AddLabeledConnector("OK/NG Qty", 809, 352, 851, 334, 851, 352, 767, 352, 767, 394);
+            AddNode("output", "GHI NHẬN SẢN LƯỢNG\n(Output Recording)", 681, 395, 171, 51, gray);
+            AddConnector(false, 852, 420, 881, 420);
+            AddConnector(true, 881, 420, 881, 382, 913, 382);
+            AddConnector(true, 881, 420, 881, 454, 913, 454);
+            AddPill("ok", "Số lượng OK", 913, 369, 91, 26, green, true);
+            AddNote(913, 399, "LOT thành phẩm", true, Color.FromArgb(30, 36, 46));
+            AddNote(913, 414, "(Finished Goods LOT)", false, note);
+            AddPill("ng", "Số lượng NG", 913, 441, 91, 26, Color.FromArgb(200, 55, 45), true);
+            AddNote(913, 471, "Defect/Scrap", true, Color.FromArgb(30, 36, 46));
+            AddNote(913, 486, "Phế phẩm & Lỗi", false, note);
+
+            // Cột 4
+            AddNode("complete", "COMPLETE LỆNH", 1080, 192, 175, 40, teal);
+            AddPill("completed", "COMPLETED / HOÀN THÀNH", 1085, 253, 165, 24, teal, false);
+            AddNode("close", "CLOSE LỆNH", 1080, 314, 175, 40, slate);
+            AddPill("closed", "CLOSED / ĐÃ ĐÓNG", 1107, 376, 123, 24, slate, false);
+            AddNode("history", "LỊCH SỬ LỆNH", 1080, 437, 175, 40, gray);
+            AddConnector(true, 1020, 212, 1080, 212);
+            AddConnector(false, 1167, 232, 1167, 253);
+            AddConnector(true, 1167, 277, 1167, 314);
+            AddConnector(false, 1167, 354, 1167, 376);
+            AddConnector(true, 1167, 400, 1167, 437);
+
+            SetBanner("Lệnh/LOT/công đoạn/tiêu hao đều ghi vào MES; DIRECT không tạo tồn WIP, VIA_WIP dùng ledger chung.");
         }
 
-        private void Add(string key, string caption, int lane, int row, Color accent)
+        /// <summary>Sáng các nhãn trạng thái theo mã trạng thái lệnh (0 mới tạo, 10 phát hành, 20 chạy, 30 tạm dừng, 40 hoàn thành, 50 đóng); -1 = chưa có lệnh.</summary>
+        public void ApplyOrderStatus(int status, bool hasLot)
         {
-            var node = new Node { Key = key, Caption = caption, Lane = lane, Row = row, Accent = accent };
-            _nodes.Add(node);
-            _byKey[key] = node;
-        }
-
-        private void Link(string from, string to)
-        {
-            _arrows.Add(new KeyValuePair<string, string>(from, to));
-        }
-
-        public void SetNode(string key, FlowNodeVisual visual, bool enabled, string tooltip)
-        {
-            Node node;
-            if (!_byKey.TryGetValue(key, out node)) return;
-            if (node.Visual == visual && node.Enabled == enabled && node.Tip == (tooltip ?? string.Empty)) return;
-            node.Visual = visual;
-            node.Enabled = enabled;
-            node.Tip = tooltip ?? string.Empty;
-            Invalidate();
-        }
-
-        /// <summary>Cột đang ở bước hiện tại (0..4) được tô đậm; -1 = không tô.</summary>
-        public void SetActiveLane(int lane)
-        {
-            if (_activeLane == lane) return;
-            _activeLane = lane;
-            Invalidate();
-        }
-
-        private void Layout(out float laneWidth, out float top, out float nodeHeight, out float step)
-        {
-            float k = DeviceDpi / 96f;
-            laneWidth = ClientSize.Width / (float)LaneTitles.Length;
-            top = 30f * k;
-            nodeHeight = 32f * k;
-            step = 44f * k;
-            foreach (var node in _nodes)
-            {
-                float width = laneWidth - 22f * k;
-                node.Bounds = new RectangleF(node.Lane * laneWidth + 11f * k, top + node.Row * step, width, nodeHeight);
-            }
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Color.FromArgb(250, 251, 253));
-            float laneWidth, top, nodeHeight, step;
-            Layout(out laneWidth, out top, out nodeHeight, out step);
-
-            var centered = new StringFormat
-            {
-                Alignment = StringAlignment.Center,
-                LineAlignment = StringAlignment.Center,
-                Trimming = StringTrimming.EllipsisCharacter,
-                FormatFlags = StringFormatFlags.NoWrap
-            };
-
-            // Cột + tiêu đề
-            using (var separator = new Pen(Color.FromArgb(222, 226, 232)))
-            using (var titleFont = new Font(Font, FontStyle.Bold))
-            using (var activeBrush = new SolidBrush(Color.FromArgb(46, 110, 190)))
-            using (var normalBrush = new SolidBrush(Color.FromArgb(70, 78, 90)))
-            {
-                for (int i = 0; i < LaneTitles.Length; i++)
-                {
-                    float x = i * laneWidth;
-                    if (i == _activeLane)
-                        using (var tint = new SolidBrush(Color.FromArgb(236, 243, 252)))
-                            g.FillRectangle(tint, x, 0, laneWidth, Height);
-                    if (i > 0) g.DrawLine(separator, x, 6, x, Height - 6);
-                    g.DrawString(LaneTitles[i], titleFont, i == _activeLane ? activeBrush : normalBrush,
-                        new RectangleF(x + 4, 4, laneWidth - 8, top - 8), centered);
-                }
-            }
-
-            // Mũi tên
-            using (var arrowPen = new Pen(Color.FromArgb(150, 162, 178), 1.6f))
-            {
-                arrowPen.CustomEndCap = new AdjustableArrowCap(4, 4, true);
-                foreach (var arrow in _arrows)
-                {
-                    var a = _byKey[arrow.Key].Bounds;
-                    var b = _byKey[arrow.Value].Bounds;
-                    if (Math.Abs(a.Left - b.Left) < 1f)
-                        g.DrawLine(arrowPen, a.Left + a.Width / 2, a.Bottom, b.Left + b.Width / 2, b.Top - 1);
-                    else
-                    {
-                        float midX = a.Right + (b.Left - a.Right) / 2f;
-                        g.DrawLines(arrowPen, new[]
-                        {
-                            new PointF(a.Right, a.Top + a.Height / 2), new PointF(midX, a.Top + a.Height / 2),
-                            new PointF(midX, b.Top + b.Height / 2), new PointF(b.Left - 1, b.Top + b.Height / 2)
-                        });
-                    }
-                }
-            }
-
-            // Ô lệnh
-            using (var boldFont = new Font(Font, FontStyle.Bold))
-                foreach (var node in _nodes) DrawNode(g, node, boldFont, centered);
-        }
-
-        private void DrawNode(Graphics g, Node node, Font boldFont, StringFormat format)
-        {
-            Color fill, border, text;
-            string caption = node.Caption;
-            switch (node.Visual)
-            {
-                case FlowNodeVisual.Current:
-                    fill = node.Accent; border = node.Accent; text = Color.White; break;
-                case FlowNodeVisual.Done:
-                    fill = Color.FromArgb(226, 243, 233); border = Color.FromArgb(34, 139, 84);
-                    text = Color.FromArgb(24, 110, 66); caption = "✔  " + caption; break;
-                case FlowNodeVisual.Ready:
-                    fill = node == _hot ? Color.FromArgb(232, 241, 252) : Color.White;
-                    border = node.Accent; text = Color.FromArgb(30, 36, 46); break;
-                default:
-                    fill = Color.FromArgb(240, 241, 243); border = Color.FromArgb(214, 217, 222);
-                    text = Color.FromArgb(150, 154, 162); break;
-            }
-            using (var path = RoundedRectangle(node.Bounds, 7f))
-            using (var fillBrush = new SolidBrush(fill))
-            using (var borderPen = new Pen(border, node.Visual == FlowNodeVisual.Ready || node.Visual == FlowNodeVisual.Current ? 1.8f : 1.2f))
-            using (var textBrush = new SolidBrush(text))
-            {
-                g.FillPath(fillBrush, path);
-                g.DrawPath(borderPen, path);
-                var bounds = node.Bounds;
-                bounds.Inflate(-4, 0);
-                g.DrawString(caption, node.Enabled || node.Visual != FlowNodeVisual.Disabled ? boldFont : Font, textBrush, bounds, format);
-            }
-        }
-
-        private static GraphicsPath RoundedRectangle(RectangleF r, float radius)
-        {
-            float d = radius * 2;
-            var path = new GraphicsPath();
-            path.AddArc(r.Left, r.Top, d, d, 180, 90);
-            path.AddArc(r.Right - d, r.Top, d, d, 270, 90);
-            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-            path.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
-            path.CloseFigure();
-            return path;
-        }
-
-        private Node HitTest(Point point)
-        {
-            foreach (var node in _nodes)
-                if (node.Bounds.Contains(point)) return node;
-            return null;
-        }
-
-        protected override void OnMouseMove(MouseEventArgs e)
-        {
-            base.OnMouseMove(e);
-            var node = HitTest(e.Location);
-            if (node != _hot)
-            {
-                _hot = node;
-                Cursor = node != null && node.Enabled ? Cursors.Hand : Cursors.Default;
-                if (node != null && node.Tip.Length > 0) _toolTip.SetToolTip(this, node.Tip);
-                else _toolTip.SetToolTip(this, string.Empty);
-                Invalidate();
-            }
-        }
-
-        protected override void OnMouseLeave(EventArgs e)
-        {
-            base.OnMouseLeave(e);
-            if (_hot != null) { _hot = null; Cursor = Cursors.Default; Invalidate(); }
-        }
-
-        protected override void OnMouseClick(MouseEventArgs e)
-        {
-            base.OnMouseClick(e);
-            if (e.Button != MouseButtons.Left) return;
-            var node = HitTest(e.Location);
-            if (node == null || !node.Enabled) return;
-            var handler = NodeClicked;
-            if (handler != null) handler(this, new FlowNodeEventArgs(node.Key));
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing) _toolTip.Dispose();
-            base.Dispose(disposing);
+            SetPill("draft", status == 0);
+            SetPill("released", status == 10);
+            SetPill("lotcreated", hasLot && status >= 10 && status < 900);
+            SetPill("running", status == 20);
+            SetPill("paused", status == 30);
+            SetPill("completed", status == 40);
+            SetPill("closed", status == 50);
+            int lane = status == 0 ? 0 : status == 10 ? 1 : status == 20 || status == 30 ? 3 : status == 40 || status == 50 ? 4 : -1;
+            if (status == 10 && hasLot) lane = 2;
+            SetActiveLane(lane);
         }
     }
 }

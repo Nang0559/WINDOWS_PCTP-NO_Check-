@@ -59,6 +59,13 @@ namespace PCTP.Modules.MesPlanning.UI
         private Cmd _cmdSelectPlan, _cmdCreateOrder, _cmdRelease, _cmdCreateLot, _cmdStart,
             _cmdPause, _cmdResume, _cmdComplete, _cmdClose, _cmdHistory;
 
+        // --- Tab "Sơ đồ quy trình" (MesProductionFlowMapControl)
+        private readonly MesProductionFlowMapControl _flowMap = new MesProductionFlowMapControl();
+        private readonly LabelControl _mapBadge = new LabelControl();
+        private readonly LabelControl _mapHint = new LabelControl();
+        private XtraTabControl _tabs;
+        private XtraTabPage _tabFlow, _tabOrder, _tabConsume;
+
         // --- Tab "Công đoạn"
         private readonly TextEdit _operationLotId = new TextEdit();
         private readonly TextEdit _operationNo = new TextEdit();
@@ -145,9 +152,14 @@ namespace PCTP.Modules.MesPlanning.UI
         private void BuildUi()
         {
             var tabs = new XtraTabControl { Dock = DockStyle.Fill };
-            tabs.TabPages.Add(BuildOrderTab());
+            _tabs = tabs;
+            _tabFlow = BuildFlowTab();
+            _tabOrder = BuildOrderTab();
+            _tabConsume = BuildConsumeTab();
+            tabs.TabPages.Add(_tabFlow);
+            tabs.TabPages.Add(_tabOrder);
             tabs.TabPages.Add(BuildOperationTab());
-            tabs.TabPages.Add(BuildConsumeTab());
+            tabs.TabPages.Add(_tabConsume);
 
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(10) };
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -163,6 +175,112 @@ namespace PCTP.Modules.MesPlanning.UI
             root.Controls.Add(tabs, 0, 0);
             root.Controls.Add(_status, 0, 1);
             Controls.Add(root);
+        }
+
+        // ---------------------------------------------------------------- Tab 0: Sơ đồ quy trình
+        private XtraTabPage BuildFlowTab()
+        {
+            var page = new XtraTabPage { Text = "Sơ đồ quy trình" };
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Padding = new Padding(8) };
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            _mapHint.Dock = DockStyle.Fill;
+            _mapHint.AutoSizeMode = LabelAutoSizeMode.None;
+            _mapHint.Margin = new Padding(0, 0, 6, 6);
+            _mapHint.Appearance.TextOptions.VAlignment = VertAlignment.Center;
+            _mapHint.Appearance.BackColor = Color.FromArgb(232, 241, 252);
+            _mapHint.Appearance.ForeColor = Color.FromArgb(20, 70, 130);
+            _mapHint.Appearance.Options.UseBackColor = true;
+            _mapHint.Appearance.Options.UseForeColor = true;
+            _mapHint.Padding = new Padding(10, 0, 0, 0);
+
+            _mapBadge.Dock = DockStyle.Fill;
+            _mapBadge.AutoSizeMode = LabelAutoSizeMode.None;
+            _mapBadge.Margin = new Padding(0, 0, 0, 6);
+            _mapBadge.Appearance.TextOptions.HAlignment = HorzAlignment.Center;
+            _mapBadge.Appearance.TextOptions.VAlignment = VertAlignment.Center;
+            _mapBadge.Appearance.Font = new Font(Font, FontStyle.Bold);
+
+            _flowMap.Dock = DockStyle.Fill;
+            _flowMap.NodeClicked += FlowNodeClicked;
+            _lotId.TextChanged += (s, e) => ApplyOrderState();
+
+            root.Controls.Add(_mapHint, 0, 0);
+            root.Controls.Add(_mapBadge, 1, 0);
+            root.Controls.Add(_flowMap, 0, 1);
+            root.SetColumnSpan(_flowMap, 2);
+            page.Controls.Add(root);
+            return page;
+        }
+
+        /// <summary>Bấm ô trên sơ đồ = bấm đúng nút lệnh tương ứng (cùng quyền, cùng điều kiện trạng thái, cùng hộp xác nhận).</summary>
+        private void FlowNodeClicked(object sender, FlowNodeEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case "select": ClickCmd(_cmdSelectPlan); break;
+                case "create": ClickCmd(_cmdCreateOrder); break;
+                case "release": ClickCmd(_cmdRelease); break;
+                case "start": ClickCmd(_cmdStart); break;
+                case "pause": ClickCmd(_cmdPause); break;
+                case "resume": ClickCmd(_cmdResume); break;
+                case "complete": ClickCmd(_cmdComplete); break;
+                case "close": ClickCmd(_cmdClose); break;
+                case "history": ClickCmd(_cmdHistory); break;
+                case "lot":
+                case "output":
+                    if (_cmdCreateLot == null || !_cmdCreateLot.Button.Enabled) return;
+                    if (_goodQty.Text.Trim().Length > 0) { _cmdCreateLot.Button.PerformClick(); break; }
+                    _tabs.SelectedTabPage = _tabOrder;
+                    _goodQty.Focus();
+                    SetStatus("Nhập Số lượng OK / NG (và LOT thành phẩm nếu cần) rồi bấm TẠO LOT SẢN XUẤT.", StatusKind.Info);
+                    break;
+                case "consume":
+                    _tabs.SelectedTabPage = _tabConsume;
+                    break;
+            }
+        }
+
+        private static void ClickCmd(Cmd cmd)
+        {
+            if (cmd != null && cmd.Button.Enabled) cmd.Button.PerformClick();
+        }
+
+        private void MapNode(string key, Cmd cmd, bool done, bool current)
+        {
+            bool enabled = cmd != null && cmd.Button.Enabled;
+            FlowNodeVisual visual = done ? FlowNodeVisual.Done : current ? FlowNodeVisual.Current
+                : enabled ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled;
+            _flowMap.SetNode(key, visual, enabled, cmd == null ? null : cmd.Button.ToolTip);
+        }
+
+        private void UpdateFlowMap(bool hasPlan, bool hasOrder, int s)
+        {
+            long lot;
+            bool hasLot = hasOrder && long.TryParse(_lotId.Text.Trim(), out lot) && lot > 0;
+            bool live = hasOrder && s < 900;
+
+            MapNode("select", _cmdSelectPlan, hasPlan || hasOrder, false);
+            MapNode("create", _cmdCreateOrder, hasOrder, false);
+            MapNode("release", _cmdRelease, live && s >= 10, false);
+            MapNode("lot", _cmdCreateLot, hasLot, false);
+            MapNode("output", _cmdCreateLot, false, false);
+            bool canConsume = hasLot && (s == 10 || s == 20 || s == 30);
+            _flowMap.SetNode("consume", canConsume ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, canConsume,
+                canConsume ? "Mở tab Tiêu hao LOT linh kiện theo BOM." : "Cần có LOT sản xuất và lệnh đang hoạt động.");
+            MapNode("start", _cmdStart, live && s >= 20, false);
+            MapNode("pause", _cmdPause, false, s == 30);
+            MapNode("resume", _cmdResume, false, false);
+            MapNode("complete", _cmdComplete, live && s >= 40, false);
+            MapNode("close", _cmdClose, s == 50, false);
+            MapNode("history", _cmdHistory, false, false);
+            _flowMap.ApplyOrderStatus(hasOrder ? s : -1, hasLot);
+
+            _mapHint.Text = _hint.Text;
+            StyleBadge(_mapBadge, _badge.Text, _badge.Appearance.BackColor);
         }
 
         // ---------------------------------------------------------------- Tab 1: Lệnh và LOT
@@ -696,6 +814,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
             UpdateStepper(hasOrder ? s : -1);
             _hint.Text = HintFor(hasPlan, hasOrder, s);
+            UpdateFlowMap(hasPlan, hasOrder, s);
         }
 
         private void UpdateStepper(int status)
