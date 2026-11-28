@@ -33,6 +33,10 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly PCTP.Shared.MesControls.FvnFlowStepperControl _flowStepper = new PCTP.Shared.MesControls.FvnFlowStepperControl();
         private readonly PCTP.Shared.MesControls.FvnHoldListControl _holdList = new PCTP.Shared.MesControls.FvnHoldListControl();
         private readonly LabelControl _status = new LabelControl();
+        private readonly PCTP.Shared.MesControls.FvnConsoleStatusBarControl _statusBar = new PCTP.Shared.MesControls.FvnConsoleStatusBarControl();
+        private readonly LabelControl _filterChip = new LabelControl();
+        private readonly SimpleButton _filterMenu = new SimpleButton();
+        private string _filterMode = "ALL";
         private readonly LabelControl _refreshStamp = new LabelControl();
         private readonly CheckEdit _onlyMyTasks = new CheckEdit();
         private readonly SimpleButton _openPlan = new SimpleButton();
@@ -120,7 +124,7 @@ namespace PCTP.Modules.MesPlanning.UI
             var actionPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Right,
-                Width = _selectionMode ? 250 : 690,
+                Width = 250,
                 WrapContents = false,
                 FlowDirection = FlowDirection.RightToLeft,
                 Padding = new Padding(0, 12, 0, 0)
@@ -145,12 +149,9 @@ namespace PCTP.Modules.MesPlanning.UI
                 _openTask.Click += (s, e) => OpenSelectedTask();
                 ConfigureAction(_openTimeline, "LỊCH SỬ", false);
                 _openTimeline.Click += (s, e) => OpenSelectedTimeline();
+                // Màn hình chỉ giữ một nút chính CHỌN DÒNG FIRM; các lối đi còn lại nằm ở menu chuột phải trên lưới.
                 actionPanel.Controls.Add(_selectFirmPlan);
-                actionPanel.Controls.Add(_openTimeline);
-                actionPanel.Controls.Add(_openTask);
-                actionPanel.Controls.Add(_openProduction);
-                actionPanel.Controls.Add(_openPart);
-                actionPanel.Controls.Add(_openPlan);
+                BuildNavigationMenu();
             }
             header.Controls.Add(actionPanel);
 
@@ -209,9 +210,83 @@ namespace PCTP.Modules.MesPlanning.UI
 
             root.Controls.Add(header, 0, 0);
             root.Controls.Add(_stageStrip, 0, 1);
-            root.Controls.Add(_taskGrid, 0, 2);
+            var gridHost = new Panel { Dock = DockStyle.Fill };
+            var filterBar = new Panel { Dock = DockStyle.Top, Height = 44, Padding = new Padding(8, 6, 8, 4) };
+            _filterMenu.Text = "▼  Lọc";
+            _filterMenu.Width = 84;
+            _filterMenu.Height = 30;
+            _filterMenu.Dock = DockStyle.Left;
+            _filterMenu.Click += (s, e) => ShowFilterMenu();
+            _filterChip.AutoSizeMode = LabelAutoSizeMode.None;
+            _filterChip.Dock = DockStyle.Fill;
+            _filterChip.Padding = new Padding(10, 0, 0, 0);
+            _filterChip.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            filterBar.Controls.Add(_filterChip);
+            filterBar.Controls.Add(_filterMenu);
+            gridHost.Controls.Add(_taskGrid);
+            gridHost.Controls.Add(filterBar);
+            _taskGrid.View.OptionsView.ShowFooter = true;
+
+            root.Controls.Add(header, 0, 0);
+            root.Controls.Add(_stageStrip, 0, 1);
+            root.Controls.Add(gridHost, 0, 2);
             root.Controls.Add(footer, 0, 3);
+
+            _statusBar.UserName = UserSession.Current.DisplayName ?? UserSession.Current.UserName;
             Controls.Add(root);
+            Controls.Add(_statusBar);
+            UpdateFilterChip();
+        }
+
+        private void BuildNavigationMenu()
+        {
+            var menu = new ContextMenuStrip();
+            var items = new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<ToolStripMenuItem, SimpleButton>>();
+            Action<string, Action, SimpleButton> add = (caption, open, button) =>
+            {
+                var item = new ToolStripMenuItem(caption);
+                item.Click += (s, e) => open();
+                menu.Items.Add(item);
+                items.Add(new System.Collections.Generic.KeyValuePair<ToolStripMenuItem, SimpleButton>(item, button));
+            };
+            add("Lịch sử workflow", OpenSelectedTimeline, _openTimeline);
+            add("Mở tác vụ", OpenSelectedTask, _openTask);
+            add("Điều hành sản xuất", OpenProduction, _openProduction);
+            add("Dòng chảy linh kiện", OpenPart, _openPart);
+            add("Kế hoạch", OpenPlan, _openPlan);
+            // Trạng thái bật/tắt lấy từ các nút ẩn: UpdateNavigationButtons vẫn là nơi duy nhất quyết định.
+            menu.Opening += (s, e) =>
+            {
+                foreach (var pair in items) pair.Key.Enabled = pair.Value.Enabled;
+            };
+            _taskGrid.Grid.ContextMenuStrip = menu;
+        }
+
+        private void ShowFilterMenu()
+        {
+            var menu = new ContextMenuStrip();
+            Action<string, string> add = (caption, mode) =>
+            {
+                var item = new ToolStripMenuItem(caption) { Checked = _filterMode == mode };
+                item.Click += (s, e) => { _filterMode = mode; ApplyStageFilter(); };
+                menu.Items.Add(item);
+            };
+            add("Tất cả dòng chảy", "ALL");
+            add("Dòng chảy Đang hoạt động & Cảnh báo", "ACTIVE");
+            add("Chỉ dòng có cảnh báo", "WARNING");
+            add("Đã hoàn thành", "DONE");
+            menu.Show(_filterMenu, new Point(0, _filterMenu.Height));
+        }
+
+        private void UpdateFilterChip()
+        {
+            string mode = _filterMode == "ACTIVE" ? "Dòng chảy Đang hoạt động & Cảnh báo" :
+                _filterMode == "WARNING" ? "Chỉ dòng có cảnh báo" :
+                _filterMode == "DONE" ? "Đã hoàn thành" : "Tất cả dòng chảy";
+            string[] names = { "01 Kế hoạch", "02 Cấp linh kiện", "03 Lệnh sản xuất", "04 Sản xuất thực tế", "05 Hoàn thành" };
+            int selected = _stageStrip.SelectedIndex;
+            _filterChip.Text = "Bộ lọc: " + mode +
+                (selected >= 0 && selected < names.Length ? "  ›  Chặng " + names[selected] : string.Empty);
         }
 
         private void ConfigureWorker()
@@ -236,6 +311,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 _filters.SetBusy(false);
                 if (e.Error != null)
                 {
+                    _statusBar.IsConnected = false;
                     _status.Text = "Không tải được dòng chảy: " + e.Error.GetBaseException().Message;
                     _status.Appearance.Options.UseForeColor = false;
                     return;
@@ -255,6 +331,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 ApplyStageFilter();
                 UpdateKpis();
                 _refreshStamp.Text = "Cập nhật: " + DateTime.Now.ToString("HH:mm:ss");
+                _statusBar.IsConnected = true;
                 _status.Text = "Đang theo dõi " + _data.Rows.Count.ToString("N0") +
                     " dòng kế hoạch trong phạm vi được cấp. Màn hình chỉ đọc.";
                 _status.Appearance.Options.UseForeColor = false;
@@ -375,6 +452,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 if (q == null) continue;
                 q.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
                 q.DisplayFormat.FormatString = "n0";
+                if (q.Summary.Count == 0) q.Summary.Add(DevExpress.Data.SummaryItemType.Sum, name, "{0:n0}");
             }
             foreach (var name in new[] { "ProductionDate", "PlannedEndDate" })
             {
@@ -453,9 +531,17 @@ namespace PCTP.Modules.MesPlanning.UI
             string[] keys = { "PLAN", "COMPONENTS", "ORDER", "PRODUCTION", "DONE" };
             int selected = _stageStrip.SelectedIndex;
             string filter = _onlyMyTasks.Checked ? "[IsActionable] = true" : string.Empty;
+            if (_data.Columns.Contains("StatusText") && _data.Columns.Contains("HasWarning"))
+            {
+                string mode = _filterMode == "ACTIVE" ? "([StatusText] <> 'Đã hoàn thành' OR [HasWarning] = True)" :
+                    _filterMode == "WARNING" ? "[HasWarning] = True" :
+                    _filterMode == "DONE" ? "[StatusText] = 'Đã hoàn thành'" : string.Empty;
+                if (mode.Length > 0) filter = (filter.Length > 0 ? filter + " AND " : string.Empty) + mode;
+            }
             if (selected >= 0 && selected < keys.Length)
                 filter = (filter.Length > 0 ? filter + " AND " : string.Empty) + "[FlowStage] = '" + keys[selected] + "'";
             _taskGrid.View.ActiveFilterString = filter;
+            UpdateFilterChip();
         }
 
         private void View_CustomUnboundColumnData(object sender, DevExpress.XtraGrid.Views.Base.CustomColumnDataEventArgs e)

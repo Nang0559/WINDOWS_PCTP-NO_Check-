@@ -50,7 +50,12 @@ namespace PCTP.Modules.KhoLinhKien.UI
         // Tab "Nhập xuất tồn linh kiện" chứa các bước PO / nhận / tồn / điều chuyển / xuất trong một tab con.
         private readonly XtraTabControl _opsTabs = new XtraTabControl();
         private XtraTabPage _tabOps;
-        private readonly LabelControl _status = new LabelControl();
+        private readonly PCTP.Shared.MesControls.FvnConsoleStatusBarControl _statusBar = new PCTP.Shared.MesControls.FvnConsoleStatusBarControl();
+        private readonly PCTP.Shared.MesControls.FvnConsoleHeaderControl _header = new PCTP.Shared.MesControls.FvnConsoleHeaderControl();
+        // Khối "Thông tin linh kiện & thao tác nhanh (Active Context)": chỉ đọc, lấy từ dòng đang chọn ở tab Tồn kho / PO.
+        private readonly TextEdit _ctxPo = new TextEdit(), _ctxLot = new TextEdit(), _ctxPart = new TextEdit(), _ctxPartName = new TextEdit();
+        private readonly TextEdit _ctxTime = new TextEdit(), _ctxQty = new TextEdit(), _ctxLocation = new TextEdit(), _ctxState = new TextEdit();
+        private readonly SimpleButton _ctxIssue = new SimpleButton(), _ctxPrint = new SimpleButton(), _ctxRefresh = new SimpleButton();
 
         // Tab 0 - PO
         private readonly ComboBoxEdit _poFilter = new ComboBoxEdit();
@@ -160,13 +165,12 @@ namespace PCTP.Modules.KhoLinhKien.UI
             _tabs.SelectedPageChanged += (s, e) => { if (_tabs.SelectedTabPage == _tabFlow) UpdateFlowMap(); };
             UpdateFlowMap();
 
-            _status.Dock = DockStyle.Bottom;
-            _status.AutoSizeMode = LabelAutoSizeMode.None;
-            _status.Height = 26;
-            _status.Padding = new Padding(8, 4, 0, 0);
+            _statusBar.UserName = UserSession.Current.DisplayName ?? UserSession.Current.UserName;
+            _statusBar.IsWarning = true;
+            _statusBar.Message = "Lệnh/LOT/công đoạn/tiêu hao đều ghi vào MES; DIRECT không tạo tồn WIP, VIA_WIP dùng ledger chung.";
 
             Controls.Add(_tabs);
-            Controls.Add(_status);
+            Controls.Add(_statusBar);
         }
 
         private static void ConfigureView(GridControl grid, GridView view)
@@ -262,9 +266,20 @@ namespace PCTP.Modules.KhoLinhKien.UI
 
         private void BuildFlowTab(XtraTabPage page)
         {
-            _mapHint.Dock = DockStyle.Top;
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(8) };
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
+
+            _header.Dock = DockStyle.Fill;
+            _header.Title = "QUY TRÌNH & LUỒNG DỮ LIỆU QUẢN LÝ LINH KIỆN MES";
+            _header.Subtitle = "Sơ đồ luồng runtime điều phối, kiểm soát LotNo và tiêu hao linh kiện | Trạng thái: Kết nối kho & sản xuất";
+            _header.RuntimeText = "RUNTIME ACTIVE | Kho linh kiện | " + DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+
+            _mapHint.Dock = DockStyle.Fill;
             _mapHint.AutoSizeMode = LabelAutoSizeMode.None;
-            _mapHint.Height = 32;
+            _mapHint.Margin = new Padding(0, 0, 0, 2);
             _mapHint.Padding = new Padding(10, 0, 0, 0);
             _mapHint.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _mapHint.Appearance.BackColor = Color.FromArgb(232, 241, 252);
@@ -275,8 +290,105 @@ namespace PCTP.Modules.KhoLinhKien.UI
             _flowMap.Dock = DockStyle.Fill;
             _flowMap.NodeClicked += FlowNodeClicked;
 
-            page.Controls.Add(_flowMap);
-            page.Controls.Add(_mapHint);
+            root.Controls.Add(_header, 0, 0);
+            root.Controls.Add(_mapHint, 0, 1);
+            root.Controls.Add(_flowMap, 0, 2);
+            root.Controls.Add(BuildContextPanel(), 0, 3);
+            page.Controls.Add(root);
+        }
+
+        private Control BuildContextPanel()
+        {
+            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 9, RowCount = 2, Padding = new Padding(8, 4, 8, 2) };
+            for (int c = 0; c < 4; c++)
+            {
+                grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            }
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+
+            Action<int, int, string, TextEdit> put = (row, col, caption, edit) =>
+            {
+                edit.Properties.ReadOnly = true;
+                edit.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+                edit.Margin = new Padding(0, 3, 14, 3);
+                grid.Controls.Add(new LabelControl { Text = caption, Anchor = AnchorStyles.Left, Margin = new Padding(0, 0, 8, 0) }, col * 2, row);
+                grid.Controls.Add(edit, col * 2 + 1, row);
+            };
+            put(0, 0, "Mã PO", _ctxPo);
+            put(0, 1, "Mã LotNo / Pallet", _ctxLot);
+            put(0, 2, "Mã linh kiện (PartNo)", _ctxPart);
+            put(0, 3, "Tên linh kiện", _ctxPartName);
+            put(1, 0, "Ngày/giờ giao dịch", _ctxTime);
+            put(1, 1, "Số lượng khả dụng", _ctxQty);
+            put(1, 2, "Kho / Vị trí", _ctxLocation);
+            put(1, 3, "Trạng thái", _ctxState);
+
+            _ctxIssue.Text = "XUẤT LINH KIỆN"; _ctxIssue.Width = 140; _ctxIssue.Height = 30;
+            _ctxIssue.Appearance.BackColor = Color.FromArgb(24, 98, 200);
+            _ctxIssue.Appearance.ForeColor = Color.White;
+            _ctxIssue.Appearance.Options.UseBackColor = true;
+            _ctxIssue.Appearance.Options.UseForeColor = true;
+            _ctxIssue.ToolTip = "Mở tab Xuất theo nhu cầu SX để xuất / chuyển WIP; số lượng và LOT nhập tại đó.";
+            _ctxIssue.Click += (s, e) => GoTab(_tabIssue);
+            _ctxPrint.Text = "IN TEM LOT"; _ctxPrint.Width = 120; _ctxPrint.Height = 30;
+            _ctxPrint.ToolTip = "Mở tab PO để in tem thùng / pallet (QR / Barcode).";
+            _ctxPrint.Click += (s, e) => GoTab(_tabPo);
+            _ctxRefresh.Text = "LÀM MỚI"; _ctxRefresh.Width = 110; _ctxRefresh.Height = 30;
+            _ctxRefresh.Click += (s, e) => RefreshContextData();
+
+            var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0) };
+            actions.Controls.Add(_ctxIssue);
+            actions.Controls.Add(_ctxPrint);
+            actions.Controls.Add(_ctxRefresh);
+            grid.Controls.Add(actions, 8, 1);
+
+            return new GroupControl { Text = "THÔNG TIN LINH KIỆN & THAO TÁC NHANH (ACTIVE CONTEXT)", Dock = DockStyle.Fill, Controls = { grid } };
+        }
+
+        private void RefreshContextData()
+        {
+            try
+            {
+                if (_tabPo != null) LoadPoOrders();
+                LoadStock();
+            }
+            catch (Exception ex) { SetStatus(ex.Message); }
+            UpdateContextPanel();
+        }
+
+        /// <summary>Ngữ cảnh đang làm việc: ưu tiên dòng tồn LOT đang chọn, nếu không thì PO đang chọn. Chỉ hiển thị, không ghi dữ liệu.</summary>
+        private void UpdateContextPanel()
+        {
+            DataRow stock = _stockView.FocusedRowHandle < 0 ? null : _stockView.GetFocusedDataRow();
+            DataRow po = _tabPo == null || _poView.FocusedRowHandle < 0 ? null : _poView.GetFocusedDataRow();
+            Func<DataRow, string, string> text = (row, column) =>
+                row != null && row.Table.Columns.Contains(column) && !row.IsNull(column) ? Convert.ToString(row[column]).Trim() : string.Empty;
+
+            string poNo = text(stock, "PurchaseOrderNo");
+            _ctxPo.Text = poNo.Length > 0 ? poNo : text(po, "PurchaseOrderNo");
+            _ctxLot.Text = text(stock, "LotNo");
+            _ctxPart.Text = text(stock, "PartNo");
+            _ctxPartName.Text = text(stock, "PartDescription");
+            decimal avail;
+            _ctxQty.Text = decimal.TryParse(text(stock, "AvailableQty"), out avail) ? avail.ToString("#,##0.###") : string.Empty;
+            var place = new List<string>();
+            foreach (string column in new[] { "WarehouseName", "RackName", "SlotNumber" })
+            {
+                string part = text(stock, column);
+                if (part.Length > 0) place.Add(part);
+            }
+            _ctxLocation.Text = string.Join(" - ", place);
+            string state = text(stock, "StockState");
+            _ctxState.Text = state.Length > 0 ? state : text(po, "StatusText");
+            _ctxTime.Text = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+            _ctxIssue.Enabled = _tabIssue != null;
+            _ctxPrint.Enabled = _tabPo != null;
+
+            string site = ComboText(_site);
+            _header.RuntimeText = "RUNTIME ACTIVE | Kho linh kiện" + (site == null ? string.Empty : " " + site) + " | " + DateTime.Now.ToString("dd/MM/yyyy HH:mm");
         }
 
         private int SelectedPoStatus()
@@ -289,6 +401,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
 
         private void UpdateFlowMap()
         {
+            UpdateContextPanel();
             int status = SelectedPoStatus();
             bool live = status >= 0 && status < ComponentPoStatus.Cancelled;
             _flowMap.ApplyPoStatus(status);
@@ -675,7 +788,12 @@ namespace PCTP.Modules.KhoLinhKien.UI
             return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
         }
 
-        private void SetStatus(string text) { _status.Text = text; }
+        private void SetStatus(string text)
+        {
+            // Thanh trạng thái đáy: thông báo nghiệp vụ/lỗi hiện màu vàng như màn hình thiết kế.
+            _statusBar.IsWarning = true;
+            _statusBar.Message = text;
+        }
 
         private void OpenGuarded(Action open, string title)
         {
@@ -958,6 +1076,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
                 Convert.ToDecimal(row["AvailableQty"]) > 0;
             _btnToTransfer.Enabled = available && _tabTransfer != null && Can(FnTransfer, "CONFIRM");
             _btnToTrace.Enabled = row != null && _tabTrace != null;
+            UpdateContextPanel();
         }
 
         // ── Điều chuyển ──

@@ -97,7 +97,10 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly GridView _materialView = new GridView();
 
         // --- Chung
-        private readonly LabelControl _status = new LabelControl();
+        private readonly PCTP.Shared.MesControls.FvnConsoleStatusBarControl _statusBar = new PCTP.Shared.MesControls.FvnConsoleStatusBarControl();
+        private readonly PCTP.Shared.MesControls.FvnConsoleHeaderControl _header = new PCTP.Shared.MesControls.FvnConsoleHeaderControl();
+        private readonly SimpleButton _recordOutput = new SimpleButton();
+        private readonly SimpleButton _contextRefresh = new SimpleButton();
         private DataTable _printRows;
         private int _printIndex;
         private int _orderStatus = -1;
@@ -162,31 +165,35 @@ namespace PCTP.Modules.MesPlanning.UI
             tabs.TabPages.Add(BuildOperationTab());
             tabs.TabPages.Add(_tabConsume);
 
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(10) };
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 1, Padding = new Padding(10, 10, 10, 4) };
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
 
-            _status.Dock = DockStyle.Fill;
-            _status.AutoSizeMode = LabelAutoSizeMode.None;
-            _status.Appearance.TextOptions.VAlignment = VertAlignment.Center;
+            _statusBar.UserName = UserSession.Current.DisplayName ?? UserSession.Current.UserName;
             SetStatus("Bắt đầu bằng CHỌN KẾ HOẠCH FIRM, hoặc chọn một dòng trong danh sách bên dưới. " +
                 "Lệnh/LOT/công đoạn/tiêu hao đều ghi vào MES; DIRECT không tạo tồn WIP, VIA_WIP dùng ledger chung.",
                 StatusKind.Info);
 
             root.Controls.Add(tabs, 0, 0);
-            root.Controls.Add(_status, 0, 1);
             Controls.Add(root);
+            Controls.Add(_statusBar);
         }
 
         // ---------------------------------------------------------------- Tab 0: Sơ đồ quy trình
         private XtraTabPage BuildFlowTab()
         {
             var page = new XtraTabPage { Text = "BẢNG ĐIỀU HÀNH RUNTIME (Live Flow Console)" };
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Padding = new Padding(8) };
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4, Padding = new Padding(8) };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
+
+            _header.Dock = DockStyle.Fill;
+            _header.Title = "QUY TRÌNH & LUỒNG DỮ LIỆU ĐIỀU HÀNH SẢN XUẤT MES (LIVE WORKFLOW)";
+            _header.Subtitle = "Sơ đồ luồng runtime sequence trực quan — Hướng dẫn thao tác lệnh tiếp theo | Trạng thái: Kết nối trực tiếp";
+            _header.RuntimeText = "RUNTIME READY | Chưa chọn lệnh | " + DateTime.Now.ToString("dd/MM/yyyy HH:mm");
 
             _mapHint.Dock = DockStyle.Fill;
             _mapHint.AutoSizeMode = LabelAutoSizeMode.None;
@@ -209,12 +216,99 @@ namespace PCTP.Modules.MesPlanning.UI
             _flowMap.NodeClicked += FlowNodeClicked;
             _lotId.TextChanged += (s, e) => ApplyOrderState();
 
-            root.Controls.Add(_mapHint, 0, 0);
-            root.Controls.Add(_mapBadge, 1, 0);
-            root.Controls.Add(_flowMap, 0, 1);
+            root.Controls.Add(_header, 0, 0);
+            root.SetColumnSpan(_header, 2);
+            root.Controls.Add(_mapHint, 0, 1);
+            root.Controls.Add(_mapBadge, 1, 1);
+            root.Controls.Add(_flowMap, 0, 2);
             root.SetColumnSpan(_flowMap, 2);
+            var context = BuildContextPanel();
+            root.Controls.Add(context, 0, 3);
+            root.SetColumnSpan(context, 2);
             page.Controls.Add(root);
             return page;
+        }
+
+        /// <summary>
+        /// Khối "Thông tin điều hành &amp; ghi nhận sản lượng (Active Context)" dưới sơ đồ: đúng các ô nhập cũ của tab lệnh
+        /// (cùng control, cùng nghiệp vụ), GHI SẢN LƯỢNG = TẠO LOT SẢN XUẤT, LÀM MỚI = tải lại danh sách (F5).
+        /// </summary>
+        private Control BuildContextPanel()
+        {
+            _planLineId.Properties.Buttons[0].Kind = ButtonPredefines.Search;
+            _planLineId.Properties.NullValuePrompt = "Chọn dòng kế hoạch FIRM...";
+            _planLineId.Properties.NullValuePromptShowForEmptyValue = true;
+            _planLineId.ButtonClick += (s, e) => SelectPlanLineClick(s, e);
+            _planLineId.ToolTip = "Nhập ID hoặc bấm biểu tượng kính lúp để chọn dòng kế hoạch FIRM.";
+            _orderNo.Properties.NullValuePrompt = "Số lệnh sản xuất (nhập khi tạo lệnh)";
+            _orderNo.Properties.NullValuePromptShowForEmptyValue = true;
+            ReadOnly(_orderId, "Tự điền sau khi tạo lệnh");
+            ReadOnly(_lotId, "Tự điền sau khi tạo LOT");
+
+
+            _productionDate.Properties.DisplayFormat.FormatType = FormatType.DateTime;
+            _productionDate.Properties.DisplayFormat.FormatString = "dd/MM/yyyy HH:mm";
+            _productionDate.Properties.EditFormat.FormatType = FormatType.DateTime;
+            _productionDate.Properties.EditFormat.FormatString = "dd/MM/yyyy HH:mm";
+            _productionDate.Properties.Mask.EditMask = "dd/MM/yyyy HH:mm";
+            _productionDate.Properties.Mask.UseMaskAsDisplayFormat = true;
+            _productionDate.DateTime = DateTime.Now;
+            Numeric(_goodQty, "Số lượng đạt (OK) của LOT");
+            Numeric(_ngQty, "Số lượng lỗi (NG) - để 0 nếu không có");
+            _finished.Text = "LOT thành phẩm (FG)";
+            _finished.ToolTip = "Chọn nếu là LOT thành phẩm cuối (FG). Bỏ chọn = bán thành phẩm (WIP).";
+            _finished.Dock = DockStyle.Fill;
+
+
+            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 8, RowCount = 2, Padding = new Padding(8, 4, 8, 2) };
+            for (int c = 0; c < 4; c++)
+            {
+                grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            }
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+
+            Action<int, int, string, Control> put = (row, col, caption, editor) =>
+            {
+                grid.Controls.Add(new LabelControl { Text = caption, Anchor = AnchorStyles.Left, Margin = new Padding(0, 0, 8, 0) }, col * 2, row);
+                editor.Dock = DockStyle.None;
+                editor.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+                editor.Margin = new Padding(0, 3, 14, 3);
+                grid.Controls.Add(editor, col * 2 + 1, row);
+            };
+            put(0, 0, "OrderNo", _orderNo);
+            put(0, 1, "ProductionPlanLineId", _planLineId);
+            put(0, 2, "ProductionOrderId", _orderId);
+            put(0, 3, "ProductionLotId (sau khi tạo LOT)", _lotId);
+            put(1, 0, "Ngày/giờ sản xuất", _productionDate);
+            put(1, 1, "Số lượng OK", _goodQty);
+            put(1, 2, "Số lượng NG", _ngQty);
+
+            _recordOutput.Text = "GHI SẢN LƯỢNG";
+            _recordOutput.Width = 140;
+            _recordOutput.Height = 30;
+            _recordOutput.Enabled = false;
+            _recordOutput.Appearance.BackColor = Color.FromArgb(24, 98, 200);
+            _recordOutput.Appearance.ForeColor = Color.White;
+            _recordOutput.Appearance.Options.UseBackColor = true;
+            _recordOutput.Appearance.Options.UseForeColor = true;
+            _recordOutput.ToolTip = "Ghi nhận sản lượng OK/NG và tạo LOT sản xuất cho lệnh (cùng lệnh TẠO LOT SẢN XUẤT).";
+            _recordOutput.Click += (s, e) => ClickCmd(_cmdCreateLot);
+            _contextRefresh.Text = "LÀM MỚI";
+            _contextRefresh.Width = 110;
+            _contextRefresh.Height = 30;
+            _contextRefresh.Click += (s, e) => LoadWorklist();
+            _finished.Dock = DockStyle.None;
+            _finished.Width = 150;
+            var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0) };
+            actions.Controls.Add(_finished);
+            actions.Controls.Add(_recordOutput);
+            actions.Controls.Add(_contextRefresh);
+            grid.Controls.Add(actions, 6, 1);
+            grid.SetColumnSpan(actions, 2);
+
+            return Group("THÔNG TIN ĐIỀU HÀNH & GHI NHẬN SẢN LƯỢNG (ACTIVE CONTEXT)", grid);
         }
 
         /// <summary>Bấm ô trên sơ đồ = bấm đúng nút lệnh tương ứng (cùng quyền, cùng điều kiện trạng thái, cùng hộp xác nhận).</summary>
@@ -281,18 +375,21 @@ namespace PCTP.Modules.MesPlanning.UI
             _flowMap.ApplyOrderStatus(hasOrder ? s : -1, hasLot);
 
             _mapHint.Text = _hint.Text;
+            string orderText = _orderNo.Text.Trim();
+            _header.RuntimeText = (hasOrder ? "RUNTIME ACTIVE" : "RUNTIME READY") + " | " +
+                (orderText.Length > 0 ? orderText : "Chưa chọn lệnh") + " | " + DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+            _recordOutput.Enabled = _cmdCreateLot != null && _cmdCreateLot.Button.Enabled;
             StyleBadge(_mapBadge, _badge.Text, _badge.Appearance.BackColor);
         }
 
         // ---------------------------------------------------------------- Tab 1: Lệnh và LOT
         private XtraTabPage BuildOrderTab()
         {
-            var page = new XtraTabPage { Text = "LỆNH / LOT / GHI NHẬN" };
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(8) };
+            var page = new XtraTabPage { Text = "LỆNH & DANH SÁCH FIRM" };
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(8) };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 205));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             // 1) Thanh lệnh
@@ -358,48 +455,6 @@ namespace PCTP.Modules.MesPlanning.UI
                 stepper.Controls.Add(_steps[i]);
             }
 
-            // 4) Hai nhóm nhập liệu
-            var forms = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
-            forms.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            forms.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-
-            _planLineId.Properties.Buttons[0].Kind = ButtonPredefines.Search;
-            _planLineId.Properties.NullValuePrompt = "Chọn dòng kế hoạch FIRM...";
-            _planLineId.Properties.NullValuePromptShowForEmptyValue = true;
-            _planLineId.ButtonClick += (s, e) => SelectPlanLineClick(s, e);
-            _planLineId.ToolTip = "Nhập ID hoặc bấm biểu tượng kính lúp để chọn dòng kế hoạch FIRM.";
-            _orderNo.Properties.NullValuePrompt = "Số lệnh sản xuất (nhập khi tạo lệnh)";
-            _orderNo.Properties.NullValuePromptShowForEmptyValue = true;
-            ReadOnly(_orderId, "Tự điền sau khi tạo lệnh");
-            ReadOnly(_lotId, "Tự điền sau khi tạo LOT");
-
-            var leftRows = FormRows(
-                Row("ProductionPlanLineId", _planLineId),
-                Row("OrderNo", _orderNo),
-                Row("ProductionOrderId", _orderId),
-                Row("ProductionLotId (sau khi tạo LOT)", _lotId));
-
-            _productionDate.Properties.DisplayFormat.FormatType = FormatType.DateTime;
-            _productionDate.Properties.DisplayFormat.FormatString = "dd/MM/yyyy HH:mm";
-            _productionDate.Properties.EditFormat.FormatType = FormatType.DateTime;
-            _productionDate.Properties.EditFormat.FormatString = "dd/MM/yyyy HH:mm";
-            _productionDate.Properties.Mask.EditMask = "dd/MM/yyyy HH:mm";
-            _productionDate.Properties.Mask.UseMaskAsDisplayFormat = true;
-            _productionDate.DateTime = DateTime.Now;
-            Numeric(_goodQty, "Số lượng đạt (OK) của LOT");
-            Numeric(_ngQty, "Số lượng lỗi (NG) - để 0 nếu không có");
-            _finished.Text = "LOT thành phẩm (FG)";
-            _finished.ToolTip = "Chọn nếu là LOT thành phẩm cuối (FG). Bỏ chọn = bán thành phẩm (WIP).";
-            _finished.Dock = DockStyle.Fill;
-
-            var rightRows = FormRows(
-                Row("Ngày/giờ sản xuất", _productionDate),
-                Row("Số lượng OK", _goodQty),
-                Row("Số lượng NG", _ngQty),
-                Row(string.Empty, _finished));
-
-            forms.Controls.Add(Group("Thông tin Kế hoạch & Lệnh", leftRows), 0, 0);
-            forms.Controls.Add(Group("Ghi nhận Sản lượng & LOT", rightRows), 1, 0);
 
             // 5) Danh sách lệnh / kế hoạch FIRM
             var workPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
@@ -430,8 +485,7 @@ namespace PCTP.Modules.MesPlanning.UI
             root.Controls.Add(bar, 0, 0);
             root.Controls.Add(_hint, 0, 1);
             root.Controls.Add(stepper, 0, 2);
-            root.Controls.Add(forms, 0, 3);
-            root.Controls.Add(workPanel, 0, 4);
+            root.Controls.Add(workPanel, 0, 3);
             page.Controls.Add(root);
             return page;
         }
@@ -752,10 +806,9 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void SetStatus(string message, StatusKind kind)
         {
-            string prefix = kind == StatusKind.Success ? "✔  " : kind == StatusKind.Error ? "✖  " : "ℹ  ";
-            _status.Text = prefix + message;
-            _status.Appearance.ForeColor = kind == StatusKind.Success ? Green : kind == StatusKind.Error ? Red : Color.FromArgb(60, 60, 60);
-            _status.Appearance.Options.UseForeColor = true;
+            // Thanh trạng thái đáy: thông báo nghiệp vụ/cảnh báo màu vàng, thành công màu trung tính kèm dấu ✔.
+            _statusBar.IsWarning = kind != StatusKind.Success;
+            _statusBar.Message = (kind == StatusKind.Success ? "✔  " : string.Empty) + message;
         }
 
         private static void StyleBadge(LabelControl badge, string text, Color color)
