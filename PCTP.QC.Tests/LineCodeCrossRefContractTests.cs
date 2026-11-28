@@ -41,7 +41,10 @@ public sealed class LineCodeCrossRefContractTests
     public void Work_center_link_uses_the_cross_reference_first()
     {
         var sql = Migration();
-        var resolve = sql.Substring(sql.IndexOf("CREATE OR ALTER PROCEDURE MES.usp_FVN_LotLineCode_Resolve", StringComparison.Ordinal));
+        // 079 is written as "ALTER PROCEDURE" (stub + ALTER, no CREATE OR ALTER) so it runs on SQL Server 2012+.
+        var start = Regex.Match(sql, @"alter\s+PROCEDURE\s+MES\.usp_FVN_LotLineCode_Resolve", RegexOptions.IgnoreCase);
+        Assert.True(start.Success, "usp_FVN_LotLineCode_Resolve must be defined in 079.");
+        var resolve = sql.Substring(start.Index);
         var xref = resolve.IndexOf("FROM MES.FVN_LineCodeCrossRef", StringComparison.Ordinal);
         var tied = resolve.IndexOf("FROM dbo.FVN_ProductionLine", StringComparison.Ordinal);
         Assert.True(xref > 0 && tied > xref, "Cross reference must be consulted before dbo.FVN_ProductionLine.");

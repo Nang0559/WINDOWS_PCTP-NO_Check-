@@ -20,6 +20,7 @@
     <Compile Include="../PCTP/Modules/MesPlanning/ProductionFlowTaskPolicy.cs" Link="ProductionFlowTaskPolicy.source.cs" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/068_IFS_SiteWorkCenterSyncAndProductionLink.sql" Link="068_IFS_SiteWorkCenterSyncAndProductionLink.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/079_MES_LineCodeCrossRef5To3.sql" Link="079_MES_LineCodeCrossRef5To3.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/080_MES_DepartmentCodeCrossRefAndMaintenance.sql" Link="080_MES_DepartmentCodeCrossRefAndMaintenance.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/079b_MES_LineCodeCrossRefSeed.sql" Link="079b_MES_LineCodeCrossRefSeed.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/078_MES_WorkCenterLinkCodesFromIfs.sql" Link="078_MES_WorkCenterLinkCodesFromIfs.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/076_MES_MasterDataUnification.sql" Link="076_MES_MasterDataUnification.sql" CopyToOutputDirectory="PreserveNewest" />

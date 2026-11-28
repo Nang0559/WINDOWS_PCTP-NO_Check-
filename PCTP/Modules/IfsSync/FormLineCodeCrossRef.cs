@@ -22,6 +22,9 @@ namespace PCTP.Modules.IfsSync
         private readonly GridView _view;
         private readonly LabelControl _status = new LabelControl { Dock = DockStyle.Bottom, Height = 26 };
         private SimpleButton _generate;
+        private SimpleButton _add;
+        private SimpleButton _edit;
+        private SimpleButton _delete;
 
         private static bool CanEdit
         {
@@ -57,8 +60,18 @@ namespace PCTP.Modules.IfsSync
             _generate = new SimpleButton { Text = "Sinh mã…", Width = 110, Height = 30, Enabled = CanEdit };
             if (!CanEdit) _generate.ToolTip = "Bạn chỉ có quyền xem; cần " + SiteDepartmentLineRepository.FunctionCode + " / EDIT.";
             _generate.Click += (s, e) => GenerateNew();
+            _add = new SimpleButton { Text = "Thêm tay…", Width = 100, Height = 30, Enabled = CanEdit };
+            _edit = new SimpleButton { Text = "Sửa…", Width = 80, Height = 30, Enabled = CanEdit };
+            _delete = new SimpleButton { Text = "Xóa", Width = 80, Height = 30, Enabled = CanEdit };
+            _add.ToolTip = "Thêm dòng khi IFS có chuyền mới mà chưa có mã 5 / 3 ký tự.";
+            _add.Click += (s, e) => EditRow(null);
+            _edit.Click += (s, e) => EditRow(_view.GetFocusedDataRow());
+            _delete.Click += (s, e) => DeleteRow(_view.GetFocusedDataRow());
             bar.Controls.Add(reload);
             bar.Controls.Add(_generate);
+            bar.Controls.Add(_add);
+            bar.Controls.Add(_edit);
+            bar.Controls.Add(_delete);
 
             Controls.Add(_grid);
             Controls.Add(bar);
@@ -83,7 +96,7 @@ namespace PCTP.Modules.IfsSync
                 Caption("SeqNo", "Số TT"); Caption("Description", "Mô tả"); Caption("IfsProductionLineCode", "Chuyền IFS");
                 Caption("IfsProductionLineDescription", "Mô tả chuyền IFS"); Caption("LotLineName", "Tên chuyền LOT");
                 Caption("LotLineStatus", "Chuyền LOT trong PCTP"); Caption("IsLegacySeed", "Mã có sẵn");
-                Caption("CreatedAtUtc", "Tạo lúc (UTC)"); Caption("CreatedBy", "Người tạo");
+                Caption("CreatedAtUtc", "Tạo lúc (UTC)"); Caption("UpdatedAtUtc", "Sửa lúc (UTC)"); Caption("UpdatedBy", "Người sửa"); Caption("CreatedBy", "Người tạo");
                 if (_view.Columns["SiteCode"] != null) _view.Columns["SiteCode"].Visible = false;
                 _view.BestFitColumns();
                 SetStatus(_table.Rows.Count + " cặp mã. Chuyền LOT trong PCTP = NOT_DEFINED khi mã 3 ký tự chưa có trong dbo.FVN_ProductionLine.", false);
@@ -124,6 +137,149 @@ namespace PCTP.Modules.IfsSync
                 string message = ex.GetBaseException().Message;
                 SetStatus("Sinh mã thất bại: " + message, true);
                 XtraMessageBox.Show(this, message, "Sinh mã chuyền", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private static string Cell(DataRow r, string col)
+        {
+            return r == null || !r.Table.Columns.Contains(col) || r.IsNull(col) ? string.Empty : Convert.ToString(r[col]).Trim();
+        }
+
+        private void EditRow(DataRow row)
+        {
+            if (!CanEdit) return;
+            try
+            {
+                DataTable ifsLines = _repository.GetIfsProductionLines(_site);
+                using (var dlg = new EditDialog(_site, _repository, ifsLines, row))
+                {
+                    if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                }
+                Reload();
+                SetStatus("Đã lưu cặp mã 5 / 3 ký tự.", false);
+            }
+            catch (Exception ex)
+            {
+                string message = ex.GetBaseException().Message;
+                SetStatus("Lưu thất bại: " + message, true);
+                XtraMessageBox.Show(this, message, "Mã chuyền 5 / 3 ký tự", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void DeleteRow(DataRow row)
+        {
+            if (!CanEdit) return;
+            if (row == null) { SetStatus("Chưa chọn dòng nào.", true); return; }
+            string c5 = Cell(row, "LineCode5");
+            try
+            {
+                if (XtraMessageBox.Show(this, "Xóa dòng đối chiếu " + c5 + " → " + Cell(row, "LineCode3") + "?\r\nChỉ xóa được khi mã 3 ký tự chưa được định nghĩa trong PCTP.",
+                        "Mã chuyền 5 / 3 ký tự", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+                _repository.DeleteLineCodeCrossRef(_site, c5);
+                Reload();
+                SetStatus("Đã xóa dòng " + c5 + ".", false);
+            }
+            catch (Exception ex)
+            {
+                string message = ex.GetBaseException().Message;
+                SetStatus("Xóa thất bại: " + message, true);
+                XtraMessageBox.Show(this, message, "Mã chuyền 5 / 3 ký tự", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        /// <summary>Thêm hoặc sửa tay một dòng đối chiếu (row = null: thêm mới).</summary>
+        private sealed class EditDialog : XtraForm
+        {
+            private readonly string _site;
+            private readonly ISiteDepartmentLineRepository _repository;
+            private readonly string _original5;
+            private readonly List<string> _ifsCodes = new List<string>();
+            private readonly TextEdit _code5 = new TextEdit();
+            private readonly TextEdit _code3 = new TextEdit();
+            private readonly TextEdit _family = new TextEdit();
+            private readonly TextEdit _seq = new TextEdit();
+            private readonly TextEdit _description = new TextEdit();
+            private readonly ComboBoxEdit _ifs = new ComboBoxEdit();
+
+            public EditDialog(string site, ISiteDepartmentLineRepository repository, DataTable ifsLines, DataRow row)
+            {
+                _site = site;
+                _repository = repository;
+                _original5 = row == null ? null : FormLineCodeCrossRef.Cell(row, "LineCode5");
+                base.Text = (row == null ? "Thêm" : "Sửa") + " cặp mã chuyền - Site " + site;
+                StartPosition = FormStartPosition.CenterParent;
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MaximizeBox = false; MinimizeBox = false;
+                ClientSize = new Size(520, 300);
+
+                _code5.Properties.CharacterCasing = CharacterCasing.Upper; _code5.Properties.MaxLength = 5;
+                _code3.Properties.CharacterCasing = CharacterCasing.Upper; _code3.Properties.MaxLength = 3;
+                _family.Properties.CharacterCasing = CharacterCasing.Upper; _family.Properties.MaxLength = 3;
+                _description.Properties.MaxLength = 200;
+                _ifs.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+                _ifs.Properties.Items.Add("(không gắn chuyền IFS)");
+                _ifsCodes.Add(null);
+                string currentIfs = FormLineCodeCrossRef.Cell(row, "IfsProductionLineCode");
+                int selected = 0;
+                if (ifsLines != null)
+                    foreach (DataRow l in ifsLines.Rows)
+                    {
+                        string code = Convert.ToString(l["ProductionLineCode"]).Trim();
+                        string desc = l.IsNull("Description") ? string.Empty : Convert.ToString(l["Description"]).Trim();
+                        _ifsCodes.Add(code);
+                        _ifs.Properties.Items.Add(desc.Length > 0 ? code + " — " + desc : code);
+                        if (string.Equals(code, currentIfs, StringComparison.OrdinalIgnoreCase)) selected = _ifsCodes.Count - 1;
+                    }
+                _ifs.SelectedIndex = selected;
+
+                _code5.Text = _original5 ?? string.Empty;
+                _code3.Text = FormLineCodeCrossRef.Cell(row, "LineCode3");
+                _family.Text = FormLineCodeCrossRef.Cell(row, "FamilyCode");
+                _seq.Text = FormLineCodeCrossRef.Cell(row, "SeqNo");
+                _description.Text = FormLineCodeCrossRef.Cell(row, "Description");
+
+                AddRow(0, "Mã 5 ký tự (đúng 5):", _code5);
+                AddRow(1, "Mã 3 ký tự LOT (đúng 3):", _code3);
+                AddRow(2, "Họ máy (tùy chọn):", _family);
+                AddRow(3, "Số TT (tùy chọn):", _seq);
+                AddRow(4, "Mô tả:", _description);
+                AddRow(5, "Chuyền IFS (tùy chọn):", _ifs);
+
+                var ok = new SimpleButton { Text = "Lưu", Width = 90, Location = new Point(310, 256) };
+                var cancel = new SimpleButton { Text = "Hủy", Width = 90, Location = new Point(410, 256), DialogResult = DialogResult.Cancel };
+                ok.Click += (s, e) => Save();
+                Controls.Add(ok); Controls.Add(cancel);
+                CancelButton = cancel;
+            }
+
+            private void AddRow(int index, string caption, BaseEdit edit)
+            {
+                int y = 18 + index * 36;
+                Controls.Add(new LabelControl { Text = caption, Location = new Point(12, y + 3), AutoSizeMode = LabelAutoSizeMode.None, Width = 155 });
+                edit.Location = new Point(170, y); edit.Width = 330;
+                Controls.Add(edit);
+            }
+
+            private void Save()
+            {
+                try
+                {
+                    int? seq = null;
+                    string seqText = _seq.Text.Trim();
+                    if (seqText.Length > 0)
+                    {
+                        int parsed;
+                        if (!int.TryParse(seqText, out parsed)) throw new InvalidOperationException("Số TT phải là số nguyên.");
+                        seq = parsed;
+                    }
+                    string ifs = _ifs.SelectedIndex > 0 && _ifs.SelectedIndex < _ifsCodes.Count ? _ifsCodes[_ifs.SelectedIndex] : null;
+                    _repository.SaveLineCodeCrossRef(_site, _code5.Text, _code3.Text, _description.Text, ifs, _family.Text, seq, _original5);
+                    DialogResult = DialogResult.OK;
+                }
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show(this, ex.GetBaseException().Message, base.Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
         }
 

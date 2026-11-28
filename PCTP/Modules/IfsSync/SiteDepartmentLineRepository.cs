@@ -44,6 +44,24 @@ namespace PCTP.Modules.IfsSync
             string lineName, string departmentName, string ifsProductionLine);
 
         void Unlink(string siteCode, string departmentCode);
+
+        /// <summary>Thêm mới hoặc sửa tay một dòng đối chiếu chuyền 5 ↔ 3 ký tự (khi IFS có chuyền mới). originalLineCode5 = mã cũ khi đổi mã 5 ký tự; null = thêm mới.</summary>
+        DataTable SaveLineCodeCrossRef(string siteCode, string lineCode5, string lineCode3, string description,
+            string ifsProductionLine, string familyCode, int? seqNo, string originalLineCode5);
+
+        /// <summary>Xóa dòng đối chiếu chuyền; SQL từ chối khi mã 3 ký tự đã được định nghĩa trong PCTP.</summary>
+        void DeleteLineCodeCrossRef(string siteCode, string lineCode5);
+
+        /// <summary>Bảng đối chiếu Work Center IFS (tới 5 ký tự) ↔ mã bộ phận 4 ký tự dùng trong LOT.</summary>
+        DataTable GetDepartmentCodeCrossRef(string siteCode);
+
+        /// <summary>Sinh mã bộ phận 4 ký tự từ Work Center IFS (preview = true: không ghi). Trả về một dòng: DepartmentCode, IsExisting, IsPreview.</summary>
+        DataTable GenerateDepartmentCode(string siteCode, string workCenterNo, string departmentOverride, string description, bool preview);
+
+        /// <summary>Thêm mới hoặc sửa tay một dòng Work Center ↔ bộ phận.</summary>
+        DataTable SaveDepartmentCodeCrossRef(string siteCode, string workCenterNo, string departmentCode, string description);
+
+        void DeleteDepartmentCodeCrossRef(string siteCode, string workCenterNo);
     }
 
     /// <summary>
@@ -128,7 +146,7 @@ ORDER BY CASE Severity WHEN 'ERROR' THEN 0 WHEN 'WARN' THEN 1 ELSE 2 END, IssueC
             AuthorizationGuard.DemandScope(FunctionCode, "SITE", site, site);
             return Query(@"
 SELECT SiteCode, LineCode5, LineCode3, FamilyCode, SeqNo, Description, IfsProductionLineCode, IfsProductionLineDescription,
-       LotLineName, LotLineStatus, IsLegacySeed, CreatedAtUtc, CreatedBy
+       LotLineName, LotLineStatus, IsLegacySeed, CreatedAtUtc, CreatedBy, UpdatedAtUtc, UpdatedBy
 FROM MES.vw_FVN_LineCodeCrossRef
 WHERE SiteCode = @SiteCode
 ORDER BY LineCode5;", site);
@@ -231,11 +249,9 @@ ORDER BY l.ProductionLineCode;", site);
                 throw new ArgumentException("Chọn Work Center IFS.", "workCenterNo");
             string dept = (departmentCode ?? string.Empty).Trim();
             string line = (lineCode ?? string.Empty).Trim();
-            // Để trống = tự lấy từ IFS: bộ phận = WorkCenterNo đệm 0, chuyền LOT = tự sinh từ chuyền IFS (SQL cấp trong transaction).
-            if (dept.Length == 0) dept = DepartmentCodeFromWorkCenter(workCenterNo) ?? string.Empty;
-            if (dept.Length == 0)
-                throw new ArgumentException("Work Center " + workCenterNo.Trim() + " không đổi được thành mã bộ phận 4 ký tự (dài hơn 4 hoặc có ký tự đặc biệt); nhập mã bộ phận.", "departmentCode");
-            if (dept.Length != 4)
+            // Để trống = SQL tự lấy: bảng đối chiếu Work Center ↔ bộ phận (080) trước, rồi WorkCenterNo đệm 0 thành 4 ký tự;
+            // chuyền LOT = tự sinh từ chuyền IFS (SQL cấp trong transaction).
+            if (dept.Length != 0 && dept.Length != 4)
                 throw new ArgumentException("Mã Department phải đúng 4 ký tự (một phần của LOT 20 ký tự).", "departmentCode");
             if (line.Length != 0 && line.Length != 3)
                 throw new ArgumentException("Mã Line phải đúng 3 ký tự (một phần của LOT 20 ký tự).", "lineCode");
@@ -248,7 +264,7 @@ ORDER BY l.ProductionLineCode;", site);
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = site;
                 cmd.Parameters.Add("@WorkCenterNo", SqlDbType.NVarChar, 30).Value = workCenterNo.Trim();
-                cmd.Parameters.Add("@DepartmentCode", SqlDbType.VarChar, 4).Value = dept;
+                cmd.Parameters.Add("@DepartmentCode", SqlDbType.VarChar, 4).Value = dept.Length == 0 ? (object)DBNull.Value : dept;
                 cmd.Parameters.Add("@LineCode", SqlDbType.VarChar, 3).Value = line.Length == 0 ? (object)DBNull.Value : line;
                 cmd.Parameters.Add("@LineName", SqlDbType.NVarChar, 120).Value = NullIfBlank(lineName);
                 cmd.Parameters.Add("@DepartmentName", SqlDbType.NVarChar, 120).Value = NullIfBlank(departmentName);
@@ -269,6 +285,120 @@ ORDER BY l.ProductionLineCode;", site);
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = site;
                 cmd.Parameters.Add("@DepartmentCode", SqlDbType.VarChar, 4).Value = (departmentCode ?? string.Empty).Trim();
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
+                Execute(cn, cmd);
+            }
+        }
+
+        public DataTable SaveLineCodeCrossRef(string siteCode, string lineCode5, string lineCode3, string description,
+            string ifsProductionLine, string familyCode, int? seqNo, string originalLineCode5)
+        {
+            string site = RequireSite(siteCode);
+            string actor = AuthorizationGuard.DemandActionAndScope(FunctionCode, "EDIT", "SITE", site, site).ActorCode;
+            if ((lineCode5 ?? string.Empty).Trim().Length != 5)
+                throw new ArgumentException("Mã chuyền 5 ký tự phải đúng 5 ký tự.", "lineCode5");
+            if ((lineCode3 ?? string.Empty).Trim().Length != 3)
+                throw new ArgumentException("Mã chuyền 3 ký tự phải đúng 3 ký tự.", "lineCode3");
+
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("MES.usp_FVN_LineCodeCrossRef_Save", cn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = site;
+                cmd.Parameters.Add("@LineCode5", SqlDbType.VarChar, 5).Value = lineCode5.Trim();
+                cmd.Parameters.Add("@LineCode3", SqlDbType.VarChar, 3).Value = lineCode3.Trim();
+                cmd.Parameters.Add("@Description", SqlDbType.NVarChar, 200).Value = NullIfBlank(description);
+                cmd.Parameters.Add("@IfsProductionLine", SqlDbType.NVarChar, 30).Value = NullIfBlank(ifsProductionLine);
+                cmd.Parameters.Add("@FamilyCode", SqlDbType.VarChar, 3).Value = NullIfBlank(familyCode);
+                cmd.Parameters.Add("@SeqNo", SqlDbType.Int).Value = seqNo.HasValue ? (object)seqNo.Value : DBNull.Value;
+                cmd.Parameters.Add("@OriginalLineCode5", SqlDbType.VarChar, 5).Value = NullIfBlank(originalLineCode5);
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
+                return Fill(cmd);
+            }
+        }
+
+        public void DeleteLineCodeCrossRef(string siteCode, string lineCode5)
+        {
+            string site = RequireSite(siteCode);
+            string actor = AuthorizationGuard.DemandActionAndScope(FunctionCode, "EDIT", "SITE", site, site).ActorCode;
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("MES.usp_FVN_LineCodeCrossRef_Delete", cn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = site;
+                cmd.Parameters.Add("@LineCode5", SqlDbType.VarChar, 5).Value = (lineCode5 ?? string.Empty).Trim();
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
+                Execute(cn, cmd);
+            }
+        }
+
+        public DataTable GetDepartmentCodeCrossRef(string siteCode)
+        {
+            string site = RequireSite(siteCode);
+            AuthorizationGuard.DemandScope(FunctionCode, "SITE", site, site);
+            return Query(@"
+SELECT SiteCode, WorkCenterNo, DepartmentCode, Description, IfsWorkCenterDescription, IsPresentInIfs,
+       LotDepartmentName, LotLineCode, LotDepartmentStatus, IsLegacySeed, CreatedAtUtc, CreatedBy, UpdatedAtUtc, UpdatedBy
+FROM MES.vw_FVN_DepartmentCodeCrossRef
+WHERE SiteCode = @SiteCode
+ORDER BY WorkCenterNo;", site);
+        }
+
+        public DataTable GenerateDepartmentCode(string siteCode, string workCenterNo, string departmentOverride, string description, bool preview)
+        {
+            string site = RequireSite(siteCode);
+            if (string.IsNullOrWhiteSpace(workCenterNo))
+                throw new ArgumentException("Chọn Work Center IFS.", "workCenterNo");
+            string actor = null;
+            if (preview) AuthorizationGuard.DemandScope(FunctionCode, "SITE", site, site);
+            else actor = AuthorizationGuard.DemandActionAndScope(FunctionCode, "EDIT", "SITE", site, site).ActorCode;
+
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("MES.usp_FVN_DepartmentCodeCrossRef_Generate", cn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = site;
+                cmd.Parameters.Add("@WorkCenterNo", SqlDbType.NVarChar, 30).Value = workCenterNo.Trim();
+                cmd.Parameters.Add("@DepartmentOverride", SqlDbType.VarChar, 4).Value = NullIfBlank(departmentOverride);
+                cmd.Parameters.Add("@Description", SqlDbType.NVarChar, 250).Value = NullIfBlank(description);
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = (object)actor ?? DBNull.Value;
+                cmd.Parameters.Add("@Preview", SqlDbType.Bit).Value = preview;
+                return Fill(cmd);
+            }
+        }
+
+        public DataTable SaveDepartmentCodeCrossRef(string siteCode, string workCenterNo, string departmentCode, string description)
+        {
+            string site = RequireSite(siteCode);
+            string actor = AuthorizationGuard.DemandActionAndScope(FunctionCode, "EDIT", "SITE", site, site).ActorCode;
+            if (string.IsNullOrWhiteSpace(workCenterNo))
+                throw new ArgumentException("Chọn Work Center IFS.", "workCenterNo");
+            if ((departmentCode ?? string.Empty).Trim().Length != 4)
+                throw new ArgumentException("Mã bộ phận phải đúng 4 ký tự.", "departmentCode");
+
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("MES.usp_FVN_DepartmentCodeCrossRef_Save", cn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = site;
+                cmd.Parameters.Add("@WorkCenterNo", SqlDbType.NVarChar, 30).Value = workCenterNo.Trim();
+                cmd.Parameters.Add("@DepartmentCode", SqlDbType.VarChar, 4).Value = departmentCode.Trim();
+                cmd.Parameters.Add("@Description", SqlDbType.NVarChar, 250).Value = NullIfBlank(description);
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
+                return Fill(cmd);
+            }
+        }
+
+        public void DeleteDepartmentCodeCrossRef(string siteCode, string workCenterNo)
+        {
+            string site = RequireSite(siteCode);
+            string actor = AuthorizationGuard.DemandActionAndScope(FunctionCode, "EDIT", "SITE", site, site).ActorCode;
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("MES.usp_FVN_DepartmentCodeCrossRef_Delete", cn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = site;
+                cmd.Parameters.Add("@WorkCenterNo", SqlDbType.NVarChar, 30).Value = (workCenterNo ?? string.Empty).Trim();
                 cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
                 Execute(cn, cmd);
             }
@@ -298,6 +428,22 @@ ORDER BY l.ProductionLineCode;", site);
                 using (var adapter = new SqlDataAdapter(cmd)) adapter.Fill(table);
                 return table;
             }
+        }
+
+        private DataTable Fill(SqlCommand cmd)
+        {
+            var table = new DataTable();
+            try
+            {
+                using (var adapter = new SqlDataAdapter(cmd)) adapter.Fill(table);
+            }
+            catch (SqlException ex)
+            {
+                if (ex.Number >= 50000 && ex.Number <= 59999)
+                    throw new InvalidOperationException(ex.Message, ex);
+                throw;
+            }
+            return table;
         }
 
         private static void Execute(SqlConnection cn, SqlCommand cmd)

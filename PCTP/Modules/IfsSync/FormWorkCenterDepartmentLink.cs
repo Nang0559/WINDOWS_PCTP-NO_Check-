@@ -207,6 +207,19 @@ namespace PCTP.Modules.IfsSync
             public string DepartmentCode { get; private set; }
             public string IfsProductionLine { get; private set; }
 
+            /// <summary>Mã bộ phận từ bảng đối chiếu hoặc do SQL sinh (chỉ xem trước, không ghi); null khi không sinh được.</summary>
+            private string PreviewDepartmentCode(string workCenterNo)
+            {
+                try
+                {
+                    DataTable t = _repository.GenerateDepartmentCode(_site, workCenterNo, null, null, true);
+                    if (t != null && t.Rows.Count > 0 && !t.Rows[0].IsNull("DepartmentCode"))
+                        return Convert.ToString(t.Rows[0]["DepartmentCode"]).Trim();
+                }
+                catch (InvalidOperationException) { }
+                return null;
+            }
+
             public LinkDialog(DataRow row, string site, ISiteDepartmentLineRepository repository, DataTable ifsLines)
             {
                 _site = site;
@@ -243,9 +256,9 @@ namespace PCTP.Modules.IfsSync
                 _ifsLine.Enabled = ifsLine.Length == 0;
                 _ifsLine.SelectedIndexChanged += (s, e) => RefreshLineCode();
 
-                // Mã bộ phận: WorkCenterNo đệm 0 thành 4 ký tự. Chỉ cho nhập tay khi không đổi được (vd 1100E).
+                // Mã bộ phận: bảng đối chiếu Work Center ↔ bộ phận (080) trước; chưa có thì sinh (đệm 0 / bỏ ký tự giữa, vd 1100E → 110E). Chỉ nhập tay khi không sinh được.
                 string linkedDept = Field(row, "LinkedDepartmentCode");
-                string auto = SiteDepartmentLineRepository.DepartmentCodeFromWorkCenter(WorkCenterNo);
+                string auto = PreviewDepartmentCode(WorkCenterNo) ?? SiteDepartmentLineRepository.DepartmentCodeFromWorkCenter(WorkCenterNo);
                 _dept.Properties.MaxLength = 4;
                 _dept.Text = linkedDept.Length > 0 ? linkedDept : (auto ?? Field(row, "SuggestedDepartmentCode"));
                 _dept.Properties.ReadOnly = auto != null || linkedDept.Length > 0;

@@ -570,6 +570,9 @@
     <Compile Include="Modules\IfsSync\FormWorkCenterDepartmentLink.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Modules\IfsSync\FormDepartmentCodeCrossRef.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\IfsSync\FormLineCodeCrossRef.cs">
       <SubType>Form</SubType>
     </Compile>
