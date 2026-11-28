@@ -133,7 +133,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _service = service ?? throw new ArgumentNullException(nameof(service));
             _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
             _flow = flow;
-            Text = "Điều hành sản xuất MES - Live Execution Console";
+            Text = "Điều hành sản xuất MES - Interactive Execution Console";
             StartPosition = FormStartPosition.CenterParent;
             Size = new Size(1280, 820);
             MinimumSize = new Size(1000, 680);
@@ -181,7 +181,7 @@ namespace PCTP.Modules.MesPlanning.UI
         // ---------------------------------------------------------------- Tab 0: Sơ đồ quy trình
         private XtraTabPage BuildFlowTab()
         {
-            var page = new XtraTabPage { Text = "BẢNG ĐIỀU HÀNH RUNTIME" };
+            var page = new XtraTabPage { Text = "BẢNG ĐIỀU HÀNH RUNTIME (Live Flow Console)" };
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Padding = new Padding(8) };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
@@ -439,7 +439,7 @@ namespace PCTP.Modules.MesPlanning.UI
         // ---------------------------------------------------------------- Tab 2: Công đoạn
         private XtraTabPage BuildOperationTab()
         {
-            var page = new XtraTabPage { Text = "Công đoạn" };
+            var page = new XtraTabPage { Text = "Công đoạn sản xuất" };
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Padding = new Padding(8) };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
@@ -562,7 +562,7 @@ namespace PCTP.Modules.MesPlanning.UI
         // ---------------------------------------------------------------- Tab 3: Tiêu hao linh kiện
         private XtraTabPage BuildConsumeTab()
         {
-            var page = new XtraTabPage { Text = "TIÊU HAO LOT LINH KIỆN" };
+            var page = new XtraTabPage { Text = "Tiêu hao LOT linh kiện" };
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(8) };
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 55));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
@@ -1086,18 +1086,48 @@ namespace PCTP.Modules.MesPlanning.UI
             using (var picker = new FormMesProductionControlTower(true))
             {
                 if (picker.ShowDialog(this) != DialogResult.OK) return;
-                _syncing = true;
-                try
-                {
-                    _planLineId.Text = picker.SelectedPlanLineId.ToString(CultureInfo.InvariantCulture);
-                    _orderId.Text = string.Empty;
-                    _lotId.Text = string.Empty;
-                }
-                finally { _syncing = false; }
-                RefreshOrderState();
-                SetStatus("Đã chọn dòng kế hoạch " + _planLineId.Text + ". Nhập OrderNo rồi bấm TẠO LỆNH TỪ KẾ HOẠCH.", StatusKind.Info);
-                _orderNo.Focus();
+                ApplyPlanLine(picker.SelectedPlanLineId);
             }
+        }
+
+        /// <summary>
+        /// Chuyển ngữ cảnh từ MES CONTROL TOWER - Dòng chảy sản xuất (CHỌN DÒNG FIRM) sang màn điều hành:
+        /// nạp ProductionPlanLineId, và nếu dòng đã có lệnh thì nạp luôn lệnh / LOT mới nhất.
+        /// Chỉ nạp ngữ cảnh; mọi thao tác ghi vẫn do các nút lệnh của màn này thực hiện.
+        /// </summary>
+        public void PreloadContext(long planLineId, long productionOrderId, long latestLotId)
+        {
+            ApplyPlanLine(planLineId);
+            if (productionOrderId <= 0) return;
+            _syncing = true;
+            try
+            {
+                _orderId.Text = productionOrderId.ToString(CultureInfo.InvariantCulture);
+                _lotId.Text = latestLotId > 0 ? latestLotId.ToString(CultureInfo.InvariantCulture) : string.Empty;
+                if (latestLotId > 0)
+                {
+                    _operationLotId.Text = _lotId.Text;
+                    _consumeProductionLotId.Text = _lotId.Text;
+                }
+            }
+            finally { _syncing = false; }
+            RefreshOrderState();
+            SetStatus("Đã nạp dòng kế hoạch " + _planLineId.Text + " / lệnh " + _orderId.Text + " từ Control Tower.", StatusKind.Info);
+        }
+
+        private void ApplyPlanLine(long planLineId)
+        {
+            _syncing = true;
+            try
+            {
+                _planLineId.Text = planLineId.ToString(CultureInfo.InvariantCulture);
+                _orderId.Text = string.Empty;
+                _lotId.Text = string.Empty;
+            }
+            finally { _syncing = false; }
+            RefreshOrderState();
+            SetStatus("Đã chọn dòng kế hoạch " + _planLineId.Text + ". Nhập OrderNo rồi bấm TẠO LỆNH TỪ KẾ HOẠCH.", StatusKind.Info);
+            _orderNo.Focus();
         }
 
         private void CreateOrderClick(object sender, EventArgs e)

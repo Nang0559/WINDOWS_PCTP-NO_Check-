@@ -309,6 +309,16 @@ namespace PCTP.Modules.KhoLinhKien.UI
                 "Mở tab Xuất theo nhu cầu sản xuất (PART → WIP).");
             _flowMap.SetNode("trace", _tabTrace != null ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, _tabTrace != null,
                 "Mở tab Truy xuất LOT → thành phẩm.");
+            _flowMap.SetNode("print", hasPo ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, hasPo,
+                hasPo ? "In / in lại tem thùng, tem pallet ở tab Yêu cầu mua hàng (chọn PO đã phát hành)." : "Bạn không có quyền xem tab Yêu cầu mua hàng.");
+            _flowMap.SetNode("request", _tabIssue != null ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, _tabIssue != null,
+                "Yêu cầu linh kiện của sản xuất theo BOM (mở tab Xuất theo nhu cầu SX).");
+            _flowMap.SetNode("wipmove", _tabIssue != null ? FlowNodeVisual.Ready : FlowNodeVisual.Disabled, _tabIssue != null,
+                "Xuất kho / chuyển WIP: mở tab Xuất theo nhu cầu SX.");
+            const string noData = "Chưa có dữ liệu: yêu cầu này chưa được mô hình hoá trong MES.";
+            _flowMap.SetNode("qc", FlowNodeVisual.Disabled, false, noData);
+            _flowMap.SetNode("pack", FlowNodeVisual.Disabled, false, noData);
+            _flowMap.SetNode("other", FlowNodeVisual.Disabled, false, noData);
 
             _mapHint.Text = status < 0
                 ? "Bấm một ô trên sơ đồ để mở bước tương ứng. Chọn PO ở tab 0 để sơ đồ hiển thị trạng thái PO."
@@ -329,7 +339,10 @@ namespace PCTP.Modules.KhoLinhKien.UI
                 case "receive": GoTab(_tabReceipt); break;
                 case "stock": GoTab(_tabStock); break;
                 case "transfer": GoTab(_tabTransfer); break;
-                case "issue": GoTab(_tabIssue); break;
+                case "issue":
+                case "wipmove":
+                case "request": GoTab(_tabIssue); break;
+                case "print": GoTab(_tabPo); break;
                 case "trace": GoTab(_tabTrace); break;
             }
         }
@@ -345,6 +358,70 @@ namespace PCTP.Modules.KhoLinhKien.UI
         private void GoTab(XtraTabPage page)
         {
             if (page != null) _tabs.SelectedTabPage = page;
+        }
+
+        // ── Nhận ngữ cảnh từ MES CONTROL TOWER - Dòng chảy linh kiện (CHỌN DÒNG LINH KIỆN) ──
+
+        private sealed class PendingContext
+        {
+            public string Site, PoNo, LotNo, PartNo, Stage;
+        }
+
+        private PendingContext _pending;
+
+        /// <summary>
+        /// Lưu ngữ cảnh dòng PO / LotNo được chọn ở Control Tower; áp dụng sau khi form nạp xong danh sách
+        /// (chọn PO, điền bộ lọc tồn kho theo PartNo / LotNo, mở tab đúng chặng). Chỉ chọn và lọc, không ghi dữ liệu.
+        /// </summary>
+        public void PreloadContext(string siteCode, string poNo, string lotNo, string partNo, string flowStage)
+        {
+            _pending = new PendingContext { Site = siteCode, PoNo = poNo, LotNo = lotNo, PartNo = partNo, Stage = flowStage };
+            if (IsHandleCreated) ApplyPendingContext();
+        }
+
+        private void ApplyPendingContext()
+        {
+            var ctx = _pending;
+            _pending = null;
+            if (ctx == null) return;
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(ctx.Site) && _site.Properties.Items.Contains(ctx.Site))
+                    _site.EditValue = ctx.Site;
+                _partNo.Text = ctx.PartNo ?? string.Empty;
+                _lotNo.Text = ctx.LotNo ?? string.Empty;
+                LoadStock();
+
+                if (_tabPo != null && !string.IsNullOrWhiteSpace(ctx.PoNo))
+                {
+                    for (int i = 0; i < _poView.RowCount; i++)
+                    {
+                        object value = _poView.GetRowCellValue(i, "PurchaseOrderNo");
+                        if (value != null && string.Equals(Convert.ToString(value), ctx.PoNo, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _poView.FocusedRowHandle = i;
+                            break;
+                        }
+                    }
+                }
+
+                XtraTabPage target;
+                switch (ctx.Stage)
+                {
+                    case "PO":
+                    case "LABEL": target = _tabPo; break;
+                    case "RECEIPT": target = _tabReceipt ?? _tabStock; break;
+                    case "REQUEST":
+                    case "ISSUE": target = _tabIssue ?? _tabStock; break;
+                    case "STOCK": target = _tabStock; break;
+                    default: target = _tabFlow; break;
+                }
+                _tabs.SelectedTabPage = target ?? _tabFlow;
+                UpdateFlowMap();
+                SetStatus("Đã nạp ngữ cảnh từ Control Tower: PO " + ctx.PoNo +
+                    (string.IsNullOrWhiteSpace(ctx.LotNo) ? string.Empty : " / LotNo " + ctx.LotNo) + ".");
+            }
+            catch (Exception ex) { SetStatus(ex.Message); }
         }
 
         // ── Tab 0: Yêu cầu mua hàng ──
@@ -564,6 +641,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
                 FillSiteCombo(_traceSite, sites, false);
                 if (_tabPo != null) LoadPoOrders();
                 LoadStock();
+                ApplyPendingContext();
             }
             catch (Exception ex) { SetStatus(ex.Message); }
         }

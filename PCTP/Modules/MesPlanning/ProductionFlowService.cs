@@ -40,7 +40,34 @@ namespace PCTP.Modules.MesPlanning
             string scopeXml = BuildDepartmentScope(session, siteCode);
             var table = _repository.GetDashboard(siteCode, fromDate, toDate, scopeXml);
             ApplyTaskPolicy(table, session);
+            MergeExtra(table, siteCode, fromDate, toDate);
             return table;
+        }
+
+        /// <summary>
+        /// Adds NgQty / PlannedEndDate by joining on ProductionPlanLineId. Only rows already returned by the
+        /// department-scoped dashboard get the extra columns, so the extra procedure cannot widen visibility.
+        /// </summary>
+        private void MergeExtra(DataTable table, string siteCode, DateTime? fromDate, DateTime? toDate)
+        {
+            if (table == null) return;
+            if (!table.Columns.Contains("NgQty")) table.Columns.Add("NgQty", typeof(decimal));
+            if (!table.Columns.Contains("PlannedEndDate")) table.Columns.Add("PlannedEndDate", typeof(DateTime));
+            if (table.Rows.Count == 0 || !table.Columns.Contains("ProductionPlanLineId")) return;
+            DataTable extra = _repository.GetExtra(siteCode, fromDate, toDate);
+            if (extra == null) return;
+            var byLine = new Dictionary<long, DataRow>();
+            foreach (DataRow e in extra.Rows)
+                if (e["ProductionPlanLineId"] != DBNull.Value)
+                    byLine[Convert.ToInt64(e["ProductionPlanLineId"])] = e;
+            foreach (DataRow row in table.Rows)
+            {
+                if (row["ProductionPlanLineId"] == DBNull.Value) continue;
+                DataRow e;
+                if (!byLine.TryGetValue(Convert.ToInt64(row["ProductionPlanLineId"]), out e)) continue;
+                row["NgQty"] = e["NgQty"] == DBNull.Value ? 0m : Convert.ToDecimal(e["NgQty"]);
+                if (e["PlannedEndDate"] != DBNull.Value) row["PlannedEndDate"] = Convert.ToDateTime(e["PlannedEndDate"]);
+            }
         }
 
         private static void ApplyTaskPolicy(DataTable table, UserSession session)

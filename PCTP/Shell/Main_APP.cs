@@ -293,6 +293,8 @@ namespace PCTP
             // Read-only Control Tower is the cross-department entry point; individual task forms remain action-scoped.
             AddMesMenuItem(_menuSanXuat, "menuMesProductionFlow", "MES Control Tower - Dòng chảy sản xuất",
                 "MES.PRODUCTION_FLOW", () => new FormMesProductionControlTower());
+            AddMesMenuItem(_menuSanXuat, "menuMesComponentFlow", "MES Control Tower - Dòng chảy linh kiện",
+                "WAREHOUSE.COMPONENT_STOCK", () => new FormMesComponentControlTower());
 
             var bomItem = new AccordionControlElement
             {

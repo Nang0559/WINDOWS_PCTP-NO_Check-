@@ -26,7 +26,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly PCTP.Shared.MesControls.FvnDepartmentTaskGridControl _taskGrid =
             new PCTP.Shared.MesControls.FvnDepartmentTaskGridControl();
         private readonly LabelControl _details = new LabelControl();
-        private readonly PCTP.Shared.MesControls.FvnKpiStageStripControl _stageStrip = new PCTP.Shared.MesControls.FvnKpiStageStripControl();
+        private readonly PCTP.Shared.MesControls.FvnFlowStageCardsControl _stageStrip = new PCTP.Shared.MesControls.FvnFlowStageCardsControl();
         private readonly PCTP.Shared.MesControls.FvnProgressSummaryControl _progressSummary = new PCTP.Shared.MesControls.FvnProgressSummaryControl();
         private readonly PCTP.Shared.MesControls.FvnScopeBadgeControl _scopeBadge = new PCTP.Shared.MesControls.FvnScopeBadgeControl();
         private readonly PCTP.Shared.MesControls.FvnHoldAlertControl _holdAlert = new PCTP.Shared.MesControls.FvnHoldAlertControl();
@@ -103,7 +103,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 RowCount = 4
             };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 124));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
 
@@ -120,7 +120,7 @@ namespace PCTP.Modules.MesPlanning.UI
             var actionPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Right,
-                Width = _selectionMode ? 250 : 540,
+                Width = _selectionMode ? 250 : 690,
                 WrapContents = false,
                 FlowDirection = FlowDirection.RightToLeft,
                 Padding = new Padding(0, 12, 0, 0)
@@ -133,6 +133,8 @@ namespace PCTP.Modules.MesPlanning.UI
             }
             else
             {
+                ConfigureAction(_selectFirmPlan, "CHỌN DÒNG FIRM", false);
+                _selectFirmPlan.Click += (s, e) => OpenSelectedInExecution();
                 ConfigureAction(_openProduction, "ĐIỀU HÀNH SX", UserSession.Current.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW"));
                 _openProduction.Click += (s, e) => OpenProduction();
                 ConfigureAction(_openPart, "DÒNG LINH KIỆN", UserSession.Current.HasPermission("MES.COMPONENT_DEMAND", "VIEW") && UserSession.Current.HasPermission("MES.COMPONENT_ISSUE", "VIEW"));
@@ -143,6 +145,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 _openTask.Click += (s, e) => OpenSelectedTask();
                 ConfigureAction(_openTimeline, "LỊCH SỬ", false);
                 _openTimeline.Click += (s, e) => OpenSelectedTimeline();
+                actionPanel.Controls.Add(_selectFirmPlan);
                 actionPanel.Controls.Add(_openTimeline);
                 actionPanel.Controls.Add(_openTask);
                 actionPanel.Controls.Add(_openProduction);
@@ -152,8 +155,10 @@ namespace PCTP.Modules.MesPlanning.UI
             header.Controls.Add(actionPanel);
 
             _stageStrip.Dock = DockStyle.Fill;
+            _stageStrip.CardClicked += (s, e) => ApplyStageFilter();
             _taskGrid.Dock = DockStyle.Fill;
             _taskGrid.View.RowCellStyle += View_RowCellStyle;
+            _taskGrid.View.CustomUnboundColumnData += View_CustomUnboundColumnData;
             _taskGrid.View.CustomColumnDisplayText += (s, e) =>
             {
                 if (e.Column.FieldName == "IsRelatedDepartment")
@@ -191,8 +196,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _onlyMyTasks.Text = "Chỉ việc của tôi";
             _onlyMyTasks.Dock = DockStyle.Left;
             _onlyMyTasks.Width = 145;
-            _onlyMyTasks.CheckedChanged += (s, e) =>
-                _taskGrid.View.ActiveFilterString = _onlyMyTasks.Checked ? "[IsActionable] = true" : string.Empty;
+            _onlyMyTasks.CheckedChanged += (s, e) => ApplyStageFilter();
             _status.Dock = DockStyle.Fill;
             _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _refreshStamp.Dock = DockStyle.Right;
@@ -245,8 +249,10 @@ namespace PCTP.Modules.MesPlanning.UI
                     return;
                 }
                 _data = result.Data;
+                PrepareColumns(_data);
                 _taskGrid.Bind(_data);
                 ConfigureColumns();
+                ApplyStageFilter();
                 UpdateKpis();
                 _refreshStamp.Text = "Cập nhật: " + DateTime.Now.ToString("HH:mm:ss");
                 _status.Text = "Đang theo dõi " + _data.Rows.Count.ToString("N0") +
@@ -291,52 +297,92 @@ namespace PCTP.Modules.MesPlanning.UI
             });
         }
 
+        private static string StageName(string stage)
+        {
+            switch (stage)
+            {
+                case "PLAN": return "01 Kế hoạch";
+                case "COMPONENTS": return "02 Cấp linh kiện";
+                case "ORDER": return "03 Lệnh sản xuất";
+                case "PRODUCTION": return "04 Sản xuất thực tế";
+                case "DONE": return "05 Hoàn thành";
+                default: return stage;
+            }
+        }
+
+        /// <summary>Thêm cột hiển thị dẫn xuất (chỉ để trình bày; không thay đổi dữ liệu nguồn).</summary>
+        private void PrepareColumns(DataTable table)
+        {
+            foreach (var name in new[] { "FlowCode", "FlowName", "SiteText", "StageText", "MaterialText", "WarnText", "StatusText" })
+                if (!table.Columns.Contains(name)) table.Columns.Add(name, typeof(string));
+            if (!table.Columns.Contains("HasWarning")) table.Columns.Add("HasWarning", typeof(bool));
+            string site = _filters.SiteCode ?? string.Empty;
+            foreach (DataRow row in table.Rows)
+            {
+                string stage = Convert.ToString(row["FlowStage"]);
+                bool demandExists = !string.IsNullOrWhiteSpace(Convert.ToString(row["DemandStatus"]));
+                decimal outstanding = SafeDecimal(row["OutstandingComponentQty"]);
+                int paused = SafeInt(row["PausedOperationCount"]);
+                string reason = Convert.ToString(row["WaitingReason"]);
+                bool warn = paused > 0 || outstanding > 0m || !string.IsNullOrWhiteSpace(reason);
+                row["FlowCode"] = Convert.ToString(row["PlanNo"]);
+                row["FlowName"] = Convert.ToString(row["ProductDescription"]) +
+                    (string.IsNullOrWhiteSpace(Convert.ToString(row["ProductionLineCode"])) ? string.Empty :
+                        " - " + Convert.ToString(row["ProductionLineCode"]));
+                row["SiteText"] = site;
+                row["StageText"] = StageName(stage);
+                row["MaterialText"] = !demandExists ? "Chưa có yêu cầu linh kiện" :
+                    outstanding > 0m ? "Chưa cấp đủ linh kiện" : "Đã cấp đủ";
+                row["HasWarning"] = warn;
+                row["WarnText"] = !warn ? "—" :
+                    !string.IsNullOrWhiteSpace(reason) ? reason :
+                    paused > 0 ? "Công đoạn tạm dừng" : "Còn thiếu linh kiện";
+                row["StatusText"] = stage == "DONE" ? "Đã hoàn thành" :
+                    paused > 0 ? "Tạm dừng" :
+                    stage == "PRODUCTION" ? "Đang chạy" :
+                    stage == "ORDER" ? "Chờ sản xuất" :
+                    stage == "COMPONENTS" ? "Chờ linh kiện" : "Chuẩn bị";
+            }
+        }
+
         private void ConfigureColumns()
         {
-            string[] hidden = { "ProductionPlanLineId", "ProductionPlanId", "ProductionOrderId", "LatestProductionLotId", "ComponentDemandId", "PlanWorkflowStatusCode", "OrderWorkflowStatusCode", "TaskCode", "IsActionable" };
-            foreach (var name in hidden)
-                if (_taskGrid.View.Columns[name] != null) _taskGrid.View.Columns[name].Visible = false;
-            SetCaption("IsRelatedDepartment", "Phạm vi");
-            SetCaption("PlanNo", "Kế hoạch");
-            SetCaption("ProductionDate", "Ngày SX");
-            SetCaption("ShiftCode", "Ca");
-            SetCaption("ProductionLineCode", "Chuyền");
-            SetCaption("DepartmentCode", "Bộ phận");
-            SetCaption("ProductPartNo", "Mã sản phẩm");
-            SetCaption("ProductDescription", "Tên sản phẩm");
-            SetCaption("PlannedQty", "SL kế hoạch");
-            SetCaption("PlanStatus", "Trạng thái KH");
-            SetCaption("DemandStatus", "Trạng thái linh kiện");
-            SetCaption("ComponentCount", "Số mã LK");
-            SetCaption("RequiredComponentQty", "SL LK yêu cầu");
-            SetCaption("IssuedComponentQty", "SL LK đã cấp");
-            SetCaption("OutstandingComponentQty", "SL LK còn thiếu");
-            SetCaption("OrderNo", "Lệnh SX");
-            SetCaption("OrderStatus", "Trạng thái lệnh");
-            SetCaption("OrderPlannedQty", "SL lệnh");
-            SetCaption("CompletedQty", "SL hoàn thành");
-            SetCaption("ProductionLotCount", "Số LOT");
-            SetCaption("ProducedQty", "SL LOT đã SX");
-            SetCaption("OperationCount", "Số công đoạn");
-            SetCaption("CompletedOperationCount", "CĐ hoàn thành");
-            SetCaption("PausedOperationCount", "CĐ tạm dừng");
-            SetCaption("FlowStage", "Giai đoạn");
-            SetCaption("TaskLabel", "Việc thuộc quyền xử lý");
-            SetCaption("AccessMode", "Quyền thao tác");
-            SetCaption("WaitingAt", "Đang chờ tại");
-            SetCaption("WaitingReason", "Điểm chờ / cảnh báo");
-            SetCaption("LastEventAtUtc", "Cập nhật workflow");
-            SetCaption("LastEventAction", "Thao tác gần nhất");
-            SetCaption("LastEventActor", "Người thao tác");
-            if (_taskGrid.View.Columns["IsRelatedDepartment"] != null)
-                _taskGrid.View.Columns["IsRelatedDepartment"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
-            _taskGrid.View.BestFitColumns();
-            if (_taskGrid.View.Columns["TaskLabel"] != null) _taskGrid.View.Columns["TaskLabel"].VisibleIndex = 0;
-            if (_taskGrid.View.Columns["IsRelatedDepartment"] != null) _taskGrid.View.Columns["IsRelatedDepartment"].VisibleIndex = 1;
-            if (_taskGrid.View.Columns["FlowStage"] != null) _taskGrid.View.Columns["FlowStage"].VisibleIndex = 2;
-            if (_taskGrid.View.Columns["WaitingAt"] != null) _taskGrid.View.Columns["WaitingAt"].VisibleIndex = 3;
-            if (_taskGrid.View.Columns["WaitingReason"] != null) _taskGrid.View.Columns["WaitingReason"].Width = 260;
-            if (_taskGrid.View.Columns["ProductDescription"] != null) _taskGrid.View.Columns["ProductDescription"].Width = 220;
+            var view = _taskGrid.View;
+            foreach (DevExpress.XtraGrid.Columns.GridColumn column in view.Columns) column.Visible = false;
+            if (view.Columns["RowNo"] == null)
+                view.Columns.AddField("RowNo").UnboundType = DevExpress.Data.UnboundColumnType.Integer;
+
+            string[,] layout =
+            {
+                { "RowNo", "STT", "56" }, { "FlowCode", "Mã dòng chảy", "150" }, { "FlowName", "Tên dòng chảy / Tuyến", "230" },
+                { "SiteText", "Site", "100" }, { "StageText", "Công đoạn", "150" }, { "MaterialText", "Trạng thái vật tư", "190" },
+                { "OrderNo", "Lệnh sản xuất", "130" }, { "ProducedQty", "Số lượng OK", "100" }, { "NgQty", "Số lượng NG", "100" },
+                { "ProductionDate", "Ngày bắt đầu", "110" }, { "PlannedEndDate", "Ngày hoàn thành", "120" },
+                { "WarnText", "Cảnh báo / Điểm nghẽn", "230" }, { "StatusText", "Trạng thái", "120" }
+            };
+            for (int i = 0; i < layout.GetLength(0); i++)
+            {
+                var column = view.Columns[layout[i, 0]];
+                if (column == null) continue;
+                column.Caption = layout[i, 1];
+                column.Width = int.Parse(layout[i, 2]);
+                column.Visible = true;
+                column.VisibleIndex = i;
+            }
+            foreach (var name in new[] { "ProducedQty", "NgQty" })
+            {
+                var q = view.Columns[name];
+                if (q == null) continue;
+                q.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+                q.DisplayFormat.FormatString = "n0";
+            }
+            foreach (var name in new[] { "ProductionDate", "PlannedEndDate" })
+            {
+                var d = view.Columns[name];
+                if (d == null) continue;
+                d.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
+                d.DisplayFormat.FormatString = "dd/MM/yyyy";
+            }
         }
 
         private void SetCaption(string field, string caption)
@@ -346,24 +392,86 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void UpdateKpis()
         {
-            int[] values = new int[5];
+            int plan = 0, planWaiting = 0, planLate = 0;
+            int comp = 0, compFull = 0, compShort = 0;
+            int order = 0, orderOpen = 0, orderNoLot = 0;
+            int prod = 0, prodBlocked = 0, done = 0;
+            DateTime today = DateTime.Today;
             foreach (DataRow row in _data.Rows)
             {
+                bool related = row["IsRelatedDepartment"] != DBNull.Value && Convert.ToBoolean(row["IsRelatedDepartment"]);
+                decimal outstanding = SafeDecimal(row["OutstandingComponentQty"]);
+                bool demandExists = !string.IsNullOrWhiteSpace(Convert.ToString(row["DemandStatus"]));
+                bool orderExists = row["ProductionOrderId"] != DBNull.Value;
+                int lots = SafeInt(row["ProductionLotCount"]);
+                int paused = SafeInt(row["PausedOperationCount"]);
                 switch (Convert.ToString(row["FlowStage"]))
                 {
-                    case "PLAN": values[0]++; break;
-                    case "COMPONENTS": values[1]++; break;
-                    case "ORDER": values[2]++; break;
-                    case "PRODUCTION": values[3]++; break;
-                    case "DONE": values[4]++; break;
+                    case "PLAN":
+                        plan++;
+                        planWaiting++;
+                        if (row["ProductionDate"] != DBNull.Value && Convert.ToDateTime(row["ProductionDate"]).Date < today) planLate++;
+                        break;
+                    case "COMPONENTS": comp++; break;
+                    case "ORDER": order++; break;
+                    case "PRODUCTION": prod++; if (paused > 0) prodBlocked++; break;
+                    case "DONE": done++; break;
                 }
+                if (demandExists)
+                {
+                    if (outstanding > 0m) compShort++; else compFull++;
+                }
+                if (orderExists) { if (lots > 0) orderOpen++; else orderNoLot++; }
+                if (related) { /* đếm cả dòng liên quan: Control Tower là màn theo dõi liên phòng ban */ }
             }
-            _stageStrip.SetValues(values[0], values[1], values[2], values[3], values[4]);
+            var info = PCTP.Shared.MesControls.FvnCardBadgeKind.Info;
+            var warn = PCTP.Shared.MesControls.FvnCardBadgeKind.Warning;
+            var danger = PCTP.Shared.MesControls.FvnCardBadgeKind.Danger;
+            var none = PCTP.Shared.MesControls.FvnCardBadgeKind.None;
+            _stageStrip.SetCards(new System.Collections.Generic.List<PCTP.Shared.MesControls.FvnFlowStageCard>
+            {
+                new PCTP.Shared.MesControls.FvnFlowStageCard { Caption = "01  KẾ HOẠCH", Value = plan.ToString("N0"), Unit = "Lệnh",
+                    Glyph = "☰", Accent = Color.FromArgb(46, 110, 190), SubText = planWaiting + " Đang chờ",
+                    BadgeText = planLate > 0 ? planLate + " Trễ hạn" : string.Empty, BadgeKind = danger },
+                new PCTP.Shared.MesControls.FvnFlowStageCard { Caption = "02  CẤP LINH KIỆN", Value = (compFull + compShort).ToString("N0"), Unit = "Lệnh",
+                    Glyph = "▣", Accent = Color.FromArgb(0, 150, 160), SubText = "Cấp đủ: " + compFull + " | Thiếu: " + compShort,
+                    BadgeText = compShort > 0 ? compShort + " Chưa cấp đủ linh kiện" : string.Empty, BadgeKind = warn },
+                new PCTP.Shared.MesControls.FvnFlowStageCard { Caption = "03  LỆNH SẢN XUẤT", Value = (orderOpen + orderNoLot).ToString("N0"), Unit = "Lệnh",
+                    Glyph = "✎", Accent = Color.FromArgb(92, 84, 200), SubText = orderOpen + " Đã mở | " + orderNoLot + " Chờ tạo LOT",
+                    BadgeText = string.Empty, BadgeKind = none },
+                new PCTP.Shared.MesControls.FvnFlowStageCard { Caption = "04  SẢN XUẤT THỰC TẾ", Value = prod.ToString("N0"), Unit = "Lệnh",
+                    Glyph = "▤", Accent = Color.FromArgb(232, 130, 20), SubText = "Đang chạy",
+                    BadgeText = prodBlocked > 0 ? prodBlocked + " Tắc nghẽn / Dừng" : string.Empty, BadgeKind = warn },
+                new PCTP.Shared.MesControls.FvnFlowStageCard { Caption = "05  HOÀN THÀNH", Value = done.ToString("N0"), Unit = "Lệnh",
+                    Glyph = "✔", Accent = Color.FromArgb(34, 160, 84), SubText = "Đã hoàn thành",
+                    BadgeText = string.Empty, BadgeKind = info }
+            });
+        }
+
+        private void ApplyStageFilter()
+        {
+            string[] keys = { "PLAN", "COMPONENTS", "ORDER", "PRODUCTION", "DONE" };
+            int selected = _stageStrip.SelectedIndex;
+            string filter = _onlyMyTasks.Checked ? "[IsActionable] = true" : string.Empty;
+            if (selected >= 0 && selected < keys.Length)
+                filter = (filter.Length > 0 ? filter + " AND " : string.Empty) + "[FlowStage] = '" + keys[selected] + "'";
+            _taskGrid.View.ActiveFilterString = filter;
+        }
+
+        private void View_CustomUnboundColumnData(object sender, DevExpress.XtraGrid.Views.Base.CustomColumnDataEventArgs e)
+        {
+            if (e.Column.FieldName == "RowNo" && e.IsGetData) e.Value = e.ListSourceRowIndex + 1;
         }
 
         private void View_RowCellStyle(object sender, RowCellStyleEventArgs e)
         {
             var row = _taskGrid.View.GetDataRow(e.RowHandle);
+            if (row != null && row.Table.Columns.Contains("HasWarning") && !(row["HasWarning"] is DBNull) &&
+                Convert.ToBoolean(row["HasWarning"]) && e.RowHandle != _taskGrid.View.FocusedRowHandle)
+            {
+                e.Appearance.BackColor = Color.FromArgb(255, 243, 214);
+                e.Appearance.Options.UseBackColor = true;
+            }
             if (row == null || !row.Table.Columns.Contains("TaskCode")) return;
             if (e.Column.FieldName == "TaskLabel" &&
                 row["TaskCode"] != DBNull.Value &&
@@ -538,9 +646,36 @@ namespace PCTP.Modules.MesPlanning.UI
             if (!_selectionMode)
             {
                 _openTimeline.Enabled = hasRow && UserSession.Current.HasPermission("MES.PRODUCTION_FLOW", "VIEW");
+                _selectFirmPlan.Enabled = hasRow && !Convert.ToBoolean(row["IsRelatedDepartment"]) &&
+                    UserSession.Current.HasPermission("MES.PRODUCTION_EXECUTION", "VIEW");
                 _openTask.Enabled = hasRow && row["TaskCode"] != DBNull.Value &&
                     (ProductionFlowTaskCode)row["TaskCode"] != ProductionFlowTaskCode.None;
             }
+        }
+
+        private void OpenSelectedInExecution()
+        {
+            var row = _taskGrid.View.GetFocusedDataRow();
+            if (row == null || Convert.ToBoolean(row["IsRelatedDepartment"]))
+            {
+                XtraMessageBox.Show(this, "Chọn một dòng thuộc bộ phận của bạn để chuyển sang Điều hành sản xuất MES.",
+                    "Chọn dòng FIRM", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            try
+            {
+                using (var form = new FormDieuHanhSanXuat())
+                {
+                    form.PreloadContext(SafeLong(row["ProductionPlanLineId"]), SafeLong(row["ProductionOrderId"]),
+                        row.Table.Columns.Contains("LatestProductionLotId") ? SafeLong(row["LatestProductionLotId"]) : 0L);
+                    form.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(this, ex.Message, "Điều hành sản xuất MES", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            LoadFlow();
         }
 
         private void OpenSelectedTimeline()

@@ -45,5 +45,22 @@ namespace PCTP.Modules.MesPlanning
                 return table;
             }
         }
+
+        /// <summary>NG quantity + planned end date per plan line (MES.usp_FVN_ProductionFlow_Extra, migration 082).</summary>
+        public DataTable GetExtra(string siteCode, DateTime? fromDate, DateTime? toDate)
+        {
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("MES.usp_FVN_ProductionFlow_Extra", cn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandTimeout = 90;
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = siteCode;
+                cmd.Parameters.Add("@FromDate", SqlDbType.Date).Value = (object)fromDate?.Date ?? DBNull.Value;
+                cmd.Parameters.Add("@ToDate", SqlDbType.Date).Value = (object)toDate?.Date ?? DBNull.Value;
+                var table = new DataTable("ProductionFlowExtra");
+                using (var adapter = new SqlDataAdapter(cmd)) adapter.Fill(table);
+                return table;
+            }
+        }
     }
 }
