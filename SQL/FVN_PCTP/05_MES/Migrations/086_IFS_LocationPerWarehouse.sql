@@ -414,12 +414,14 @@ FROM
     GROUP BY w.SiteCode
     UNION ALL
     /* One IFS Location per Kho that is mapped to an IFS warehouse (IFS has no Rack / Slot, so Locations are not counted per Slot). */
-    SELECT f.SiteCode, 'LOCATION', 5, COUNT(*),
-           SUM(CASE WHEN f.IfsLocationNo IS NOT NULL AND EXISTS (SELECT 1 FROM MES.FVN_IfsInventoryLocation loc
-                                                                 WHERE loc.SiteCode = f.SiteCode AND loc.LocationNo = f.IfsLocationNo AND loc.IsActive = 1
-                                                                   AND loc.WarehouseCode = f.IfsWarehouseCode) THEN 1 ELSE 0 END),
-           (SELECT MAX(loc2.SyncedAtUtc) FROM MES.FVN_IfsInventoryLocation loc2 WHERE loc2.SiteCode = f.SiteCode)
-    FROM dbo.FVN_Warehouse f WHERE f.IsActive = 1 AND f.IfsWarehouseCode IS NOT NULL GROUP BY f.SiteCode
+    SELECT f.SiteCode, 'LOCATION', 5, COUNT(*), SUM(f.LocationOk), MAX(f.LastSyncUtc)
+    FROM (SELECT w.SiteCode,
+                 CASE WHEN w.IfsLocationNo IS NOT NULL AND EXISTS (SELECT 1 FROM MES.FVN_IfsInventoryLocation loc
+                                                                   WHERE loc.SiteCode = w.SiteCode AND loc.LocationNo = w.IfsLocationNo AND loc.IsActive = 1
+                                                                     AND loc.WarehouseCode = w.IfsWarehouseCode) THEN 1 ELSE 0 END AS LocationOk,
+                 (SELECT MAX(loc2.SyncedAtUtc) FROM MES.FVN_IfsInventoryLocation loc2 WHERE loc2.SiteCode = w.SiteCode) AS LastSyncUtc
+          FROM dbo.FVN_Warehouse w WHERE w.IsActive = 1 AND w.IfsWarehouseCode IS NOT NULL) f
+    GROUP BY f.SiteCode
     UNION ALL
     SELECT v.SiteCode, 'SLOT', 6, COUNT(*), SUM(CASE WHEN v.MapStatus = 'READY' THEN 1 ELSE 0 END), NULL
     FROM MES.vw_FVN_SlotMesLocationStatus v GROUP BY v.SiteCode
