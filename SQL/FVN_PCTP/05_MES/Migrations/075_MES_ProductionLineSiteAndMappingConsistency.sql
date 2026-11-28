@@ -84,6 +84,8 @@ END;
 BEGIN TRY
     BEGIN TRANSACTION;
 
+    DECLARE @ProcPos int, @HeaderPrefix nvarchar(200);
+
     /* Harden MES mapping activation: IFS Site must also be present, not only the line row. */
     DECLARE @MapDefinition nvarchar(max) =
         OBJECT_DEFINITION(OBJECT_ID(N'MES.usp_FVN_ProductionLotCodeMap_Save', N'P'));
@@ -105,14 +107,15 @@ BEGIN TRY
             N'            THROW 57511, ''Site is not present in IFS.FVN_Site; synchronize SITE before activating this mapping.'', 1;' + CHAR(13) + CHAR(10) + N'        ');
     END;
 
-    /* OBJECT_DEFINITION commonly returns CREATE OR ALTER PROCEDURE (067 uses that form). */
-    SET @MapDefinition = REPLACE(@MapDefinition, N'CREATE OR ALTER PROCEDURE', N'ALTER PROCEDURE');
-    SET @MapDefinition = REPLACE(@MapDefinition, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
-    SET @MapDefinition = REPLACE(@MapDefinition, N'CREATE PROC ', N'ALTER PROCEDURE ');
-    IF CHARINDEX(N'CREATE OR ALTER PROCEDURE', @MapDefinition) > 0
-       OR CHARINDEX(N'CREATE PROCEDURE', @MapDefinition) > 0
-       OR CHARINDEX(N'CREATE PROC ', @MapDefinition) > 0
-        THROW 57506, 'Cannot normalize mapping save procedure header to ALTER PROCEDURE.', 1;
+    /* Header normalisation that does not depend on how the object was first created: OBJECT_DEFINITION returns the
+       text of the last CREATE / ALTER / CREATE OR ALTER, in whatever casing and spacing it was submitted. Keep the
+       text from the PROC keyword on and prefix CREATE OR ALTER, which can neither fail with Msg 2714 (object exists)
+       nor with Msg 208 (object missing). */
+    SET @ProcPos = PATINDEX(N'%PROC%', @MapDefinition COLLATE Latin1_General_100_CI_AS);
+    SET @HeaderPrefix = CASE WHEN @ProcPos > 1 THEN UPPER(REPLACE(REPLACE(REPLACE(REPLACE(LEFT(@MapDefinition, @ProcPos - 1), CHAR(13), N''), CHAR(10), N''), CHAR(9), N''), N' ', N'')) END;
+    IF @HeaderPrefix IS NULL OR @HeaderPrefix NOT IN (N'CREATE', N'ALTER', N'CREATEORALTER')
+        THROW 57506, 'MES.usp_FVN_ProductionLotCodeMap_Save: cannot recognise the procedure header (expected CREATE / ALTER / CREATE OR ALTER PROCEDURE).', 1;
+    SET @MapDefinition = STUFF(@MapDefinition, 1, @ProcPos - 1, N'CREATE OR ALTER ');
     EXEC sys.sp_executesql @MapDefinition;
 
     /* SQL is the final gate: import must use the exact site-scoped IFS line and active MES map. */
@@ -140,13 +143,15 @@ BEGIN TRY
             N'   THROW 57522, ''Production line has no active LOT mapping for this Site. Check MES.FVN_ProductionLotCodeMap (SiteCode + PlanProductionLineCode).'', 1;' + CHAR(13) + CHAR(10));
     END;
 
-    SET @ImportDefinition = REPLACE(@ImportDefinition, N'CREATE OR ALTER PROCEDURE', N'ALTER PROCEDURE');
-    SET @ImportDefinition = REPLACE(@ImportDefinition, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
-    SET @ImportDefinition = REPLACE(@ImportDefinition, N'CREATE PROC ', N'ALTER PROCEDURE ');
-    IF CHARINDEX(N'CREATE OR ALTER PROCEDURE', @ImportDefinition) > 0
-       OR CHARINDEX(N'CREATE PROCEDURE', @ImportDefinition) > 0
-       OR CHARINDEX(N'CREATE PROC ', @ImportDefinition) > 0
-        THROW 57510, 'Cannot normalize plan import procedure header to ALTER PROCEDURE.', 1;
+    /* Header normalisation that does not depend on how the object was first created: OBJECT_DEFINITION returns the
+       text of the last CREATE / ALTER / CREATE OR ALTER, in whatever casing and spacing it was submitted. Keep the
+       text from the PROC keyword on and prefix CREATE OR ALTER, which can neither fail with Msg 2714 (object exists)
+       nor with Msg 208 (object missing). */
+    SET @ProcPos = PATINDEX(N'%PROC%', @ImportDefinition COLLATE Latin1_General_100_CI_AS);
+    SET @HeaderPrefix = CASE WHEN @ProcPos > 1 THEN UPPER(REPLACE(REPLACE(REPLACE(REPLACE(LEFT(@ImportDefinition, @ProcPos - 1), CHAR(13), N''), CHAR(10), N''), CHAR(9), N''), N' ', N'')) END;
+    IF @HeaderPrefix IS NULL OR @HeaderPrefix NOT IN (N'CREATE', N'ALTER', N'CREATEORALTER')
+        THROW 57510, 'MES.usp_FVN_ProductionPlan_ImportRow: cannot recognise the procedure header (expected CREATE / ALTER / CREATE OR ALTER PROCEDURE).', 1;
+    SET @ImportDefinition = STUFF(@ImportDefinition, 1, @ProcPos - 1, N'CREATE OR ALTER ');
     EXEC sys.sp_executesql @ImportDefinition;
 
     INSERT MES.FVN_SchemaMigration(MigrationVersion, MigrationName)
