@@ -44,7 +44,7 @@ namespace PCTP.Shared.MesControls
             Height = 112;
             MinimumSize = new Size(600, 96);
             Font = new Font("Segoe UI", 9F);
-            BackColor = Color.Transparent;
+            BackColor = Color.Tan;
         }
 
         /// <summary>Chặng đang được chọn để lọc (-1 = không lọc).</summary>
