@@ -107,6 +107,7 @@ namespace PCTP
             _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoSite", "Khai báo Site PCTP (cho phép / tạm ngưng)", OpenKhaiBaoSite));
             _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoChuyenSanXuat", "Khai báo chuyền sản xuất theo Site", OpenKhaiBaoChuyenSanXuat));
             _menuSanXuat.Elements.Add(CreateMenuItem("menuLienKetWorkCenter", "Liên kết Work Center IFS ↔ Bộ phận", OpenLienKetWorkCenter));
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuMaChuyen5Va3", "Mã chuyền 5 ký tự ↔ 3 ký tự (LOT)", OpenMaChuyen5Va3));
             _menuSanXuat.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
             // Control Tower và BOM được thêm ở AddMesBomNavigation (cần kiểm quyền riêng từng mục).
 
@@ -718,6 +719,19 @@ namespace PCTP
                     () => new PCTP.Modules.IfsSync.FormWorkCenterDepartmentLink(site),
                     "WorkCenterLink:" + site);
             }, "Liên kết Work Center");
+        }
+
+        /// <summary>Đối chiếu và sinh mã chuyền 5 ký tự (tham chiếu) ↔ 3 ký tự (LOT). Quyền MES.SITE_DEPARTMENT_LINE (VIEW/EDIT + SITE).</summary>
+        private void OpenMaChuyen5Va3(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                string site = ResolveDocumentSite("MES.SITE_DEPARTMENT_LINE");
+                if (site == null) return; // user cancelled the site chooser
+                FormWindowManager.ShowSingle(this,
+                    () => new PCTP.Modules.IfsSync.FormLineCodeCrossRef(site),
+                    "LineCodeCrossRef:" + site);
+            }, "Mã chuyền 5 ký tự ↔ 3 ký tự");
         }
 
         private void OpenYeuCauXuatLinhKien(object sender, EventArgs e)

@@ -26,6 +26,16 @@ namespace PCTP.Modules.IfsSync
         /// <summary>Mã chuyền LOT 3 ký tự tự sinh / đã gắn cho một chuyền IFS (chỉ xem trước, không ghi).</summary>
         string SuggestLotLineCode(string siteCode, string ifsProductionLine);
 
+        /// <summary>Bảng đối chiếu mã chuyền 5 ký tự (chuẩn tham chiếu) ↔ 3 ký tự (dùng trong LOT) của Site.</summary>
+        DataTable GetLineCodeCrossRef(string siteCode);
+
+        /// <summary>
+        /// Sinh cặp mã 5 / 3 ký tự. family (2-3 ký tự) = dãy máy đánh số; body (4 ký tự) = máy đơn lẻ; đúng một trong hai.
+        /// preview = true: chỉ xem trước, không ghi. Trả về một dòng: LineCode5, LineCode3, FamilyCode, SeqNo.
+        /// </summary>
+        DataTable GenerateLineCode(string siteCode, string family, string body, string description,
+            string ifsProductionLine, string lineCode3Override, bool preview);
+
         /// <summary>
         /// Liên kết Work Center. departmentCode / lineCode để trống = tự lấy từ IFS (WorkCenterNo đệm 0 thành 4 ký tự;
         /// mã chuyền LOT sinh từ chuyền IFS). Tên bộ phận / chuyền lấy từ IFS khi để trống.
@@ -110,6 +120,70 @@ ORDER BY CASE Severity WHEN 'ERROR' THEN 0 WHEN 'WARN' THEN 1 ELSE 2 END, IssueC
             foreach (char c in n)
                 if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z'))) return null;
             return n.PadLeft(4, '0');
+        }
+
+        public DataTable GetLineCodeCrossRef(string siteCode)
+        {
+            string site = RequireSite(siteCode);
+            AuthorizationGuard.DemandScope(FunctionCode, "SITE", site, site);
+            return Query(@"
+SELECT SiteCode, LineCode5, LineCode3, FamilyCode, SeqNo, Description, IfsProductionLineCode, IfsProductionLineDescription,
+       LotLineName, LotLineStatus, IsLegacySeed, CreatedAtUtc, CreatedBy
+FROM MES.vw_FVN_LineCodeCrossRef
+WHERE SiteCode = @SiteCode
+ORDER BY LineCode5;", site);
+        }
+
+        public DataTable GenerateLineCode(string siteCode, string family, string body, string description,
+            string ifsProductionLine, string lineCode3Override, bool preview)
+        {
+            string site = RequireSite(siteCode);
+            string actor = preview
+                ? null
+                : AuthorizationGuard.DemandActionAndScope(FunctionCode, "EDIT", "SITE", site, site).ActorCode;
+            if (preview) AuthorizationGuard.DemandScope(FunctionCode, "SITE", site, site);
+
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand("MES.usp_FVN_LineCodeCrossRef_Generate", cn))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = site;
+                cmd.Parameters.Add("@FamilyCode", SqlDbType.VarChar, 3).Value = NullIfBlank(family);
+                cmd.Parameters.Add("@Body", SqlDbType.VarChar, 4).Value = NullIfBlank(body);
+                cmd.Parameters.Add("@Description", SqlDbType.NVarChar, 200).Value = NullIfBlank(description);
+                cmd.Parameters.Add("@IfsProductionLine", SqlDbType.NVarChar, 30).Value = NullIfBlank(ifsProductionLine);
+                cmd.Parameters.Add("@LineCode3Override", SqlDbType.VarChar, 3).Value = NullIfBlank(lineCode3Override);
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = (object)actor ?? DBNull.Value;
+                cmd.Parameters.Add("@Preview", SqlDbType.Bit).Value = preview;
+                var table = new DataTable();
+                try
+                {
+                    using (var adapter = new SqlDataAdapter(cmd)) adapter.Fill(table);
+                }
+                catch (SqlException ex)
+                {
+                    if (ex.Number >= 50000 && ex.Number <= 59999)
+                        throw new InvalidOperationException(ex.Message, ex);
+                    throw;
+                }
+                return table;
+            }
+        }
+
+        /// <summary>Gợi ý 4 ký tự thân mã cho máy đơn lẻ từ mô tả: 2 chữ đầu của từ thứ nhất + 2 chữ đầu của từ thứ hai (bỏ 2W / 4W). Chỉ là gợi ý, người dùng sửa được.</summary>
+        public static string SuggestBody(string description)
+        {
+            var words = new System.Collections.Generic.List<string>();
+            foreach (string w in System.Text.RegularExpressions.Regex.Split((description ?? string.Empty).ToUpperInvariant(), "[^A-Z0-9]+"))
+            {
+                if (w.Length == 0 || w == "2W" || w == "4W") continue;
+                words.Add(w);
+            }
+            if (words.Count == 0) return string.Empty;
+            string a = words[0], b = words.Count > 1 ? words[1] : string.Empty;
+            string body = b.Length == 0 ? a : (a.Length >= 2 ? a.Substring(0, 2) : a) + (b.Length >= 2 ? b.Substring(0, 2) : b);
+            if (body.Length < 4 && words.Count > 2) body += words[2].Substring(0, 1);
+            return body.Length > 4 ? body.Substring(0, 4) : body;
         }
 
         public DataTable GetIfsProductionLines(string siteCode)
