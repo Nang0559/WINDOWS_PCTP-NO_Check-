@@ -118,7 +118,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
             _stock = stock ?? throw new ArgumentNullException(nameof(stock));
             _trace = trace ?? throw new ArgumentNullException(nameof(trace));
 
-            Text = "Kho linh kiện PART";
+            Text = "QUẢN LÝ LINH KIỆN MES - Interactive Component Console";
             StartPosition = FormStartPosition.CenterParent;
             Size = new Size(1380, 820);
             MinimumSize = new Size(1100, 650);
@@ -140,7 +140,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
         {
             _tabs.Dock = DockStyle.Fill;
 
-            _tabFlow = new XtraTabPage { Text = "Sơ đồ quy trình" }; BuildFlowTab(_tabFlow); _tabs.TabPages.Add(_tabFlow);
+            _tabFlow = new XtraTabPage { Text = "QUẢN LÝ LINH KIỆN (Component Flow Console)" }; BuildFlowTab(_tabFlow); _tabs.TabPages.Add(_tabFlow);
             if (Can(FnPo, "VIEW")) { _tabPo = new XtraTabPage { Text = "0. Yêu cầu mua hàng (PO)" }; BuildPoTab(_tabPo); _tabs.TabPages.Add(_tabPo); }
             if (Can(FnReceipt, "VIEW")) { _tabReceipt = new XtraTabPage { Text = "1. Nhận linh kiện (QR)" }; BuildReceiptTab(_tabReceipt); _tabs.TabPages.Add(_tabReceipt); }
             _tabStock = new XtraTabPage { Text = "2. Tồn kho PART" }; BuildStockTab(_tabStock); _tabs.TabPages.Add(_tabStock);
