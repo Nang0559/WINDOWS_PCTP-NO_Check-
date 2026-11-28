@@ -979,6 +979,9 @@ namespace PCTP
             if (IsDisposed) return null;
             if (InvokeRequired)
                 return (string)Invoke(new Func<string, string>(ResolveSiteOnDemand), functionCode);
+            // Nhiều luồng nền có thể cùng yêu cầu Site: yêu cầu đến sau thấy Site đã chọn thì dùng luôn, không hỏi lại.
+            string already = ActiveSiteStore.Current;
+            if (!string.IsNullOrWhiteSpace(already)) return already;
             var session = UserSession.Current;
             if (session == null) return null;
             string scopeFunction = string.Equals(functionCode, "SITE_CONTEXT", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(functionCode)
