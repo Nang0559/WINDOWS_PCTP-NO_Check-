@@ -752,7 +752,9 @@
     <Compile Include="Shared\MesControls\FvnMesConsoleChromeControls.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Shared\MesControls\FvnConsoleScreen.cs" />
+    <Compile Include="Shared\MesControls\FvnConsoleScreen.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Shared\MesControls\FvnSiteDirectory.cs" />
     <Compile Include="Shared\MesControls\FvnSiteLookupEdit.cs">
       <SubType>Component</SubType>
