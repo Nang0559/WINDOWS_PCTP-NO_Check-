@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using Xunit;
 
@@ -60,6 +60,37 @@ public sealed class IfsMapCenterContractTests
         Assert.Contains("ActiveSiteStore.Current", cs);
         // still fail-closed when neither config nor session gives a Site
         Assert.Contains("throw new InvalidOperationException", cs);
+    }
+
+    [Fact]
+    public void Site_is_resolved_on_demand_and_never_asked_when_the_app_opens()
+    {
+        var cs = Read("src/ISiteContext.cs");
+        Assert.Contains("Func<string, string> Resolver", cs);
+        Assert.Contains("ActiveSiteStore.Resolve(", cs);
+
+        var menu = Read("src/Main_APP.Menu.cs");
+        int ensure = menu.IndexOf("private void EnsureActiveSite", System.StringComparison.Ordinal);
+        int next = menu.IndexOf("private string ResolveSiteOnDemand", ensure, System.StringComparison.Ordinal);
+        Assert.True(ensure >= 0 && next > ensure);
+        string body = menu.Substring(ensure, next - ensure);
+        Assert.DoesNotContain("PickSite(", body);   // no Site dialog at startup
+        Assert.Contains("ActiveSiteStore.Resolver = ResolveSiteOnDemand", body);
+        Assert.DoesNotContain("_documentSiteChoice", menu);   // one Site source, not one per function
+    }
+
+    [Fact]
+    public void Site_is_not_bound_to_the_machine_but_to_the_account_scope()
+    {
+        // Machines are shared by several factories: the PctpSiteCode app setting must not decide the Site any more.
+        var cs = Read("src/ISiteContext.cs");
+        Assert.DoesNotContain("ConfigurationManager.AppSettings[SettingKey]", cs);
+        var menu = Read("src/Main_APP.Menu.cs");
+        Assert.DoesNotContain("AppSettings[AppSettingsSiteContext.SettingKey]", menu);
+        // the user can see and change the working Site (within the allowed Sites) from the status bar
+        var shell = Read("Main_APP.source.cs");
+        Assert.Contains("barSiteStatus", shell);
+        Assert.Contains("DocumentSiteResolver.Candidates", shell);
     }
 
     [Fact]

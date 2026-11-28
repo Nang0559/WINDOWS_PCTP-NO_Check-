@@ -903,13 +903,12 @@ namespace PCTP
                 }
         }
 
-        private readonly Dictionary<string, string> _documentSiteChoice =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
         /// <summary>
-        /// Site to open a document for: the only site the user may read, or the one chosen from a short list. Returns null when
-        /// the user cancels the chooser. Reads site from SiteCode, from ScopeValue of SITE scopes, and expands ALL scopes
-        /// to the active sites (see <see cref="DocumentSiteResolver"/>).
+        /// Site to open a site-specific screen for. One source for the whole session (<see cref="ActiveSiteStore"/>): the working
+        /// Site is reused when the user may read it for this function; the only allowed Site is used without asking; otherwise
+        /// the user is asked once and the choice becomes the working Site everywhere. Returns null when the chooser is cancelled.
+        /// Reads site from SiteCode, from ScopeValue of SITE scopes, and expands ALL scopes to the active sites
+        /// (see <see cref="DocumentSiteResolver"/>).
         /// </summary>
         private string ResolveDocumentSite(string functionCode)
         {
@@ -918,14 +917,19 @@ namespace PCTP
             if (sites.Count == 0)
                 throw new UnauthorizedAccessException("Tài khoản chưa được gán Site cho chức năng " + functionCode +
                     ". Cần cấp phạm vi dữ liệu SITE (hoặc ALL) cho chức năng này ở màn hình phân quyền.");
-            if (sites.Count == 1) return sites[0];
 
-            string remembered;
-            if (_documentSiteChoice.TryGetValue(functionCode, out remembered) &&
-                sites.Contains(remembered, StringComparer.OrdinalIgnoreCase))
-                return remembered;
+            string active = ActiveSiteStore.Current;
+            if (!string.IsNullOrWhiteSpace(active) && sites.Contains(active, StringComparer.OrdinalIgnoreCase))
+                return sites.First(x => string.Equals(x, active, StringComparison.OrdinalIgnoreCase));
+
+            if (sites.Count == 1)
+            {
+                if (string.IsNullOrWhiteSpace(active)) ActiveSiteStore.Set(sites[0]);
+                return sites[0];
+            }
+
             string chosen = PickSite(sites, functionCode);
-            if (chosen != null) _documentSiteChoice[functionCode] = chosen;
+            if (chosen != null) ActiveSiteStore.Set(chosen);
             return chosen;
         }
 
@@ -947,26 +951,41 @@ namespace PCTP
         }
 
         /// <summary>
-        /// Xác định Site làm việc của phiên (ActiveSiteStore) khi App.config không cố định PctpSiteCode:
-        /// một Site hợp lệ thì dùng luôn, nhiều Site thì hỏi một lần. Không có Site thì để trống (màn hình kho sẽ từ chối với thông báo rõ).
+        /// Không hỏi Site khi mở phần mềm: ba nhà máy dùng chung nhiều dữ liệu nên Site không phải "chế độ" của cả phiên.
+        /// Chỉ (1) tự đặt Site khi tài khoản có đúng một Site hợp lệ và (2) đăng ký <see cref="ActiveSiteStore.Resolver"/> để
+        /// hỏi MỘT lần, đúng lúc một chức năng cần dữ liệu riêng của nhà máy. Site không gắn theo máy (máy dùng chung nhiều nhà máy): chỉ theo quyền SITE của tài khoản.
         /// </summary>
         private void EnsureActiveSite()
         {
-            if (!string.IsNullOrWhiteSpace(System.Configuration.ConfigurationManager.AppSettings[AppSettingsSiteContext.SettingKey]))
-                return; // máy ép cố định một Site
+            ActiveSiteStore.Clear();
+            ActiveSiteStore.Resolver = null;
             try
             {
                 var session = UserSession.Current;
                 if (session == null) return;
                 var sites = DocumentSiteResolver.Candidates(session, "WAREHOUSE.STOCK_VIEW", LoadActiveSites);
-                if (sites.Count == 0) return;
-                string chosen = sites.Count == 1 ? sites[0] : PickSite(sites, "làm việc (Kho / Layout kho)");
-                if (!string.IsNullOrWhiteSpace(chosen)) ActiveSiteStore.Set(chosen);
+                if (sites.Count == 1) ActiveSiteStore.Set(sites[0]);
+                ActiveSiteStore.Resolver = ResolveSiteOnDemand;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Trace.TraceWarning("EnsureActiveSite: " + ex.Message);
             }
+        }
+
+        /// <summary>Hỏi Site một lần khi dữ liệu riêng nhà máy cần (gọi từ tầng dịch vụ/repository kho). Luôn chạy trên luồng UI.</summary>
+        private string ResolveSiteOnDemand(string functionCode)
+        {
+            if (IsDisposed) return null;
+            if (InvokeRequired)
+                return (string)Invoke(new Func<string, string>(ResolveSiteOnDemand), functionCode);
+            var session = UserSession.Current;
+            if (session == null) return null;
+            string scopeFunction = string.Equals(functionCode, "SITE_CONTEXT", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(functionCode)
+                ? "WAREHOUSE.STOCK_VIEW" : functionCode;
+            var sites = DocumentSiteResolver.Candidates(session, scopeFunction, LoadActiveSites);
+            if (sites.Count == 0) return null;
+            return sites.Count == 1 ? sites[0] : PickSite(sites, "dữ liệu riêng của nhà máy");
         }
 
         private string PickSite(IReadOnlyList<string> sites, string functionCode)
@@ -981,7 +1000,7 @@ namespace PCTP
                 dialog.ClientSize = new System.Drawing.Size(360, 130);
                 var label = new LabelControl { Text = "Chọn Site cho " + functionCode + ":", Left = 14, Top = 14, AutoSizeMode = LabelAutoSizeMode.Default };
                 // Site chuẩn: lookup dbo.vFVN_Site (FVN_PCTPSite liên kết IFS.FVN_Site), giới hạn theo danh sách đã lọc quyền.
-                var combo = new PCTP.Shared.MesControls.FvnSiteLookupEdit { Left = 14, Top = 40, Width = 330 };
+                var combo = new PCTP.Shared.MesControls.FvnSiteLookupEdit { Left = 14, Top = 40, Width = 330, SyncActiveSite = false };
                 combo.LoadCodes(sites);
                 var ok = new SimpleButton { Text = "MỞ", Left = 154, Top = 84, Width = 90, Height = 30, DialogResult = DialogResult.OK };
                 var cancel = new SimpleButton { Text = "HỦY", Left = 254, Top = 84, Width = 90, Height = 30, DialogResult = DialogResult.Cancel };

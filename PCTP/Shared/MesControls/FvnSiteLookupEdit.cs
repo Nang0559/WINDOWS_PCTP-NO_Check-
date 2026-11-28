@@ -5,6 +5,7 @@ using System.Linq;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using PCTP.Security;
+using PCTP.Shared.Common;
 
 namespace PCTP.Shared.MesControls
 {
@@ -19,6 +20,9 @@ namespace PCTP.Shared.MesControls
         private bool _loading;
 
         public event EventHandler SiteChanged;
+
+        /// <summary>True (mặc định): người dùng đổi Site thì ghi vào <see cref="ActiveSiteStore"/>. Hộp thoại chọn tạm tắt để HỦY không đổi Site.</summary>
+        public bool SyncActiveSite { get; set; } = true;
 
         /// <summary>Thông điệp lỗi của lần nạp gần nhất (rỗng nếu nạp được).</summary>
         public string LastError { get; private set; }
@@ -41,6 +45,8 @@ namespace PCTP.Shared.MesControls
             EditValueChanged += (s, e) =>
             {
                 if (_loading) return;
+                // Một nguồn Site cho cả phiên: người dùng đổi Site ở đây thì các chức năng khác cũng dùng Site này.
+                if (SyncActiveSite && !IsAllSelected && !string.IsNullOrWhiteSpace(SiteCode)) ActiveSiteStore.Set(SiteCode);
                 EventHandler handler = SiteChanged;
                 if (handler != null) handler(this, EventArgs.Empty);
             };
@@ -124,7 +130,7 @@ namespace PCTP.Shared.MesControls
                 SiteCount = table.Rows.Cast<DataRow>().Count(r =>
                     !string.Equals(Convert.ToString(r["SiteCode"]), FvnSiteDirectory.AllSiteCode, StringComparison.Ordinal));
 
-                string pick = FindCode(preferred);
+                string pick = FindCode(preferred) ?? FindCode(ActiveSiteStore.Current);
                 if (pick == null)
                 {
                     DataRow first = table.Rows.Cast<DataRow>().FirstOrDefault(r =>

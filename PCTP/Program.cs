@@ -64,6 +64,8 @@ namespace PCTP
             });
 
             Application.Run(new Main_APP());
+            PCTP.Shared.Common.ActiveSiteStore.Resolver = null;
+            PCTP.Shared.Common.ActiveSiteStore.Clear();
             UserSession.SignOut();
             // Application.Run(new UF_QRCodeERR());
             //Application.Run(new QRCODE_HVN.ComaprePart.ComaparePart());

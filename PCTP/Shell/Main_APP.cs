@@ -6,6 +6,8 @@ using DevExpress.XtraReports.UI;
 using DevExpress.XtraReports.UserDesigner;
 using PCTP.Acess_Image;
 using PCTP.Common;
+using PCTP.Framework.Documents;
+using PCTP.Shared.Common;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.MesBom;
@@ -44,6 +46,7 @@ namespace PCTP
         private WmsControlCenterBar _controlCenter;
         private ShellSystemInfoRibbon _systemInfo;
         private BarStaticItem _userIdentityStatus;
+        private BarButtonItem _siteStatus;
 
         public Main_APP()
         {
@@ -214,6 +217,61 @@ namespace PCTP
             }
 
             RefreshUserIdentityStatus();
+            InitializeSiteStatus();
+        }
+
+        /// <summary>Nút Site trên thanh trạng thái: Site làm việc hiện tại của tài khoản; bấm để đổi trong phạm vi quyền SITE.</summary>
+        private void InitializeSiteStatus()
+        {
+            if (_siteStatus == null)
+            {
+                _siteStatus = new BarButtonItem
+                {
+                    Name = "barSiteStatus",
+                    Id = ribbonControl.Items.Count + 101,
+                    Alignment = BarItemLinkAlignment.Right
+                };
+                _siteStatus.ItemClick += (s, e) => ChangeWorkingSite();
+                ribbonControl.Items.Add(_siteStatus);
+                ribbonStatusBar.ItemLinks.Add(_siteStatus);
+                EventHandler onChanged = (s, e) =>
+                {
+                    if (!IsDisposed && IsHandleCreated) BeginInvoke(new Action(RefreshSiteStatus));
+                };
+                ActiveSiteStore.Changed += onChanged;
+                FormClosed += (s, e) => ActiveSiteStore.Changed -= onChanged;
+            }
+            RefreshSiteStatus();
+        }
+
+        private void RefreshSiteStatus()
+        {
+            if (_siteStatus == null) return;
+            string site = ActiveSiteStore.Current;
+            _siteStatus.Caption = "Site: " + (string.IsNullOrWhiteSpace(site) ? "chưa chọn" : site);
+            _siteStatus.Hint = "Site làm việc theo quyền của tài khoản. Bấm để đổi (chỉ các Site được cấp quyền).";
+        }
+
+        private void ChangeWorkingSite()
+        {
+            try
+            {
+                var session = UserSession.Current;
+                if (session == null) return;
+                var sites = DocumentSiteResolver.Candidates(session, "WAREHOUSE.STOCK_VIEW", LoadActiveSites);
+                if (sites.Count == 0)
+                {
+                    XtraMessageBox.Show(this, "Tài khoản chưa được cấp quyền Site nào.", "Site", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                if (sites.Count == 1) { ActiveSiteStore.Set(sites[0]); return; }
+                string chosen = PickSite(sites, "làm việc");
+                if (!string.IsNullOrWhiteSpace(chosen)) ActiveSiteStore.Set(chosen);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(this, ex.Message, "Site", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void RefreshUserIdentityStatus()
