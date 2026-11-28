@@ -109,13 +109,13 @@ BEGIN TRY
 
     /* Header normalisation that does not depend on how the object was first created: OBJECT_DEFINITION returns the
        text of the last CREATE / ALTER / CREATE OR ALTER, in whatever casing and spacing it was submitted. Keep the
-       text from the PROC keyword on and prefix CREATE OR ALTER, which can neither fail with Msg 2714 (object exists)
-       nor with Msg 208 (object missing). */
+       text from the PROC keyword on and prefix ALTER (the procedure exists: its definition was just read), so the
+       script needs neither CREATE OR ALTER nor a CREATE that could fail with Msg 2714. */
     SET @ProcPos = PATINDEX(N'%PROC%', @MapDefinition COLLATE Latin1_General_100_CI_AS);
     SET @HeaderPrefix = CASE WHEN @ProcPos > 1 THEN UPPER(REPLACE(REPLACE(REPLACE(REPLACE(LEFT(@MapDefinition, @ProcPos - 1), CHAR(13), N''), CHAR(10), N''), CHAR(9), N''), N' ', N'')) END;
     IF @HeaderPrefix IS NULL OR @HeaderPrefix NOT IN (N'CREATE', N'ALTER', N'CREATEORALTER')
         THROW 57506, 'MES.usp_FVN_ProductionLotCodeMap_Save: cannot recognise the procedure header (expected CREATE / ALTER / CREATE OR ALTER PROCEDURE).', 1;
-    SET @MapDefinition = STUFF(@MapDefinition, 1, @ProcPos - 1, N'CREATE OR ALTER ');
+    SET @MapDefinition = STUFF(@MapDefinition, 1, @ProcPos - 1, N'ALTER ');
     EXEC sys.sp_executesql @MapDefinition;
 
     /* SQL is the final gate: import must use the exact site-scoped IFS line and active MES map. */
@@ -145,13 +145,13 @@ BEGIN TRY
 
     /* Header normalisation that does not depend on how the object was first created: OBJECT_DEFINITION returns the
        text of the last CREATE / ALTER / CREATE OR ALTER, in whatever casing and spacing it was submitted. Keep the
-       text from the PROC keyword on and prefix CREATE OR ALTER, which can neither fail with Msg 2714 (object exists)
-       nor with Msg 208 (object missing). */
+       text from the PROC keyword on and prefix ALTER (the procedure exists: its definition was just read), so the
+       script needs neither CREATE OR ALTER nor a CREATE that could fail with Msg 2714. */
     SET @ProcPos = PATINDEX(N'%PROC%', @ImportDefinition COLLATE Latin1_General_100_CI_AS);
     SET @HeaderPrefix = CASE WHEN @ProcPos > 1 THEN UPPER(REPLACE(REPLACE(REPLACE(REPLACE(LEFT(@ImportDefinition, @ProcPos - 1), CHAR(13), N''), CHAR(10), N''), CHAR(9), N''), N' ', N'')) END;
     IF @HeaderPrefix IS NULL OR @HeaderPrefix NOT IN (N'CREATE', N'ALTER', N'CREATEORALTER')
         THROW 57510, 'MES.usp_FVN_ProductionPlan_ImportRow: cannot recognise the procedure header (expected CREATE / ALTER / CREATE OR ALTER PROCEDURE).', 1;
-    SET @ImportDefinition = STUFF(@ImportDefinition, 1, @ProcPos - 1, N'CREATE OR ALTER ');
+    SET @ImportDefinition = STUFF(@ImportDefinition, 1, @ProcPos - 1, N'ALTER ');
     EXEC sys.sp_executesql @ImportDefinition;
 
     INSERT MES.FVN_SchemaMigration(MigrationVersion, MigrationName)
