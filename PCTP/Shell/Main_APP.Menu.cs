@@ -92,7 +92,7 @@ namespace PCTP
             // Khai báo SL / thùng (Quantity) và SL / palet (MaxCloseQty): phát hành PO chia tem thùng / tem palet theo quy cách này.
             _menuLinhKien.Elements.Add(CreateMenuItem("menuQuyCachDongGoi", "Quy cách đóng gói (thùng / palet)", OpenQuyCachDongGoi));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Kiểm kê hàng về (QR)", OpenNhanLinhKien));
-            _menuLinhKien.Elements.Add(CreateMenuItem("menuKhoLinhKien", "Kho linh kiện PART (PO / QR / Tồn / Cấp WIP)", OpenKhoLinhKien));
+            _menuLinhKien.Elements.Add(CreateMenuItem("menuKhoLinhKien", "Quản lý linh kiện MES (PO / Tem / Nhập / Xuất / Tồn LotNo)", OpenKhoLinhKien));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuChungTuYeuCauLinhKien", "Chứng từ yêu cầu linh kiện", OpenChungTuYeuCauLinhKien));
             _menuLinhKien.Elements.Add(CreateMenuItem("menuYeuCauXuatLinhKien", "Yêu cầu / Xuất linh kiện PART → WIP", OpenYeuCauXuatLinhKien));
 
@@ -110,7 +110,7 @@ namespace PCTP
             _menuSanXuat.Elements.Add(CreateMenuItem("menuMaChuyen5Va3", "② Mã chuyền 5 ký tự ↔ 3 ký tự (LOT)", OpenMaChuyen5Va3));
             _menuSanXuat.Elements.Add(CreateMenuItem("menuLienKetWorkCenter", "③ Liên kết Work Center IFS ↔ Bộ phận", OpenLienKetWorkCenter));
             _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoChuyenSanXuat", "④ Khai báo chuyền sản xuất theo Site", OpenKhaiBaoChuyenSanXuat));
-            _menuSanXuat.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES (Live Execution Console)", OpenDieuHanhSanXuat));
             // Control Tower và BOM được thêm ở AddMesBomNavigation (cần kiểm quyền riêng từng mục).
 
             // Hàng đã pick chờ giao (+ huỷ để hàng quay về kho khi giao lỗi / huỷ giao) thuộc luồng Giao Hàng.

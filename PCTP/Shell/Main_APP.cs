@@ -295,6 +295,9 @@ namespace PCTP
                 "MES.PRODUCTION_FLOW", () => new FormMesProductionControlTower());
             AddMesMenuItem(_menuSanXuat, "menuMesComponentFlow", "MES Control Tower - Dòng chảy linh kiện",
                 "WAREHOUSE.COMPONENT_STOCK", () => new FormMesComponentControlTower());
+            // Màn 4: sơ đồ thực thi PO → tem thùng/pallet → nhập/xuất kho → tồn LotNo (cũng mở được từ CHỌN DÒNG LINH KIỆN).
+            AddMesMenuItem(_menuSanXuat, "menuMesComponentConsole", "Quản lý linh kiện MES (Component Flow Console)",
+                "WAREHOUSE.COMPONENT_STOCK", () => new PCTP.Modules.KhoLinhKien.UI.FormKhoLinhKien());
 
             var bomItem = new AccordionControlElement
             {

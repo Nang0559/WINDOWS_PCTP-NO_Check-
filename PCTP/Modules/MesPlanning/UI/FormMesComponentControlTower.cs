@@ -69,6 +69,9 @@ namespace PCTP.Modules.MesPlanning.UI
                          string.Equals(x.FunctionCode, ComponentFlowService.Function, StringComparison.OrdinalIgnoreCase)));
                     if (scope != null) _filters.SiteCode = scope.SiteCode;
                 }
+                // Dựng sẵn khung 6 thẻ chặng + tiêu đề cột để màn hình luôn đúng bố cục,
+                // kể cả khi chưa có Site trong phạm vi hoặc chưa tải được dữ liệu.
+                ShowEmptyState();
                 StartLoad();
             };
             FormClosed += (s, e) => _refreshTimer.Stop();
@@ -81,7 +84,8 @@ namespace PCTP.Modules.MesPlanning.UI
                 Dock = DockStyle.Fill,
                 Padding = new Padding(12, 8, 12, 4),
                 ColumnCount = 1,
-                RowCount = 4
+                RowCount = 4,
+                BackColor = Color.FromArgb(243, 246, 250)
             };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 124));
@@ -155,6 +159,28 @@ namespace PCTP.Modules.MesPlanning.UI
         }
 
         // ------------------------------------------------------------------ nạp dữ liệu
+        /// <summary>Khung rỗng: 6 thẻ chặng giá trị 0 và đủ cột lưới, thay bằng dữ liệu thật khi tải xong.</summary>
+        private void ShowEmptyState()
+        {
+            var table = new DataTable();
+            foreach (var name in new[] { "PoLotKey", "PartDescription", "PartNo", "SiteCode", "LocationText", "FlowStage",
+                "UnitCode", "MaterialStatus", "Warning", "StatusText", "PoStatus" })
+                table.Columns.Add(name, typeof(string));
+            foreach (var name in new[] { "Qty", "ReceivedQty" })
+                table.Columns.Add(name, typeof(decimal));
+            table.Columns.Add("TransactionDate", typeof(DateTime));
+            table.Columns.Add("PurchaseOrderId", typeof(long));
+            table.Columns.Add("ComponentLotId", typeof(long));
+            table.Columns.Add("IsPrinted", typeof(bool));
+            _data = table;
+            _summary = null;
+            PrepareColumns(_data);
+            _grid.Bind(_data);
+            ConfigureColumns();
+            ApplyFilter();
+            UpdateCards();
+        }
+
         private void ConfigureWorker()
         {
             _worker.DoWork += (s, e) =>

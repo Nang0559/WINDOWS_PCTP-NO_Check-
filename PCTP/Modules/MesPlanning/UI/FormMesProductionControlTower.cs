@@ -90,6 +90,9 @@ namespace PCTP.Modules.MesPlanning.UI
                          string.Equals(x.FunctionCode, "MES.PRODUCTION_FLOW", StringComparison.OrdinalIgnoreCase)));
                     if (scope != null) _filters.SiteCode = scope.SiteCode;
                 }
+                // Dựng sẵn khung 5 thẻ chặng + tiêu đề cột để màn hình luôn hiển thị đúng bố cục,
+                // kể cả khi chưa có Site trong phạm vi hoặc chưa tải được dữ liệu.
+                ShowEmptyState();
                 LoadFlow();
             };
             FormClosed += (s, e) => { _refreshTimer.Stop(); };
@@ -104,7 +107,8 @@ namespace PCTP.Modules.MesPlanning.UI
                 Dock = DockStyle.Fill,
                 Padding = new Padding(12),
                 ColumnCount = 1,
-                RowCount = 4
+                RowCount = 4,
+                BackColor = Color.FromArgb(243, 246, 250)
             };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 124));
@@ -287,6 +291,26 @@ namespace PCTP.Modules.MesPlanning.UI
             int selected = _stageStrip.SelectedIndex;
             _filterChip.Text = "Bộ lọc: " + mode +
                 (selected >= 0 && selected < names.Length ? "  ›  Chặng " + names[selected] : string.Empty);
+        }
+
+        /// <summary>Khung rỗng: 5 thẻ chặng giá trị 0 và đủ cột lưới, thay bằng dữ liệu thật khi tải xong.</summary>
+        private void ShowEmptyState()
+        {
+            var table = new DataTable();
+            foreach (var name in new[] { "FlowStage", "DemandStatus", "WaitingReason", "PlanNo", "ProductDescription",
+                "ProductionLineCode", "OrderNo" })
+                table.Columns.Add(name, typeof(string));
+            foreach (var name in new[] { "OutstandingComponentQty", "ProducedQty", "NgQty" })
+                table.Columns.Add(name, typeof(decimal));
+            table.Columns.Add("PausedOperationCount", typeof(int));
+            foreach (var name in new[] { "ProductionDate", "PlannedEndDate" })
+                table.Columns.Add(name, typeof(DateTime));
+            _data = table;
+            PrepareColumns(_data);
+            _taskGrid.Bind(_data);
+            ConfigureColumns();
+            ApplyStageFilter();
+            UpdateKpis();
         }
 
         private void ConfigureWorker()
