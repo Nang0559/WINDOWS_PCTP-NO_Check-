@@ -220,6 +220,7 @@ namespace PCTP
                 ["menuThuHoiHangNoiBo"] = "WAREHOUSE.MOVE",
                 ["menuKhoTonTP"] = "WAREHOUSE.STOCK_VIEW",
                 ["menuKhoLinhKien"] = "WAREHOUSE.COMPONENT_STOCK",
+                ["menuMesComponentConsole"] = "WAREHOUSE.COMPONENT_STOCK",
                 ["menuNhanLinhKien"] = "WAREHOUSE.COMPONENT_RECEIPT",
                 ["menuUploadKeHoachSanXuat"] = "MES.PLAN_UPLOAD",
                 ["menuKhaiBaoChuyenSanXuat"] = "MES.PRODUCTION_LINE_SETUP",
