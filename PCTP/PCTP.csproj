@@ -500,6 +500,10 @@
     <Compile Include="Modules\KhoLinhKien\ComponentPalletLabel.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentLabelPicker.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentLabelCatalog.cs" />
+    <Compile Include="Modules\MesPlanning\ComponentFlowService.cs" />
+    <Compile Include="Modules\MesPlanning\UI\FormMesComponentControlTower.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\MesPlanning\UI\MesFlowCanvasControl.cs" />
     <Compile Include="Modules\MesPlanning\UI\MesProductionFlowMapControl.cs">
       <SubType>Component</SubType>
@@ -743,6 +747,10 @@
     <Compile Include="Shared\Common\ItemFifoConfig.cs" />
     <Compile Include="Shared\Enums\IfsOrderQueryMode.cs" />
     <Compile Include="Shared\Helpers\GioHelpper.cs" />
+    <Compile Include="Shared\MesControls\FvnFlowStageCardsControl.cs" />
+    <Compile Include="Shared\MesControls\FvnMesConsoleChromeControls.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Shared\Models\HangChoGiao.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuGiaoUngVienInfo.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuTraHang.cs" />
