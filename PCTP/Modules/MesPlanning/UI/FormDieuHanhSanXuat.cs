@@ -140,8 +140,8 @@ namespace PCTP.Modules.MesPlanning.UI
             _flow = flow;
             Text = "Điều hành sản xuất MES - Interactive Execution Console";
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(1280, 820);
-            MinimumSize = new Size(1000, 680);
+            Size = new Size(1380, 900);
+            MinimumSize = new Size(1100, 760);
             KeyPreview = true;
             Font = new Font("Segoe UI", 9.5F);
             BuildUi();
@@ -500,11 +500,18 @@ namespace PCTP.Modules.MesPlanning.UI
         private XtraTabPage BuildOperationTab()
         {
             var page = new XtraTabPage { Text = "Công đoạn sản xuất" };
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Padding = new Padding(8) };
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            // Khung công đoạn không chia 50/50 theo chiều cao: 2 panel trên cần đủ chỗ cho
+            // 3 dòng routing / 5 trường sản lượng; khu tem bên dưới cần riêng vùng lưới.
+            // Khi màn hình thấp hơn tổng chiều cao tối thiểu, bật scroll thay vì che các trường.
+            var root = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Padding = new Padding(8),
+                AutoScroll = true, AutoScrollMinSize = new Size(0, 700)
+            };
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 350));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 320));
 
             // --- Nhóm A: chọn LOT + công đoạn
             _operationLotId.Properties.NullValuePrompt = "ProductionLotId";
