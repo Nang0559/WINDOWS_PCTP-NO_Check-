@@ -25,6 +25,7 @@ namespace PCTP.Modules.IfsSync
         public int ProductionLineRows { get; internal set; }
         public int SiteRows { get; internal set; }
         public int WorkCenterRows { get; internal set; }
+        public int InventoryLocationRows { get; internal set; }
         public string Status { get; internal set; }
     }
 
@@ -78,6 +79,9 @@ namespace PCTP.Modules.IfsSync
                 { "BOM_ALTERNATIVE", "SELECT * FROM IFSAPP.MANUF_STRUCT_ALTERNATE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO" },
                 { "BOM_COMPONENT", "SELECT * FROM IFSAPP.MANUF_STRUCTURE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO, LINE_ITEM_NO" },
                 { "WAREHOUSE", "SELECT CONTRACT, WAREHOUSE_ID, DESCRIPTION, OBJKEY, OBJVERSION FROM IFSAPP.WAREHOUSE ORDER BY CONTRACT, WAREHOUSE_ID" },
+                // Location kho IFS (bin/location). Map Slot kho ↔ MES Location chỉ cho chọn trong bảng này.
+                // SELECT * để PayloadJson giữ đủ cột; IFS.usp_ApplyInventoryLocationBatch (migration 084) đọc các khóa JSON đã biết.
+                { "INVENTORY_LOCATION", "SELECT * FROM IFSAPP.INVENTORY_LOCATION ORDER BY CONTRACT, LOCATION_NO" },
                 { "SUPPLIER", "SELECT SUPPLIER_ID, NAME, OBJKEY, OBJVERSION FROM IFSAPP.SUPPLIER_INFO_GENERAL ORDER BY SUPPLIER_ID" },
                 // Logical Unit ProductionLine (frmProdLineMgt). SELECT * giữ nguyên mọi cột IFS trong PayloadJson.
                 { "PRODUCTION_LINE", "SELECT * FROM IFSAPP.PRODUCTION_LINE ORDER BY CONTRACT, PRODUCTION_LINE" },
@@ -112,6 +116,10 @@ namespace PCTP.Modules.IfsSync
 
             // Preserve BOM foreign-key dependencies. Selecting a child automatically
             // includes its parents so the same batch remains transactionally applicable.
+            // Mỗi Location phải có Warehouse IFS (FK_MES_IfsLoc_Wh): chọn INVENTORY_LOCATION tự kèm WAREHOUSE.
+            if (selected.Contains("INVENTORY_LOCATION"))
+                selected.Add("WAREHOUSE");
+
             if (selected.Contains("BOM_COMPONENT"))
             {
                 selected.Add("BOM_ALTERNATIVE");
@@ -137,6 +145,7 @@ namespace PCTP.Modules.IfsSync
                 string selectedEntities = string.Join(",", entities);
                 long batchId = BeginBatch(connection, syncMode, selectedEntities);
                 string currentEntity = null;
+                bool locationApplyFailedAfterBase = false;
                 var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
                 try
@@ -165,7 +174,8 @@ SET Status='STAGED',
     SupplierRows=@SupplierRows,
     ProductionLineRows=@ProductionLineRows,
     SiteRows=@SiteRows,
-    WorkCenterRows=@WorkCenterRows
+    WorkCenterRows=@WorkCenterRows,
+    InventoryLocationRows=@InventoryLocationRows
 WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                     {
                         command.Parameters.AddWithValue("@PartCatalogRows", GetCount(counts, "PART_CATALOG"));
@@ -178,6 +188,7 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                         command.Parameters.AddWithValue("@ProductionLineRows", GetCount(counts, "PRODUCTION_LINE"));
                         command.Parameters.AddWithValue("@SiteRows", GetCount(counts, "SITE"));
                         command.Parameters.AddWithValue("@WorkCenterRows", GetCount(counts, "WORK_CENTER"));
+                        command.Parameters.AddWithValue("@InventoryLocationRows", GetCount(counts, "INVENTORY_LOCATION"));
                         command.Parameters.AddWithValue("@SyncBatchId", batchId);
                         if (command.ExecuteNonQuery() != 1)
                             throw new InvalidOperationException("Không thể chuyển SyncBatch sang STAGED.");
@@ -209,6 +220,23 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                         command.ExecuteNonQuery();
                     }
 
+                    // Location chạy SAU IFS.usp_ApplySyncBatch vì cần Warehouse IFS đã có trong MES.FVN_IfsWarehouse.
+                    // usp_ApplySyncBatch đã đặt batch APPLIED; nếu Location lỗi thì phải đánh dấu lại FAILED (xem catch).
+                    if (counts.ContainsKey("INVENTORY_LOCATION"))
+                    {
+                        locationApplyFailedAfterBase = true;
+                        currentEntity = "INVENTORY_LOCATION";
+                        using (var command = new SqlCommand("IFS.usp_ApplyInventoryLocationBatch", connection))
+                        {
+                            command.CommandType = CommandType.StoredProcedure;
+                            command.CommandTimeout = 600;
+                            command.Parameters.AddWithValue("@SyncBatchId", batchId);
+                            command.ExecuteNonQuery();
+                        }
+                        locationApplyFailedAfterBase = false;
+                        currentEntity = null;
+                    }
+
                     return new IfsSyncResult
                     {
                         SyncBatchId = batchId,
@@ -222,6 +250,7 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                         ProductionLineRows = GetCount(counts, "PRODUCTION_LINE"),
                         SiteRows = GetCount(counts, "SITE"),
                         WorkCenterRows = GetCount(counts, "WORK_CENTER"),
+                        InventoryLocationRows = GetCount(counts, "INVENTORY_LOCATION"),
                         Status = "APPLIED"
                     };
                 }
@@ -233,8 +262,9 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
 UPDATE IFS.FVN_SyncBatch
 SET Status='FAILED', CompletedAtUtc=SYSUTCDATETIME(),
     ErrorSummary=@ErrorSummary
-WHERE SyncBatchId=@SyncBatchId AND Status<>'APPLIED';", connection))
+WHERE SyncBatchId=@SyncBatchId AND (Status<>'APPLIED' OR @ForceFail=1);", connection))
                         {
+                            command.Parameters.AddWithValue("@ForceFail", locationApplyFailedAfterBase ? 1 : 0);
                             command.Parameters.Add("@ErrorSummary", SqlDbType.NVarChar, 2000).Value =
                                 ex.ToString().Length > 2000 ? ex.ToString().Substring(0, 2000) : ex.ToString();
                             command.Parameters.AddWithValue("@SyncBatchId", batchId);
@@ -464,7 +494,9 @@ VALUES (@SyncMode, @SelectedEntities, 'RUNNING', SYSUTCDATETIME(), @InitiatedBy)
                             ? ReadString(reader, "CONTRACT")
                             : entityName == "WORK_CENTER"
                                 ? ReadString(reader, "WORK_CENTER_NO")
-                                : ReadString(reader, "PART_NO");
+                                : entityName == "INVENTORY_LOCATION"
+                                    ? ReadString(reader, "LOCATION_NO")
+                                    : ReadString(reader, "PART_NO");
             if (string.IsNullOrWhiteSpace(partNo))
                 throw new InvalidOperationException(entityName == "WAREHOUSE"
                     ? "WAREHOUSE có dòng thiếu WAREHOUSE_ID."
@@ -476,7 +508,9 @@ VALUES (@SyncMode, @SelectedEntities, 'RUNNING', SYSUTCDATETIME(), @InitiatedBy)
                                 ? "SITE có dòng thiếu CONTRACT."
                                 : entityName == "WORK_CENTER"
                                     ? "WORK_CENTER có dòng thiếu WORK_CENTER_NO (kiểm tra tên cột của view IFSAPP.WORK_CENTER)."
-                                    : entityName + " có dòng thiếu PART_NO.");
+                                    : entityName == "INVENTORY_LOCATION"
+                                        ? "INVENTORY_LOCATION có dòng thiếu LOCATION_NO (kiểm tra tên cột của view IFSAPP.INVENTORY_LOCATION)."
+                                        : entityName + " có dòng thiếu PART_NO.");
 
             string siteCode = (entityName == "PART_CATALOG" || entityName == "SUPPLIER") ? null : ReadString(reader, "CONTRACT");
             if (entityName != "PART_CATALOG" && entityName != "SUPPLIER" && string.IsNullOrWhiteSpace(siteCode))

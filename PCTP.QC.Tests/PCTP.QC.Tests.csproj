@@ -23,6 +23,7 @@
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/080_MES_DepartmentCodeCrossRefAndMaintenance.sql" Link="080_MES_DepartmentCodeCrossRefAndMaintenance.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/081_MES_StrictMasterDataChain.sql" Link="081_MES_StrictMasterDataChain.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/083_MES_SlotMesLocationMapping.sql" Link="083_MES_SlotMesLocationMapping.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/084_IFS_InventoryLocationSync.sql" Link="084_IFS_InventoryLocationSync.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/079b_MES_LineCodeCrossRefSeed.sql" Link="079b_MES_LineCodeCrossRefSeed.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/078_MES_WorkCenterLinkCodesFromIfs.sql" Link="078_MES_WorkCenterLinkCodesFromIfs.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/076_MES_MasterDataUnification.sql" Link="076_MES_MasterDataUnification.sql" CopyToOutputDirectory="PreserveNewest" />

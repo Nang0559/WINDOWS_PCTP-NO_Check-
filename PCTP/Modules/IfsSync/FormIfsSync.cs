@@ -25,7 +25,7 @@ namespace PCTP.Modules.IfsSync
         private readonly SimpleButton _checkButton = new SimpleButton();
         private readonly SimpleButton _syncButton = new SimpleButton();
         private readonly SimpleButton _selectiveSyncButton = new SimpleButton();
-        private readonly CheckBox[] _entityChecks = new CheckBox[10];
+        private readonly CheckBox[] _entityChecks = new CheckBox[11];
         private readonly SimpleButton _refreshButton = new SimpleButton();
         private readonly IWaitFormService _waitForm;
         private bool _isRunning;
@@ -95,7 +95,7 @@ namespace PCTP.Modules.IfsSync
                 WrapContents = true,
                 AutoScroll = true
             };
-            string[] entityNames = { "PART_CATALOG", "INVENTORY_PART", "BOM_HEADER", "BOM_ALTERNATIVE", "BOM_COMPONENT", "WAREHOUSE", "SUPPLIER", "PRODUCTION_LINE", "SITE", "WORK_CENTER" };
+            string[] entityNames = { "PART_CATALOG", "INVENTORY_PART", "BOM_HEADER", "BOM_ALTERNATIVE", "BOM_COMPONENT", "WAREHOUSE", "SUPPLIER", "PRODUCTION_LINE", "SITE", "WORK_CENTER", "INVENTORY_LOCATION" };
             for (int i = 0; i < entityNames.Length; i++)
             {
                 _entityChecks[i] = new CheckBox { Text = entityNames[i], AutoSize = true, Margin = new Padding(8, 6, 18, 4) };
@@ -276,12 +276,13 @@ namespace PCTP.Modules.IfsSync
                         try
                         {
                             using (var command = new SqlCommand(@"
-                            SELECT TOP (0) SyncBatchId, WarehouseRows, SelectedEntities, SiteRows, WorkCenterRows FROM [IFS].[SyncBatch];
+                            SELECT TOP (0) SyncBatchId, WarehouseRows, SelectedEntities, SiteRows, WorkCenterRows, InventoryLocationRows FROM [IFS].[SyncBatch];
                             SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];
                             SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse];
                             SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];
                             SELECT TOP (0) SiteCode, SiteName FROM [IFS].[FVN_Site];
-                            SELECT TOP (0) SiteCode, WorkCenterNo FROM [IFS].[FVN_WorkCenter];", sql))
+                            SELECT TOP (0) SiteCode, WorkCenterNo FROM [IFS].[FVN_WorkCenter];
+                            SELECT TOP (0) SiteCode, LocationNo, WarehouseCode FROM [MES].[FVN_IfsInventoryLocation];", sql))
                             {
                                 command.ExecuteNonQuery();
                             }
@@ -295,8 +296,8 @@ namespace PCTP.Modules.IfsSync
                                     "SQL: " + ex.Message, ex);
                             if (ex.Number == 207)
                                 throw new InvalidOperationException(
-                                    "Thiếu cột/bảng runtime đồng bộ IFS (SelectedEntities / SiteRows / WorkCenterRows hoặc Site/Work Center). " +
-                                    "Hãy chạy migration 068 và 069 trên FVN_PCTP. SQL: " + ex.Message, ex);
+                                    "Thiếu cột/bảng runtime đồng bộ IFS (SelectedEntities / SiteRows / WorkCenterRows / InventoryLocationRows hoặc Site/Work Center). " +
+                                    "Hãy chạy migration 068, 069 và 084 trên FVN_PCTP. SQL: " + ex.Message, ex);
                             if (ex.Number == 229)
                                 throw new InvalidOperationException(
                                     "Các bảng đồng bộ có thể đã tồn tại nhưng tài khoản SQL của ứng dụng thiếu quyền SELECT. " +
@@ -305,7 +306,7 @@ namespace PCTP.Modules.IfsSync
                         }
                     }
 
-                    return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migrations 012, 027, 028, 037, 068 và 069 đã sẵn sàng.";
+                    return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migrations 012, 027, 028, 037, 068, 069 và 084 đã sẵn sàng.";
                 }), "Đang kiểm tra kết nối Oracle IFS và SQL Server FVN_PCTP...");
 
                 _status.Text = message;
@@ -340,6 +341,8 @@ namespace PCTP.Modules.IfsSync
                     XtraMessageBox.Show(this, "Hãy chọn ít nhất một nhóm dữ liệu.", "Đồng bộ IFS", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
+                if (selectedEntities.Contains("INVENTORY_LOCATION") && !selectedEntities.Contains("WAREHOUSE"))
+                    selectedEntities.Add("WAREHOUSE");
                 if (selectedEntities.Contains("BOM_COMPONENT") && !selectedEntities.Contains("BOM_ALTERNATIVE"))
                     selectedEntities.Add("BOM_ALTERNATIVE");
                 if ((selectedEntities.Contains("BOM_COMPONENT") || selectedEntities.Contains("BOM_ALTERNATIVE")) && !selectedEntities.Contains("BOM_HEADER"))
@@ -391,7 +394,8 @@ namespace PCTP.Modules.IfsSync
                     "SUPPLIER: " + result.SupplierRows + Environment.NewLine +
                     "PRODUCTION_LINE: " + result.ProductionLineRows + Environment.NewLine +
                     "SITE: " + result.SiteRows + Environment.NewLine +
-                    "WORK_CENTER: " + result.WorkCenterRows;
+                    "WORK_CENTER: " + result.WorkCenterRows + Environment.NewLine +
+                    "INVENTORY_LOCATION: " + result.InventoryLocationRows;
                 RefreshHistory();
                 XtraMessageBox.Show(this, _details.Text, "Đồng bộ hoàn tất",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -469,7 +473,7 @@ ORDER BY b.SyncBatchId DESC;", connection))
 (
     SELECT TOP (1) SyncBatchId, SyncMode, SelectedEntities, Status, StartedAtUtc, CompletedAtUtc, ErrorSummary,
            PartCatalogRows, InventoryPartRows, BomHeaderRows, BomAlternativeRows,
-           BomComponentRows, WarehouseRows, SupplierRows, ProductionLineRows, SiteRows, WorkCenterRows
+           BomComponentRows, WarehouseRows, SupplierRows, ProductionLineRows, SiteRows, WorkCenterRows, InventoryLocationRows
     FROM IFS.FVN_SyncBatch
     ORDER BY SyncBatchId DESC
 )
@@ -519,6 +523,9 @@ CROSS APPLY
     UNION ALL
     SELECT N'WORK_CENTER', N'IFSAPP.WORK_CENTER', N'IFS.FVN_WorkCenter',
            l.WorkCenterRows, (SELECT COUNT_BIG(*) FROM IFS.FVN_WorkCenter)
+    UNION ALL
+    SELECT N'INVENTORY_LOCATION', N'IFSAPP.INVENTORY_LOCATION', N'MES.FVN_IfsInventoryLocation',
+           l.InventoryLocationRows, (SELECT COUNT_BIG(*) FROM MES.FVN_IfsInventoryLocation)
 ) v
 OUTER APPLY
 (
@@ -553,6 +560,8 @@ FROM
            (SELECT COUNT_BIG(*) FROM IFS.FVN_Site)
     UNION ALL SELECT N'WORK_CENTER', N'IFSAPP.WORK_CENTER', N'IFS.FVN_WorkCenter',
            (SELECT COUNT_BIG(*) FROM IFS.FVN_WorkCenter)
+    UNION ALL SELECT N'INVENTORY_LOCATION', N'IFSAPP.INVENTORY_LOCATION', N'MES.FVN_IfsInventoryLocation',
+           (SELECT COUNT_BIG(*) FROM MES.FVN_IfsInventoryLocation)
 ) v
 WHERE NOT EXISTS (SELECT 1 FROM IFS.FVN_SyncBatch);";
                 using (var connection = new SqlConnection(TargetConnectionString))
