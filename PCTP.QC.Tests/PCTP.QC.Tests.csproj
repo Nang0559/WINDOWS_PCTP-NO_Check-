@@ -21,12 +21,17 @@
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/068_IFS_SiteWorkCenterSyncAndProductionLink.sql" Link="068_IFS_SiteWorkCenterSyncAndProductionLink.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/079_MES_LineCodeCrossRef5To3.sql" Link="079_MES_LineCodeCrossRef5To3.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/080_MES_DepartmentCodeCrossRefAndMaintenance.sql" Link="080_MES_DepartmentCodeCrossRefAndMaintenance.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/081_MES_StrictMasterDataChain.sql" Link="081_MES_StrictMasterDataChain.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/079b_MES_LineCodeCrossRefSeed.sql" Link="079b_MES_LineCodeCrossRefSeed.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/078_MES_WorkCenterLinkCodesFromIfs.sql" Link="078_MES_WorkCenterLinkCodesFromIfs.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/076_MES_MasterDataUnification.sql" Link="076_MES_MasterDataUnification.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/069_IFS_SyncRuntimeSelectedEntitiesCompatibility.sql" Link="069_IFS_SyncRuntimeSelectedEntitiesCompatibility.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/IfsSync/IfsSyncService.cs" Link="IfsSyncService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/IfsSync/SiteDepartmentLineRepository.cs" Link="SiteDepartmentLineRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/IfsSync/FormLineCodeCrossRef.cs" Link="FormLineCodeCrossRef.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/IfsSync/FormDepartmentCodeCrossRef.cs" Link="FormDepartmentCodeCrossRef.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/IfsSync/FormWorkCenterDepartmentLink.cs" Link="FormWorkCenterDepartmentLink.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/MesPlanning/UI/FormProductionLineSetup.cs" Link="FormProductionLineSetup.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../PCTP/Modules/KhoLinhKien/ComponentPoBravoMapper.cs" Link="ComponentPoBravoMapper.source.cs" />
     <Compile Include="../PCTP/Modules/KhoLinhKien/ExcelNumberParser.cs" Link="ExcelNumberParser.source.cs" />
     <Compile Include="../PCTP/Shared/Helpers/ExcelTemplateDefinition.cs" Link="ExcelTemplateDefinition.source.cs" />

@@ -62,6 +62,18 @@ namespace PCTP.Modules.IfsSync
         DataTable SaveDepartmentCodeCrossRef(string siteCode, string workCenterNo, string departmentCode, string description);
 
         void DeleteDepartmentCodeCrossRef(string siteCode, string workCenterNo);
+
+        /// <summary>Mọi Work Center đồng bộ từ IFS của Site kèm mã bộ phận đã khai báo (CodeStatus NO_CODE / HAS_CODE) - nguồn của màn Work Center ↔ mã bộ phận.</summary>
+        DataTable GetWorkCenterCodeStatus(string siteCode);
+
+        /// <summary>Mọi chuyền IFS đang hoạt động của Site kèm mã 5 / 3 ký tự đã khai báo (CodeStatus NO_CODE / HAS_CODE) - nguồn của màn Mã chuyền 5 ↔ 3.</summary>
+        DataTable GetIfsLineCodeStatus(string siteCode);
+
+        /// <summary>Mã bộ phận 4 ký tự đã khai báo cho Work Center (màn Work Center ↔ mã bộ phận); null khi chưa khai báo. Chỉ xem, không ghi.</summary>
+        string GetDeclaredDepartmentCode(string siteCode, string workCenterNo);
+
+        /// <summary>Mã chuyền LOT 3 ký tự đã khai báo cho chuyền IFS (màn Mã chuyền 5 ↔ 3, hoặc chuyền LOT đã gắn chuyền IFS); null khi chưa khai báo. Không sinh mới.</summary>
+        string GetDeclaredLotLineCode(string siteCode, string ifsProductionLine);
     }
 
     /// <summary>
@@ -249,14 +261,14 @@ ORDER BY l.ProductionLineCode;", site);
                 throw new ArgumentException("Chọn Work Center IFS.", "workCenterNo");
             string dept = (departmentCode ?? string.Empty).Trim();
             string line = (lineCode ?? string.Empty).Trim();
-            // Để trống = SQL tự lấy: bảng đối chiếu Work Center ↔ bộ phận (080) trước, rồi WorkCenterNo đệm 0 thành 4 ký tự;
-            // chuyền LOT = tự sinh từ chuyền IFS (SQL cấp trong transaction).
+            // Để trống = SQL lấy từ các bảng đối chiếu đã khai báo (081): mã bộ phận từ màn Work Center ↔ mã bộ phận,
+            // mã chuyền LOT từ màn Mã chuyền 5 ↔ 3. SQL không tự sinh hay tự đăng ký mã nào ở bước liên kết.
             if (dept.Length != 0 && dept.Length != 4)
                 throw new ArgumentException("Mã Department phải đúng 4 ký tự (một phần của LOT 20 ký tự).", "departmentCode");
             if (line.Length != 0 && line.Length != 3)
                 throw new ArgumentException("Mã Line phải đúng 3 ký tự (một phần của LOT 20 ký tự).", "lineCode");
             if (line.Length != 3 && string.IsNullOrWhiteSpace(ifsProductionLine))
-                throw new ArgumentException("Chọn chuyền IFS để hệ thống tự sinh mã chuyền LOT.", "ifsProductionLine");
+                throw new ArgumentException("Chọn chuyền IFS để lấy mã chuyền LOT đã khai báo ở màn Mã chuyền 5 ký tự ↔ 3 ký tự.", "ifsProductionLine");
 
             using (var cn = new SqlConnection(_connectionString))
             using (var cmd = new SqlCommand("MES.usp_FVN_SiteDepartmentLine_Link", cn))
@@ -401,6 +413,64 @@ ORDER BY WorkCenterNo;", site);
                 cmd.Parameters.Add("@WorkCenterNo", SqlDbType.NVarChar, 30).Value = (workCenterNo ?? string.Empty).Trim();
                 cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
                 Execute(cn, cmd);
+            }
+        }
+
+        public DataTable GetWorkCenterCodeStatus(string siteCode)
+        {
+            string site = RequireSite(siteCode);
+            AuthorizationGuard.DemandScope(FunctionCode, "SITE", site, site);
+            return Query(@"
+SELECT SiteCode, WorkCenterNo, IfsWorkCenterDescription, IsPresentInIfs, IfsProductionLine, DepartmentCode, Description, CodeStatus,
+       LotDepartmentName, LotLineCode, LotDepartmentStatus, IsLegacySeed, CreatedAtUtc, CreatedBy, UpdatedAtUtc, UpdatedBy
+FROM MES.vw_FVN_WorkCenterCodeStatus
+WHERE SiteCode = @SiteCode
+ORDER BY WorkCenterNo;", site);
+        }
+
+        public DataTable GetIfsLineCodeStatus(string siteCode)
+        {
+            string site = RequireSite(siteCode);
+            AuthorizationGuard.DemandScope(FunctionCode, "SITE", site, site);
+            return Query(@"
+SELECT SiteCode, LineCode5, LineCode3, FamilyCode, SeqNo, Description, IfsProductionLineCode, IfsProductionLineDescription,
+       LotLineName, LotLineStatus, IsLegacySeed, CreatedAtUtc, CreatedBy, UpdatedAtUtc, UpdatedBy, CodeStatus
+FROM MES.vw_FVN_IfsLineCodeStatus
+WHERE SiteCode = @SiteCode
+ORDER BY CASE WHEN CodeStatus = 'NO_CODE' THEN 0 ELSE 1 END, IfsProductionLineCode, LineCode5;", site);
+        }
+
+        public string GetDeclaredDepartmentCode(string siteCode, string workCenterNo)
+        {
+            string site = RequireSite(siteCode);
+            AuthorizationGuard.DemandScope(FunctionCode, "SITE", site, site);
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"
+SELECT DepartmentCode FROM MES.FVN_DepartmentCodeCrossRef WHERE SiteCode = @SiteCode AND WorkCenterNo = @WorkCenterNo;", cn))
+            {
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = site;
+                cmd.Parameters.Add("@WorkCenterNo", SqlDbType.NVarChar, 30).Value = (workCenterNo ?? string.Empty).Trim();
+                cn.Open();
+                object value = cmd.ExecuteScalar();
+                return value == null || value == DBNull.Value ? null : Convert.ToString(value).Trim();
+            }
+        }
+
+        public string GetDeclaredLotLineCode(string siteCode, string ifsProductionLine)
+        {
+            string site = RequireSite(siteCode);
+            AuthorizationGuard.DemandScope(FunctionCode, "SITE", site, site);
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"
+SELECT COALESCE(
+    (SELECT LineCode3 FROM MES.FVN_LineCodeCrossRef WHERE SiteCode = @SiteCode AND IfsProductionLineCode = @IfsLine),
+    (SELECT LineCode FROM dbo.FVN_ProductionLine WHERE SiteCode = @SiteCode AND IfsProductionLineCode = @IfsLine));", cn))
+            {
+                cmd.Parameters.Add("@SiteCode", SqlDbType.NVarChar, 30).Value = site;
+                cmd.Parameters.Add("@IfsLine", SqlDbType.NVarChar, 30).Value = (ifsProductionLine ?? string.Empty).Trim();
+                cn.Open();
+                object value = cmd.ExecuteScalar();
+                return value == null || value == DBNull.Value ? null : Convert.ToString(value).Trim();
             }
         }
 

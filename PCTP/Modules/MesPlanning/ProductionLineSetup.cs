@@ -9,10 +9,18 @@ namespace PCTP.Modules.MesPlanning
     /// <summary>
     /// Khai báo chuyền sản xuất của một Site: chuyền gốc lấy từ IFS (IFS.FVN_ProductionLine, đồng bộ PRODUCTION_LINE),
     /// PCTP chỉ gán thêm mã chuyền LOT (3 ký tự) và mã bộ phận (4 ký tự) vào MES.FVN_ProductionLotCodeMap (migration 067).
+    /// Từ migration 081 hai mã này chỉ được CHỌN trong danh sách đã khai báo (Mã chuyền 5 ↔ 3, Work Center ↔ mã bộ phận, Liên kết Work Center); SQL từ chối mã khác.
     /// </summary>
     public interface IProductionLineSetupRepository
     {
         DataTable List(string siteCode);
+
+        /// <summary>Mã chuyền LOT (3 ký tự) đã khai báo cho chuyền IFS (màn Mã chuyền 5 ↔ 3 + Liên kết Work Center). Chỉ các giá trị này được chọn.</summary>
+        DataTable ListLotLineChoices(string siteCode, string ifsProductionLine);
+
+        /// <summary>Bộ phận (4 ký tự) đã liên kết Work Center thuộc chuyền LOT đã chọn (màn Liên kết Work Center). Chỉ các giá trị này được chọn.</summary>
+        DataTable ListDepartmentChoices(string siteCode, string ifsProductionLine, string lotLineCode);
+
         void Save(string siteCode, string planLineCode, string lotLineCode, string departmentCode, bool isActive, string actor);
     }
 
@@ -40,6 +48,43 @@ WHERE SiteCode = @Site
 ORDER BY ProductionLineCode;", cn) { CommandTimeout = 60 })
             {
                 cmd.Parameters.Add("@Site", SqlDbType.NVarChar, 30).Value = siteCode;
+                using (var da = new SqlDataAdapter(cmd)) da.Fill(table);
+            }
+            return table;
+        }
+
+        public DataTable ListLotLineChoices(string siteCode, string ifsProductionLine)
+        {
+            var table = new DataTable();
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"
+SELECT LineCode, LineName
+FROM dbo.FVN_ProductionLine
+WHERE SiteCode = @Site AND IsActive = 1 AND IfsProductionLineCode = @IfsLine
+ORDER BY LineCode;", cn) { CommandTimeout = 60 })
+            {
+                cmd.Parameters.Add("@Site", SqlDbType.NVarChar, 30).Value = siteCode;
+                cmd.Parameters.Add("@IfsLine", SqlDbType.NVarChar, 30).Value = ifsProductionLine;
+                using (var da = new SqlDataAdapter(cmd)) da.Fill(table);
+            }
+            return table;
+        }
+
+        public DataTable ListDepartmentChoices(string siteCode, string ifsProductionLine, string lotLineCode)
+        {
+            var table = new DataTable();
+            using (var cn = new SqlConnection(_connectionString))
+            using (var cmd = new SqlCommand(@"
+SELECT d.DepartmentCode, d.DepartmentName, d.WorkCenterNo
+FROM dbo.FVN_ProductionDepartment AS d
+LEFT JOIN IFS.FVN_WorkCenter AS w ON w.SiteCode = d.SiteCode AND w.WorkCenterNo = d.WorkCenterNo
+WHERE d.SiteCode = @Site AND d.IsActive = 1 AND d.LineCode = @LotLine AND d.WorkCenterNo IS NOT NULL
+  AND (NULLIF(LTRIM(RTRIM(w.IfsProductionLine)), N'') IS NULL OR LTRIM(RTRIM(w.IfsProductionLine)) = @IfsLine)
+ORDER BY d.DepartmentCode;", cn) { CommandTimeout = 60 })
+            {
+                cmd.Parameters.Add("@Site", SqlDbType.NVarChar, 30).Value = siteCode;
+                cmd.Parameters.Add("@IfsLine", SqlDbType.NVarChar, 30).Value = ifsProductionLine;
+                cmd.Parameters.Add("@LotLine", SqlDbType.VarChar, 3).Value = lotLineCode;
                 using (var da = new SqlDataAdapter(cmd)) da.Fill(table);
             }
             return table;
@@ -77,6 +122,20 @@ ORDER BY ProductionLineCode;", cn) { CommandTimeout = 60 })
             string site = NormalizeSite(siteCode);
             AuthorizationGuard.DemandScope(Function, "SITE", site, site);
             return _repository.List(site);
+        }
+
+        public DataTable ListLotLineChoices(string siteCode, string ifsProductionLine)
+        {
+            string site = NormalizeSite(siteCode);
+            AuthorizationGuard.DemandScope(Function, "SITE", site, site);
+            return _repository.ListLotLineChoices(site, (ifsProductionLine ?? string.Empty).Trim());
+        }
+
+        public DataTable ListDepartmentChoices(string siteCode, string ifsProductionLine, string lotLineCode)
+        {
+            string site = NormalizeSite(siteCode);
+            AuthorizationGuard.DemandScope(Function, "SITE", site, site);
+            return _repository.ListDepartmentChoices(site, (ifsProductionLine ?? string.Empty).Trim(), (lotLineCode ?? string.Empty).Trim());
         }
 
         /// <summary>Gán / sửa / ngừng mapping IFS line → LOT line. Quyền CREATE + SITE thuộc MES.PRODUCTION_LINE_SETUP; SQL xác thực IFS site/line và quan hệ LOT line - department.</summary>

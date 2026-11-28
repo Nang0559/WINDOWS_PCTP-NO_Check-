@@ -12,7 +12,8 @@ namespace PCTP.Modules.IfsSync
 {
     /// <summary>
     /// Liên kết Work Center IFS với bộ phận PCTP của một Site. Danh sách Work Center lấy từ IFS (đồng bộ nhóm WORK_CENTER) kèm gợi ý
-    /// chuyền / bộ phận của IFS. IFS là chuẩn: bộ phận đang được mapping cho chuyền IFS A không nhận Work Center thuộc chuyền IFS B
+    /// chuyền / bộ phận của IFS. Mã bộ phận (4 ký tự) và mã chuyền LOT (3 ký tự) KHÔNG nhập hay tự sinh ở đây: lấy từ các mã đã khai báo ở màn
+    /// Work Center ↔ mã bộ phận và màn Mã chuyền 5 ↔ 3 (thiếu thì mở đúng màn đó từ hộp thoại). IFS là chuẩn: bộ phận đang được mapping cho chuyền IFS A không nhận Work Center thuộc chuyền IFS B
     /// (SQL chặn); phần dưới màn hình liệt kê mọi bất nhất dữ liệu gốc của Site. Quyền MES.SITE_DEPARTMENT_LINE (VIEW + EDIT, theo Site).
     /// </summary>
     public sealed class FormWorkCenterDepartmentLink : XtraForm
@@ -159,7 +160,7 @@ namespace PCTP.Modules.IfsSync
                 using (var dlg = new LinkDialog(row, _site, _repository, ifsLines))
                 {
                     if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                    // Mã chuyền LOT và tên bộ phận / chuyền để trống: SQL tự cấp và lấy tên từ IFS.
+                    // Mã chuyền LOT để trống: SQL lấy mã đã khai báo ở màn Mã chuyền 5 ↔ 3; tên bộ phận / chuyền lấy từ IFS.
                     _repository.Link(_site, dlg.WorkCenterNo, dlg.DepartmentCode, null, null, null, dlg.IfsProductionLine);
                 }
                 Reload();
@@ -202,23 +203,11 @@ namespace PCTP.Modules.IfsSync
             private readonly ComboBoxEdit _ifsLine = new ComboBoxEdit();
             private readonly TextEdit _dept = new TextEdit();
             private readonly TextEdit _line = new TextEdit();
+            private readonly LabelControl _hint = new LabelControl();
 
             public string WorkCenterNo { get; private set; }
             public string DepartmentCode { get; private set; }
             public string IfsProductionLine { get; private set; }
-
-            /// <summary>Mã bộ phận từ bảng đối chiếu hoặc do SQL sinh (chỉ xem trước, không ghi); null khi không sinh được.</summary>
-            private string PreviewDepartmentCode(string workCenterNo)
-            {
-                try
-                {
-                    DataTable t = _repository.GenerateDepartmentCode(_site, workCenterNo, null, null, true);
-                    if (t != null && t.Rows.Count > 0 && !t.Rows[0].IsNull("DepartmentCode"))
-                        return Convert.ToString(t.Rows[0]["DepartmentCode"]).Trim();
-                }
-                catch (InvalidOperationException) { }
-                return null;
-            }
 
             public LinkDialog(DataRow row, string site, ISiteDepartmentLineRepository repository, DataTable ifsLines)
             {
@@ -229,13 +218,13 @@ namespace PCTP.Modules.IfsSync
                 StartPosition = FormStartPosition.CenterParent;
                 FormBorderStyle = FormBorderStyle.FixedDialog;
                 MaximizeBox = false; MinimizeBox = false;
-                ClientSize = new Size(500, 300);
+                ClientSize = new Size(520, 350);
 
                 string ifsLine = Field(row, "IfsProductionLine");
                 string linkedLine = Field(row, "LinkedLineCode");
-                Controls.Add(new LabelControl { Text = "Work Center IFS:", Location = new Point(12, 18), Width = 150 });
-                Controls.Add(new LabelControl { Text = WorkCenterNo + " — " + Field(row, "Description"), Location = new Point(170, 18),
-                    AutoSizeMode = LabelAutoSizeMode.None, Width = 320 });
+                Controls.Add(new LabelControl { Text = "Work Center IFS:", Location = new Point(12, 18), Width = 190 });
+                Controls.Add(new LabelControl { Text = WorkCenterNo + " — " + Field(row, "Description"), Location = new Point(210, 18),
+                    AutoSizeMode = LabelAutoSizeMode.None, Width = 300 });
 
                 // Chuyền IFS: IFS là chuẩn nên khóa lại khi Work Center đã có chuyền trong IFS; nếu không thì chọn từ danh sách IFS.
                 _ifsLine.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
@@ -254,39 +243,83 @@ namespace PCTP.Modules.IfsSync
                 int index = selected.Length > 0 ? _lineCodes.FindIndex(c => string.Equals(c, selected, StringComparison.OrdinalIgnoreCase)) : -1;
                 _ifsLine.SelectedIndex = index;
                 _ifsLine.Enabled = ifsLine.Length == 0;
-                _ifsLine.SelectedIndexChanged += (s, e) => RefreshLineCode();
+                _ifsLine.SelectedIndexChanged += (s, e) => RefreshCodes();
 
-                // Mã bộ phận: bảng đối chiếu Work Center ↔ bộ phận (080) trước; chưa có thì sinh (đệm 0 / bỏ ký tự giữa, vd 1100E → 110E). Chỉ nhập tay khi không sinh được.
-                string linkedDept = Field(row, "LinkedDepartmentCode");
-                string auto = PreviewDepartmentCode(WorkCenterNo) ?? SiteDepartmentLineRepository.DepartmentCodeFromWorkCenter(WorkCenterNo);
-                _dept.Properties.MaxLength = 4;
-                _dept.Text = linkedDept.Length > 0 ? linkedDept : (auto ?? Field(row, "SuggestedDepartmentCode"));
-                _dept.Properties.ReadOnly = auto != null || linkedDept.Length > 0;
+                // Mã bộ phận và mã chuyền LOT chỉ ĐỌC từ các mã đã khai báo; không nhập tay, không tự sinh ở bước liên kết.
+                _dept.Properties.ReadOnly = true;
                 _line.Properties.ReadOnly = true;
 
-                AddRow(1, "Chuyền IFS:", _ifsLine);
-                AddRow(2, auto != null ? "Mã bộ phận (tự lấy từ Work Center):" : "Mã bộ phận (nhập đúng 4 ký tự):", _dept);
-                AddRow(3, "Mã chuyền LOT (tự sinh, 3 ký tự):", _line);
-                RefreshLineCode();
+                AddRow(1, "Chuyền IFS (chọn từ danh sách IFS):", _ifsLine);
+                AddRow(2, "Mã bộ phận (đã khai báo ở ①):", _dept);
+                AddRow(3, "Mã chuyền LOT (đã khai báo ở ②):", _line);
+
+                _hint.AutoSizeMode = LabelAutoSizeMode.None;
+                _hint.Appearance.ForeColor = Color.Firebrick;
+                _hint.Location = new Point(12, 146); _hint.Size = new Size(496, 48);
+                Controls.Add(_hint);
+
+                Controls.Add(UpstreamButton("① Mã bộ phận (Work Center)…", 12, () => new FormDepartmentCodeCrossRef(_site)));
+                Controls.Add(UpstreamButton("② Mã chuyền 5 ↔ 3…", 202, () => new FormLineCodeCrossRef(_site)));
 
                 Controls.Add(new LabelControl
                 {
-                    Text = "Tên bộ phận lấy từ mô tả Work Center, tên chuyền lấy từ IFS; chỉ mã LOT do FVN định nghĩa. "
+                    Text = "Tên bộ phận lấy từ mô tả Work Center, tên chuyền lấy từ IFS; mã 3 / 4 ký tự do FVN định nghĩa ở màn ① ②. "
                          + "IFS là chuẩn: nếu bộ phận đang được mapping cho một chuyền IFS khác chuyền của Work Center, hệ thống từ chối.",
-                    Location = new Point(12, 170), AutoSizeMode = LabelAutoSizeMode.None, Width = 476, Height = 64
+                    Location = new Point(12, 236), AutoSizeMode = LabelAutoSizeMode.None, Width = 496, Height = 52
                 });
-                var ok = new SimpleButton { Text = "Lưu", Width = 90, Location = new Point(300, 255) };
-                var cancel = new SimpleButton { Text = "Hủy", Width = 90, Location = new Point(400, 255), DialogResult = DialogResult.Cancel };
+                var ok = new SimpleButton { Text = "Lưu", Width = 90, Location = new Point(320, 306) };
+                var cancel = new SimpleButton { Text = "Hủy", Width = 90, Location = new Point(420, 306), DialogResult = DialogResult.Cancel };
                 ok.Click += (s, e) => Accept();
                 Controls.Add(ok); Controls.Add(cancel);
                 CancelButton = cancel;
+                RefreshCodes();
             }
 
-            private void RefreshLineCode()
+            private SimpleButton UpstreamButton(string caption, int x, Func<XtraForm> create)
             {
-                string code = _ifsLine.SelectedIndex >= 0 && _ifsLine.SelectedIndex < _lineCodes.Count ? _lineCodes[_ifsLine.SelectedIndex] : null;
-                try { _line.Text = code == null ? string.Empty : (_repository.SuggestLotLineCode(_site, code) ?? string.Empty); }
-                catch (Exception ex) { _line.Text = string.Empty; XtraMessageBox.Show(this, ex.GetBaseException().Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+                var b = new SimpleButton { Text = caption, Width = 178, Height = 28, Location = new Point(x, 198) };
+                b.ToolTip = "Mở màn hình khai báo mã tương ứng; đóng lại để cập nhật mã hiển thị.";
+                b.Click += (s, e) => OpenUpstream(create);
+                return b;
+            }
+
+            private void OpenUpstream(Func<XtraForm> create)
+            {
+                if (UserSession.Current == null || !UserSession.Current.HasPermission(SiteDepartmentLineRepository.FunctionCode, "VIEW"))
+                {
+                    XtraMessageBox.Show(this, "Cần quyền " + SiteDepartmentLineRepository.FunctionCode + " / VIEW để mở màn hình khai báo mã.",
+                        Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                using (XtraForm form = create()) form.ShowDialog(this);
+                RefreshCodes();
+            }
+
+            private string SelectedIfsLine
+            {
+                get { return _ifsLine.SelectedIndex >= 0 && _ifsLine.SelectedIndex < _lineCodes.Count ? _lineCodes[_ifsLine.SelectedIndex] : null; }
+            }
+
+            private void RefreshCodes()
+            {
+                try
+                {
+                    _dept.Text = _repository.GetDeclaredDepartmentCode(_site, WorkCenterNo) ?? string.Empty;
+                    string ifs = SelectedIfsLine;
+                    _line.Text = ifs == null ? string.Empty : (_repository.GetDeclaredLotLineCode(_site, ifs) ?? string.Empty);
+                    if (_dept.Text.Length == 0)
+                        _hint.Text = "Work Center " + WorkCenterNo + " chưa có mã bộ phận 4 ký tự. Khai báo ở ① (màn Work Center IFS ↔ mã bộ phận 4 ký tự).";
+                    else if (ifs == null)
+                        _hint.Text = "Chọn chuyền IFS trong danh sách.";
+                    else if (_line.Text.Length == 0)
+                        _hint.Text = "Chuyền IFS " + ifs + " chưa có mã chuyền LOT 3 ký tự. Khai báo ở ② (màn Mã chuyền 5 ký tự ↔ 3 ký tự).";
+                    else
+                        _hint.Text = string.Empty;
+                }
+                catch (Exception ex)
+                {
+                    _hint.Text = "Không tải được mã đã khai báo: " + ex.GetBaseException().Message;
+                }
             }
 
             private static string Field(DataRow row, string column)
@@ -297,19 +330,22 @@ namespace PCTP.Modules.IfsSync
             private void AddRow(int index, string caption, BaseEdit edit)
             {
                 int y = 18 + index * 32;
-                Controls.Add(new LabelControl { Text = caption, Location = new Point(12, y + 3), AutoSizeMode = LabelAutoSizeMode.None, Width = 155 });
-                edit.Location = new Point(170, y); edit.Width = 310;
+                Controls.Add(new LabelControl { Text = caption, Location = new Point(12, y + 3), AutoSizeMode = LabelAutoSizeMode.None, Width = 195 });
+                edit.Location = new Point(210, y); edit.Width = 298;
                 Controls.Add(edit);
             }
 
             private void Accept()
             {
-                string dept = (_dept.Text ?? string.Empty).Trim();
-                if (_ifsLine.SelectedIndex < 0 || _ifsLine.SelectedIndex >= _lineCodes.Count)
-                { XtraMessageBox.Show(this, "Chọn chuyền IFS để hệ thống sinh mã chuyền LOT.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                if (dept.Length != 4) { XtraMessageBox.Show(this, "Mã bộ phận phải đúng 4 ký tự.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                DepartmentCode = dept;
-                IfsProductionLine = _lineCodes[_ifsLine.SelectedIndex];
+                string ifs = SelectedIfsLine;
+                if (ifs == null)
+                { XtraMessageBox.Show(this, "Chọn chuyền IFS trong danh sách.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (_dept.Text.Trim().Length != 4)
+                { XtraMessageBox.Show(this, "Work Center chưa có mã bộ phận 4 ký tự. Khai báo ở màn Work Center IFS ↔ mã bộ phận (nút ①).", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (_line.Text.Trim().Length != 3)
+                { XtraMessageBox.Show(this, "Chuyền IFS chưa có mã chuyền LOT 3 ký tự. Khai báo ở màn Mã chuyền 5 ký tự ↔ 3 ký tự (nút ②).", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                DepartmentCode = _dept.Text.Trim();
+                IfsProductionLine = ifs;
                 DialogResult = DialogResult.OK;
             }
         }

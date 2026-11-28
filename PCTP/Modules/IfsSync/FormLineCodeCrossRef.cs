@@ -12,6 +12,8 @@ namespace PCTP.Modules.IfsSync
 {
     /// <summary>
     /// Đối chiếu mã chuyền 5 ký tự (chuẩn tham chiếu của nhà máy) với mã 3 ký tự dùng thật trong LOT, và sinh cặp mã mới.
+    /// Lưới liệt kê MỌI chuyền IFS đang hoạt động (chuyền mới: đồng bộ nhóm PRODUCTION_LINE rồi TẢI LẠI); chuyền chưa có mã được Sinh mã ngay từ dòng đó.
+    /// Đây là bước ② của chuỗi khai báo: Liên kết Work Center và Khai báo chuyền chỉ chọn mã 3 ký tự đã khai báo ở đây.
     /// Quyền MES.SITE_DEPARTMENT_LINE (VIEW xem, EDIT sinh mã, theo Site).
     /// </summary>
     public sealed class FormLineCodeCrossRef : XtraForm
@@ -21,6 +23,7 @@ namespace PCTP.Modules.IfsSync
         private readonly GridControl _grid = new GridControl { Dock = DockStyle.Fill };
         private readonly GridView _view;
         private readonly LabelControl _status = new LabelControl { Dock = DockStyle.Bottom, Height = 26 };
+        private readonly CheckEdit _onlyMissing = new CheckEdit { Text = "Chỉ chuyền IFS chưa có mã", Width = 190 };
         private SimpleButton _generate;
         private SimpleButton _add;
         private SimpleButton _edit;
@@ -59,19 +62,21 @@ namespace PCTP.Modules.IfsSync
             reload.Click += (s, e) => Reload();
             _generate = new SimpleButton { Text = "Sinh mã…", Width = 110, Height = 30, Enabled = CanEdit };
             if (!CanEdit) _generate.ToolTip = "Bạn chỉ có quyền xem; cần " + SiteDepartmentLineRepository.FunctionCode + " / EDIT.";
-            _generate.Click += (s, e) => GenerateNew();
+            _generate.Click += (s, e) => GenerateNew(NoCodeIfsLine(_view.GetFocusedDataRow()));
             _add = new SimpleButton { Text = "Thêm tay…", Width = 100, Height = 30, Enabled = CanEdit };
             _edit = new SimpleButton { Text = "Sửa…", Width = 80, Height = 30, Enabled = CanEdit };
             _delete = new SimpleButton { Text = "Xóa", Width = 80, Height = 30, Enabled = CanEdit };
             _add.ToolTip = "Thêm dòng khi IFS có chuyền mới mà chưa có mã 5 / 3 ký tự.";
             _add.Click += (s, e) => EditRow(null);
-            _edit.Click += (s, e) => EditRow(_view.GetFocusedDataRow());
+            _edit.Click += (s, e) => EditFocused();
             _delete.Click += (s, e) => DeleteRow(_view.GetFocusedDataRow());
             bar.Controls.Add(reload);
             bar.Controls.Add(_generate);
             bar.Controls.Add(_add);
             bar.Controls.Add(_edit);
             bar.Controls.Add(_delete);
+            _onlyMissing.CheckedChanged += (s, e) => ApplyFilter();
+            bar.Controls.Add(_onlyMissing);
 
             Controls.Add(_grid);
             Controls.Add(bar);
@@ -90,18 +95,51 @@ namespace PCTP.Modules.IfsSync
         {
             try
             {
-                _table = _repository.GetLineCodeCrossRef(_site);
-                _grid.DataSource = _table;
+                _table = _repository.GetIfsLineCodeStatus(_site);
+                _table.Columns.Add("CodeText", typeof(string));
+                int missing = 0;
+                foreach (DataRow r in _table.Rows)
+                {
+                    bool has = Cell(r, "CodeStatus") == "HAS_CODE";
+                    r["CodeText"] = has ? "Đã có mã" : "Chưa có mã";
+                    if (!has) missing++;
+                }
+                _grid.DataSource = _table.DefaultView;
+                Caption("IfsProductionLineCode", "Chuyền IFS"); Caption("IfsProductionLineDescription", "Mô tả chuyền IFS"); Caption("CodeText", "Trạng thái mã");
                 Caption("LineCode5", "Mã 5 ký tự"); Caption("LineCode3", "Mã 3 ký tự (LOT)"); Caption("FamilyCode", "Họ máy");
-                Caption("SeqNo", "Số TT"); Caption("Description", "Mô tả"); Caption("IfsProductionLineCode", "Chuyền IFS");
-                Caption("IfsProductionLineDescription", "Mô tả chuyền IFS"); Caption("LotLineName", "Tên chuyền LOT");
+                Caption("SeqNo", "Số TT"); Caption("Description", "Mô tả");
+                Caption("LotLineName", "Tên chuyền LOT");
                 Caption("LotLineStatus", "Chuyền LOT trong PCTP"); Caption("IsLegacySeed", "Mã có sẵn");
                 Caption("CreatedAtUtc", "Tạo lúc (UTC)"); Caption("UpdatedAtUtc", "Sửa lúc (UTC)"); Caption("UpdatedBy", "Người sửa"); Caption("CreatedBy", "Người tạo");
-                if (_view.Columns["SiteCode"] != null) _view.Columns["SiteCode"].Visible = false;
+                foreach (string hidden in new[] { "SiteCode", "CodeStatus" })
+                    if (_view.Columns[hidden] != null) _view.Columns[hidden].Visible = false;
+                ApplyFilter();
                 _view.BestFitColumns();
-                SetStatus(_table.Rows.Count + " cặp mã. Chuyền LOT trong PCTP = NOT_DEFINED khi mã 3 ký tự chưa có trong dbo.FVN_ProductionLine.", false);
+                SetStatus(_table.Rows.Count + " dòng, " + missing + " chuyền IFS chưa có mã 5 / 3 ký tự. Chuyền IFS mới: đồng bộ nhóm PRODUCTION_LINE rồi TẢI LẠI. "
+                          + "Chuyền LOT trong PCTP = NOT_DEFINED khi mã 3 ký tự chưa có trong dbo.FVN_ProductionLine (sẽ tạo khi Liên kết Work Center).", false);
             }
             catch (Exception ex) { SetStatus("Không tải được: " + ex.GetBaseException().Message, true); }
+        }
+
+        private void ApplyFilter()
+        {
+            var view = _grid.DataSource as DataView;
+            if (view == null) return;
+            view.RowFilter = _onlyMissing.Checked ? "CodeStatus = 'NO_CODE'" : string.Empty;
+        }
+
+        /// <summary>Mã chuyền IFS của dòng chưa có mã (để Sinh mã chọn sẵn chuyền đó); null khi dòng đã có mã hoặc không có dòng.</summary>
+        private static string NoCodeIfsLine(DataRow row)
+        {
+            return row != null && Cell(row, "CodeStatus") == "NO_CODE" ? Cell(row, "IfsProductionLineCode") : null;
+        }
+
+        private void EditFocused()
+        {
+            DataRow row = _view.GetFocusedDataRow();
+            string noCodeLine = NoCodeIfsLine(row);
+            // Dòng chuyền IFS chưa có mã: không có gì để sửa, đi thẳng vào Sinh mã với chuyền đó chọn sẵn.
+            if (noCodeLine != null) GenerateNew(noCodeLine); else EditRow(row);
         }
 
         private void Caption(string field, string caption)
@@ -119,13 +157,13 @@ namespace PCTP.Modules.IfsSync
             return new List<string>(set);
         }
 
-        private void GenerateNew()
+        private void GenerateNew(string preselectIfsLine)
         {
             if (!CanEdit) return;
             try
             {
                 DataTable ifsLines = _repository.GetIfsProductionLines(_site);
-                using (var dlg = new GenerateDialog(_site, _repository, ifsLines, Families()))
+                using (var dlg = new GenerateDialog(_site, _repository, ifsLines, Families(), preselectIfsLine))
                 {
                     if (dlg.ShowDialog(this) != DialogResult.OK) return;
                 }
@@ -173,6 +211,7 @@ namespace PCTP.Modules.IfsSync
             string c5 = Cell(row, "LineCode5");
             try
             {
+                if (c5.Length == 0) { SetStatus("Chuyền IFS này chưa có mã để xóa.", true); return; }
                 if (XtraMessageBox.Show(this, "Xóa dòng đối chiếu " + c5 + " → " + Cell(row, "LineCode3") + "?\r\nChỉ xóa được khi mã 3 ký tự chưa được định nghĩa trong PCTP.",
                         "Mã chuyền 5 / 3 ký tự", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
                 _repository.DeleteLineCodeCrossRef(_site, c5);
@@ -297,7 +336,7 @@ namespace PCTP.Modules.IfsSync
             private readonly LabelControl _code5 = new LabelControl();
             private readonly LabelControl _code3 = new LabelControl();
 
-            public GenerateDialog(string site, ISiteDepartmentLineRepository repository, DataTable ifsLines, List<string> families)
+            public GenerateDialog(string site, ISiteDepartmentLineRepository repository, DataTable ifsLines, List<string> families, string preselectIfsLine = null)
             {
                 _site = site;
                 _repository = repository;
@@ -324,6 +363,7 @@ namespace PCTP.Modules.IfsSync
                 _ifs.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
                 _ifs.Properties.Items.Add("(không gắn chuyền IFS)");
                 _ifsCodes.Add(null);
+                int preselectIndex = 0;
                 if (ifsLines != null)
                     foreach (DataRow l in ifsLines.Rows)
                     {
@@ -331,8 +371,12 @@ namespace PCTP.Modules.IfsSync
                         string desc = l.IsNull("Description") ? string.Empty : Convert.ToString(l["Description"]).Trim();
                         _ifsCodes.Add(code);
                         _ifs.Properties.Items.Add(desc.Length > 0 ? code + " — " + desc : code);
+                        if (preselectIfsLine != null && string.Equals(code, preselectIfsLine, StringComparison.OrdinalIgnoreCase))
+                            preselectIndex = _ifsCodes.Count - 1;
                     }
-                _ifs.SelectedIndex = 0;
+                _ifs.SelectedIndex = preselectIndex;
+                if (preselectIndex > 0 && _description.Text.Length == 0)
+                    _description.Text = ifsLines.Rows.Count > 0 ? IfsDescription(ifsLines, preselectIfsLine) : string.Empty;
 
                 var suggest = new SimpleButton { Text = "Gợi ý từ mô tả", Width = 110, Location = new Point(400, 18 + 3 * 32) };
                 suggest.Click += (s, e) => _body.Text = SiteDepartmentLineRepository.SuggestBody(_description.Text);
@@ -360,6 +404,14 @@ namespace PCTP.Modules.IfsSync
                 Controls.Add(preview); Controls.Add(ok); Controls.Add(cancel);
                 CancelButton = cancel;
                 ApplyMode();
+            }
+
+            private static string IfsDescription(DataTable ifsLines, string code)
+            {
+                foreach (DataRow l in ifsLines.Rows)
+                    if (string.Equals(Convert.ToString(l["ProductionLineCode"]).Trim(), code, StringComparison.OrdinalIgnoreCase))
+                        return l.IsNull("Description") ? string.Empty : Convert.ToString(l["Description"]).Trim();
+                return string.Empty;
             }
 
             private bool Numbered { get { return _mode.SelectedIndex == 0; } }

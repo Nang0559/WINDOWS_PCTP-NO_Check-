@@ -105,10 +105,11 @@ namespace PCTP
             };
             _menuSanXuat.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
             _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoSite", "Khai báo Site PCTP (cho phép / tạm ngưng)", OpenKhaiBaoSite));
-            _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoChuyenSanXuat", "Khai báo chuyền sản xuất theo Site", OpenKhaiBaoChuyenSanXuat));
-            _menuSanXuat.Elements.Add(CreateMenuItem("menuLienKetWorkCenter", "Liên kết Work Center IFS ↔ Bộ phận", OpenLienKetWorkCenter));
-            _menuSanXuat.Elements.Add(CreateMenuItem("menuMaChuyen5Va3", "Mã chuyền 5 ký tự ↔ 3 ký tự (LOT)", OpenMaChuyen5Va3));
-            _menuSanXuat.Elements.Add(CreateMenuItem("menuMaBoPhan4", "Work Center IFS ↔ mã bộ phận 4 ký tự (LOT)", OpenMaBoPhan4));
+            // Thứ tự khai báo dữ liệu gốc (mỗi bước chỉ chọn mã đã khai báo ở bước trước): ① → ② → ③ → ④.
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuMaBoPhan4", "① Work Center IFS ↔ mã bộ phận 4 ký tự (LOT)", OpenMaBoPhan4));
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuMaChuyen5Va3", "② Mã chuyền 5 ký tự ↔ 3 ký tự (LOT)", OpenMaChuyen5Va3));
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuLienKetWorkCenter", "③ Liên kết Work Center IFS ↔ Bộ phận", OpenLienKetWorkCenter));
+            _menuSanXuat.Elements.Add(CreateMenuItem("menuKhaiBaoChuyenSanXuat", "④ Khai báo chuyền sản xuất theo Site", OpenKhaiBaoChuyenSanXuat));
             _menuSanXuat.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
             // Control Tower và BOM được thêm ở AddMesBomNavigation (cần kiểm quyền riêng từng mục).
 

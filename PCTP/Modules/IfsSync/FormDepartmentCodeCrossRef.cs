@@ -11,7 +11,9 @@ using PCTP.Security;
 namespace PCTP.Modules.IfsSync
 {
     /// <summary>
-    /// Đối chiếu Work Center IFS (tới 5 ký tự, vd 1100E) với mã bộ phận 4 ký tự dùng trong LOT: xem, sinh mã, thêm / sửa / xóa tay.
+    /// Đối chiếu Work Center IFS (tới 5 ký tự, vd 1100E) với mã bộ phận 4 ký tự dùng trong LOT. Lưới liệt kê MỌI Work Center đã đồng bộ từ IFS
+    /// (Work Center mới: đồng bộ nhóm WORK_CENTER ở menu Đồng bộ dữ liệu IFS rồi TẢI LẠI); mỗi dòng chưa có mã được sinh mã (một dòng hoặc tất cả) hoặc sửa tay.
+    /// Đây là bước ① của chuỗi khai báo: các màn Liên kết Work Center và Khai báo chuyền chỉ chọn mã đã khai báo ở đây.
     /// Quyền MES.SITE_DEPARTMENT_LINE (VIEW xem, EDIT sửa, theo Site).
     /// </summary>
     public sealed class FormDepartmentCodeCrossRef : XtraForm
@@ -21,6 +23,7 @@ namespace PCTP.Modules.IfsSync
         private readonly GridControl _grid = new GridControl { Dock = DockStyle.Fill };
         private readonly GridView _view;
         private readonly LabelControl _status = new LabelControl { Dock = DockStyle.Bottom, Height = 26 };
+        private readonly CheckEdit _onlyMissing = new CheckEdit { Text = "Chỉ Work Center chưa có mã", Width = 200 };
 
         private static bool CanEdit
         {
@@ -53,20 +56,22 @@ namespace PCTP.Modules.IfsSync
             var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 44, Padding = new Padding(6, 6, 6, 0) };
             var reload = new SimpleButton { Text = "TẢI LẠI", Width = 90, Height = 30 };
             reload.Click += (s, e) => Reload();
-            var generate = new SimpleButton { Text = "Sinh mã…", Width = 110, Height = 30, Enabled = CanEdit };
-            var add = new SimpleButton { Text = "Thêm tay…", Width = 100, Height = 30, Enabled = CanEdit };
+            var generate = new SimpleButton { Text = "Sinh mã (dòng chọn)", Width = 150, Height = 30, Enabled = CanEdit };
+            var generateAll = new SimpleButton { Text = "Sinh mã tất cả chưa có…", Width = 170, Height = 30, Enabled = CanEdit };
             var edit = new SimpleButton { Text = "Sửa…", Width = 80, Height = 30, Enabled = CanEdit };
             var delete = new SimpleButton { Text = "Xóa", Width = 80, Height = 30, Enabled = CanEdit };
             if (!CanEdit)
             {
                 string tip = "Bạn chỉ có quyền xem; cần " + SiteDepartmentLineRepository.FunctionCode + " / EDIT.";
-                generate.ToolTip = tip; add.ToolTip = tip; edit.ToolTip = tip; delete.ToolTip = tip;
+                generate.ToolTip = tip; generateAll.ToolTip = tip; edit.ToolTip = tip; delete.ToolTip = tip;
             }
-            generate.Click += (s, e) => EditRow(null, true);
-            add.Click += (s, e) => EditRow(null, false);
+            generate.ToolTip = generate.ToolTip ?? "Sinh mã bộ phận 4 ký tự cho Work Center đang chọn (chưa có mã).";
+            generate.Click += (s, e) => GenerateFocused();
+            generateAll.Click += (s, e) => GenerateAllMissing();
             edit.Click += (s, e) => EditRow(_view.GetFocusedDataRow(), false);
             delete.Click += (s, e) => DeleteRow(_view.GetFocusedDataRow());
-            foreach (Control c in new Control[] { reload, generate, add, edit, delete }) bar.Controls.Add(c);
+            _onlyMissing.CheckedChanged += (s, e) => ApplyFilter();
+            foreach (Control c in new Control[] { reload, generate, generateAll, edit, delete, _onlyMissing }) bar.Controls.Add(c);
 
             Controls.Add(_grid);
             Controls.Add(bar);
@@ -83,19 +88,98 @@ namespace PCTP.Modules.IfsSync
         {
             try
             {
-                DataTable table = _repository.GetDepartmentCodeCrossRef(_site);
-                _grid.DataSource = table;
-                Caption("WorkCenterNo", "Work Center IFS"); Caption("DepartmentCode", "Mã bộ phận (LOT)"); Caption("Description", "Mô tả");
-                Caption("IfsWorkCenterDescription", "Mô tả Work Center IFS"); Caption("IsPresentInIfs", "Còn trong IFS");
-                Caption("LotDepartmentName", "Tên bộ phận LOT"); Caption("LotLineCode", "Chuyền LOT");
+                DataTable table = _repository.GetWorkCenterCodeStatus(_site);
+                table.Columns.Add("SuggestedCode", typeof(string));
+                table.Columns.Add("CodeText", typeof(string));
+                int missing = 0;
+                foreach (DataRow r in table.Rows)
+                {
+                    bool has = Cell(r, "CodeStatus") == "HAS_CODE";
+                    r["CodeText"] = has ? "Đã có mã" : "Chưa có mã";
+                    if (!has)
+                    {
+                        missing++;
+                        string pad = SiteDepartmentLineRepository.DepartmentCodeFromWorkCenter(Cell(r, "WorkCenterNo"));
+                        r["SuggestedCode"] = pad ?? "(chọn khi sinh mã)";
+                    }
+                }
+                _grid.DataSource = table.DefaultView;
+                Caption("WorkCenterNo", "Work Center IFS"); Caption("IfsWorkCenterDescription", "Mô tả Work Center IFS");
+                Caption("IsPresentInIfs", "Còn trong IFS"); Caption("IfsProductionLine", "Chuyền IFS");
+                Caption("CodeText", "Trạng thái mã"); Caption("DepartmentCode", "Mã bộ phận (LOT)"); Caption("SuggestedCode", "Gợi ý mã");
+                Caption("Description", "Mô tả"); Caption("LotDepartmentName", "Tên bộ phận LOT"); Caption("LotLineCode", "Chuyền LOT");
                 Caption("LotDepartmentStatus", "Bộ phận trong PCTP"); Caption("IsLegacySeed", "Mã có sẵn");
                 Caption("CreatedAtUtc", "Tạo lúc (UTC)"); Caption("CreatedBy", "Người tạo");
                 Caption("UpdatedAtUtc", "Sửa lúc (UTC)"); Caption("UpdatedBy", "Người sửa");
-                if (_view.Columns["SiteCode"] != null) _view.Columns["SiteCode"].Visible = false;
+                foreach (string hidden in new[] { "SiteCode", "CodeStatus" })
+                    if (_view.Columns[hidden] != null) _view.Columns[hidden].Visible = false;
+                ApplyFilter();
                 _view.BestFitColumns();
-                SetStatus(table.Rows.Count + " cặp mã. Bộ phận trong PCTP = NOT_DEFINED khi mã 4 ký tự chưa có trong dbo.FVN_ProductionDepartment.", false);
+                SetStatus(table.Rows.Count == 0
+                    ? "Site " + _site + " chưa có Work Center IFS. Đồng bộ dữ liệu IFS nhóm WORK_CENTER (và SITE) rồi TẢI LẠI."
+                    : table.Rows.Count + " Work Center IFS, " + missing + " chưa có mã bộ phận. Work Center mới của IFS: đồng bộ nhóm WORK_CENTER rồi TẢI LẠI. "
+                      + "Bộ phận trong PCTP = NOT_DEFINED khi mã 4 ký tự chưa có trong dbo.FVN_ProductionDepartment (sẽ tạo khi Liên kết Work Center).",
+                    table.Rows.Count == 0);
             }
             catch (Exception ex) { SetStatus("Không tải được: " + ex.GetBaseException().Message, true); }
+        }
+
+        private void ApplyFilter()
+        {
+            var view = _grid.DataSource as DataView;
+            if (view == null) return;
+            view.RowFilter = _onlyMissing.Checked ? "CodeStatus = 'NO_CODE'" : string.Empty;
+        }
+
+        private void GenerateFocused()
+        {
+            if (!CanEdit) return;
+            DataRow row = _view.GetFocusedDataRow();
+            if (row == null) { SetStatus("Chưa chọn dòng nào.", true); return; }
+            string wc = Cell(row, "WorkCenterNo");
+            try
+            {
+                if (Cell(row, "CodeStatus") == "HAS_CODE") { SetStatus("Work Center " + wc + " đã có mã " + Cell(row, "DepartmentCode") + ". Dùng Sửa… để đổi.", true); return; }
+                DataTable t = _repository.GenerateDepartmentCode(_site, wc, null, null, false);
+                string code = t.Rows.Count > 0 ? Convert.ToString(t.Rows[0]["DepartmentCode"]).Trim() : string.Empty;
+                Reload();
+                SetStatus("Đã sinh mã " + code + " cho Work Center " + wc + ".", false);
+            }
+            catch (Exception ex) { Fail("Sinh mã bộ phận", ex); }
+        }
+
+        private void GenerateAllMissing()
+        {
+            if (!CanEdit) return;
+            try
+            {
+                var targets = new List<string>();
+                var table = (_grid.DataSource as DataView)?.Table;
+                if (table != null)
+                    foreach (DataRow r in table.Rows)
+                        if (Cell(r, "CodeStatus") == "NO_CODE" && r["IsPresentInIfs"] != DBNull.Value && Convert.ToBoolean(r["IsPresentInIfs"]))
+                            targets.Add(Cell(r, "WorkCenterNo"));
+                if (targets.Count == 0) { SetStatus("Mọi Work Center đã có mã bộ phận.", false); return; }
+                if (XtraMessageBox.Show(this, "Sinh mã bộ phận 4 ký tự cho " + targets.Count + " Work Center chưa có mã?\r\n"
+                        + "Work Center không sinh được mã (ví dụ ký tự lạ) sẽ được liệt kê để nhập tay bằng Sửa….",
+                        "Sinh mã bộ phận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+                int ok = 0;
+                var failed = new List<string>();
+                foreach (string wc in targets)
+                {
+                    try { _repository.GenerateDepartmentCode(_site, wc, null, null, false); ok++; }
+                    catch (InvalidOperationException ex) { failed.Add(wc + ": " + ex.Message); }
+                }
+                Reload();
+                if (failed.Count == 0) SetStatus("Đã sinh mã cho " + ok + " Work Center.", false);
+                else
+                {
+                    SetStatus("Đã sinh " + ok + ", còn " + failed.Count + " Work Center cần nhập tay (Sửa…).", true);
+                    XtraMessageBox.Show(this, string.Join("\r\n", failed), "Chưa sinh được mã", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch (Exception ex) { Fail("Sinh mã bộ phận", ex); }
         }
 
         private void Caption(string field, string caption)
@@ -139,6 +223,7 @@ namespace PCTP.Modules.IfsSync
             string wc = Cell(row, "WorkCenterNo");
             try
             {
+                if (Cell(row, "CodeStatus") != "HAS_CODE") { SetStatus("Work Center " + wc + " chưa có mã để xóa.", true); return; }
                 if (XtraMessageBox.Show(this, "Xóa dòng đối chiếu " + wc + " → " + Cell(row, "DepartmentCode") + "?\r\nChỉ xóa được khi mã bộ phận chưa được định nghĩa trong PCTP.",
                         "Mã bộ phận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
                 _repository.DeleteDepartmentCodeCrossRef(_site, wc);
