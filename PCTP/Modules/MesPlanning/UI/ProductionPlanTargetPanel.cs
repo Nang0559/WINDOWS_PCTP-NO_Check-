@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
+using PCTP.Shared.MesControls;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -20,7 +22,7 @@ namespace PCTP.Modules.MesPlanning.UI
             public override string ToString() { return Text; }
         }
 
-        private readonly ComboBoxEdit _site = new ComboBoxEdit();
+        private readonly FvnSiteLookupEdit _site = new FvnSiteLookupEdit();
         private readonly ComboBoxEdit _line = new ComboBoxEdit();
         private readonly LabelControl _hint = new LabelControl();
         private IProductionPlanService _service;
@@ -31,29 +33,39 @@ namespace PCTP.Modules.MesPlanning.UI
 
         public ProductionPlanTargetPanel()
         {
-            Height = 62;
-            var table = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12, 6, 12, 0), ColumnCount = 4, RowCount = 2 };
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 45));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
-            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 65));
+            Height = 86;
+            BackColor = Color.White;
+            Padding = new Padding(1);
+            var table = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12, 10, 12, 0), ColumnCount = 4, RowCount = 2, BackColor = Color.White };
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            table.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+            table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
             table.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            _site.Properties.TextEditStyle = TextEditStyles.DisableTextEditor; _site.Dock = DockStyle.Fill;
+            // Site chuẩn: dbo.vFVN_Site (FVN_PCTPSite liên kết IFS.FVN_Site); service đã lọc theo quyền MES.PLAN_UPLOAD.
+            _site.Dock = DockStyle.Fill;
             _line.Properties.TextEditStyle = TextEditStyles.DisableTextEditor; _line.Dock = DockStyle.Fill;
-            _site.SelectedIndexChanged += (s, e) => { if (!_loading) { LoadLines(); RaiseChanged(); } };
+            _site.SiteChanged += (s, e) => { if (!_loading) { LoadLines(); RaiseChanged(); } };
             _line.SelectedIndexChanged += (s, e) => { if (!_loading) RaiseChanged(); };
             _hint.Dock = DockStyle.Fill; _hint.Appearance.ForeColor = Color.Firebrick;
-            table.Controls.Add(new LabelControl { Text = "Site", Dock = DockStyle.Fill }, 0, 0);
+            table.Controls.Add(new LabelControl { Text = "SITE", Dock = DockStyle.Fill, Padding = new Padding(0, 7, 0, 0) }, 0, 0);
             table.Controls.Add(_site, 1, 0);
-            table.Controls.Add(new LabelControl { Text = "Chuyền", Dock = DockStyle.Fill }, 2, 0);
+            table.Controls.Add(new LabelControl { Text = "CHUYỀN", Dock = DockStyle.Fill, Padding = new Padding(0, 7, 0, 0) }, 2, 0);
             table.Controls.Add(_line, 3, 0);
             table.Controls.Add(_hint, 0, 1); table.SetColumnSpan(_hint, 4);
             Controls.Add(table);
         }
 
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            using (var pen = new Pen(Color.FromArgb(214, 220, 229)))
+                e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        }
+
         /// <summary>Site đã chọn (hoặc null).</summary>
-        public string SelectedSite { get { return _site.SelectedItem as string; } }
+        public string SelectedSite { get { string code = _site.SiteCode; return string.IsNullOrEmpty(code) ? null : code; } }
 
         /// <summary>Mã chuyền đã chọn (hoặc null).</summary>
         public string SelectedLine { get { var i = _line.SelectedItem as LineItem; return i == null ? null : i.Code; } }
@@ -72,25 +84,19 @@ namespace PCTP.Modules.MesPlanning.UI
             _loading = true;
             try
             {
-                _site.Properties.Items.Clear();
                 _line.Properties.Items.Clear();
                 _hint.Text = string.Empty;
-                try
-                {
-                    foreach (string site in service.GetUploadSites()) _site.Properties.Items.Add(site);
-                }
-                catch (Exception ex) { _hint.Text = ex.Message; return; }
+                IReadOnlyList<string> authorized;
+                try { authorized = service.GetUploadSites(); }
+                catch (Exception ex) { _hint.Text = ex.Message; _site.LoadCodes(new string[0]); return; }
 
-                if (_site.Properties.Items.Count == 0)
+                _site.LoadCodes(authorized, false, preferredSite);
+                if (!string.IsNullOrEmpty(_site.LastError)) { _hint.Text = _site.LastError; return; }
+                if (_site.SiteCount == 0)
                 {
-                    _hint.Text = "Không có Site khả dụng: kiểm tra quyền SITE của MES.PLAN_UPLOAD, dbo.FVN_PCTPSite đang hoạt động và Site đã đồng bộ IFS.FVN_Site.";
+                    _hint.Text = "Không có Site khả dụng: kiểm tra quyền SITE của MES.PLAN_UPLOAD, dbo.FVN_PCTPSite đang hoạt động và Site đã đồng bộ IFS.FVN_Site (dbo.vFVN_Site).";
                     return;
                 }
-                int index = 0;
-                if (!string.IsNullOrWhiteSpace(preferredSite))
-                    for (int i = 0; i < _site.Properties.Items.Count; i++)
-                        if (string.Equals((string)_site.Properties.Items[i], preferredSite.Trim(), StringComparison.OrdinalIgnoreCase)) { index = i; break; }
-                _site.SelectedIndex = index;
             }
             finally { _loading = false; }
             LoadLines();
@@ -151,7 +157,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 dialog.StartPosition = FormStartPosition.CenterParent;
                 dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
                 dialog.MinimizeBox = false; dialog.MaximizeBox = false;
-                dialog.ClientSize = new Size(560, 150);
+                dialog.ClientSize = new Size(560, 190);
 
                 var panel = new ProductionPlanTargetPanel { Dock = DockStyle.Top };
                 var note = new LabelControl

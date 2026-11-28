@@ -281,10 +281,10 @@ namespace PCTP
 
 
         /// <summary>
-        /// Adds the two MES entries that need their own permission check (Control Tower, Product Structure) to the
-        /// "Sản xuất MES" group built in <see cref="BuildStandardMenus"/>. Kho linh kiện PART, upload kế hoạch, điều hành and
-        /// truy xuất LOT already have their menu items there/in Báo cáo; the former "MES - Linh kiện &amp; Sản xuất" and
-        /// "Kỹ thuật / BOM" root groups only duplicated them and are gone.
+        /// Adds the entries that need their own permission check. Production items (Control Tower dòng chảy sản xuất,
+        /// Product Structure) go to "Sản xuất MES"; the component-flow Control Tower goes to "Linh kiện PART" so every
+        /// component screen lives in one group. "Quản lý linh kiện MES" (<c>menuKhoLinhKien</c>) is already created in
+        /// <see cref="BuildStandardMenus"/>; it is not registered a second time here.
         /// </summary>
         private void AddMesBomNavigation()
         {
@@ -293,11 +293,9 @@ namespace PCTP
             // Read-only Control Tower is the cross-department entry point; individual task forms remain action-scoped.
             AddMesMenuItem(_menuSanXuat, "menuMesProductionFlow", "MES Control Tower - Dòng chảy sản xuất",
                 "MES.PRODUCTION_FLOW", () => new FormMesProductionControlTower());
-            AddMesMenuItem(_menuSanXuat, "menuMesComponentFlow", "MES Control Tower - Dòng chảy linh kiện",
+            // Dòng chảy linh kiện thuộc nhóm "Linh kiện PART" (cùng nhóm với Quản lý linh kiện MES), không thuộc "Sản xuất MES".
+            AddMesMenuItem(_menuLinhKien ?? _menuSanXuat, "menuMesComponentFlow", "MES Control Tower - Dòng chảy linh kiện",
                 "WAREHOUSE.COMPONENT_STOCK", () => new FormMesComponentControlTower());
-            // Màn 4: sơ đồ thực thi PO → tem thùng/pallet → nhập/xuất kho → tồn LotNo (cũng mở được từ CHỌN DÒNG LINH KIỆN).
-            AddMesMenuItem(_menuSanXuat, "menuMesComponentConsole", "Quản lý linh kiện MES (Component Flow Console)",
-                "WAREHOUSE.COMPONENT_STOCK", () => new PCTP.Modules.KhoLinhKien.UI.FormKhoLinhKien());
 
             var bomItem = new AccordionControlElement
             {

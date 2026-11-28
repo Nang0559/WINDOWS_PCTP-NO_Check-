@@ -75,7 +75,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
         private long _poDetailFor = -1;
 
         // Tab 2 - Stock
-        private readonly ComboBoxEdit _site = new ComboBoxEdit();
+        private readonly PCTP.Shared.MesControls.FvnSiteLookupEdit _site = new PCTP.Shared.MesControls.FvnSiteLookupEdit();
         private readonly TextEdit _partNo = new TextEdit();
         private readonly TextEdit _lotNo = new TextEdit();
         private readonly TextEdit _slotText = new TextEdit();
@@ -100,7 +100,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
 
         // Tab 5 - Trace
         private readonly TextEdit _traceLot = new TextEdit();
-        private readonly ComboBoxEdit _traceSite = new ComboBoxEdit();
+        private readonly PCTP.Shared.MesControls.FvnSiteLookupEdit _traceSite = new PCTP.Shared.MesControls.FvnSiteLookupEdit();
         private readonly ComboBoxEdit _traceDirection = new ComboBoxEdit();
         private readonly GridControl _traceGrid = new GridControl();
         private readonly GridView _traceView = new GridView();
@@ -513,8 +513,8 @@ namespace PCTP.Modules.KhoLinhKien.UI
             if (ctx == null) return;
             try
             {
-                if (!string.IsNullOrWhiteSpace(ctx.Site) && _site.Properties.Items.Contains(ctx.Site))
-                    _site.EditValue = ctx.Site;
+                if (!string.IsNullOrWhiteSpace(ctx.Site))
+                    _site.SiteCode = ctx.Site;   // bỏ qua nếu Site không nằm trong phạm vi / vFVN_Site
                 _partNo.Text = ctx.PartNo ?? string.Empty;
                 _lotNo.Text = ctx.LotNo ?? string.Empty;
                 LoadStock();
@@ -634,7 +634,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
         {
             var filters = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(4, 2, 0, 0) };
             filters.Controls.Add(Cap("Site"));
-            ConfigureCombo(_site, 90); filters.Controls.Add(_site);
+            _site.Width = 150; filters.Controls.Add(_site);
             filters.Controls.Add(Cap("PartNo"));
             _partNo.Width = 150; filters.Controls.Add(_partNo);
             filters.Controls.Add(Cap("LOT"));
@@ -742,7 +742,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
             bar.Controls.Add(Cap("LOT"));
             _traceLot.Width = 260; bar.Controls.Add(_traceLot);
             bar.Controls.Add(Cap("Site"));
-            ConfigureCombo(_traceSite, 90); bar.Controls.Add(_traceSite);
+            _traceSite.Width = 150; bar.Controls.Add(_traceSite);
             bar.Controls.Add(Cap("Chiều"));
             ConfigureCombo(_traceDirection, 260);
             _traceDirection.Properties.Items.Add("Linh kiện → thành phẩm (DOWNSTREAM)");
@@ -773,13 +773,22 @@ namespace PCTP.Modules.KhoLinhKien.UI
             catch (Exception ex) { SetStatus(ex.Message); }
         }
 
-        private static void FillSiteCombo(ComboBoxEdit combo, DataTable sites, bool includeAll)
+        /// <summary>
+        /// Nạp lookup Site chuẩn (dbo.vFVN_Site) từ danh sách Site mà service tồn kho đã lọc theo quyền của tài khoản.
+        /// </summary>
+        private static void FillSiteCombo(PCTP.Shared.MesControls.FvnSiteLookupEdit combo, DataTable sites, bool includeAll)
         {
-            combo.Properties.Items.Clear();
-            if (includeAll) combo.Properties.Items.Add(string.Empty);
-            foreach (DataRow row in sites.Rows) combo.Properties.Items.Add(Convert.ToString(row["SiteCode"]));
-            if (combo.Properties.Items.Count > 0)
-                combo.SelectedIndex = includeAll && combo.Properties.Items.Count > 1 ? 1 : 0;
+            var codes = new System.Collections.Generic.List<string>();
+            foreach (DataRow row in sites.Rows) codes.Add(Convert.ToString(row["SiteCode"]));
+            combo.LoadCodes(codes, includeAll);
+            if (!string.IsNullOrEmpty(combo.LastError)) throw new InvalidOperationException(combo.LastError);
+        }
+
+        /// <summary>Site đang chọn; null khi chọn "Tất cả Site" hoặc chưa có Site.</summary>
+        private static string ComboText(PCTP.Shared.MesControls.FvnSiteLookupEdit combo)
+        {
+            string code = combo.SiteCode;
+            return string.IsNullOrWhiteSpace(code) ? null : code.Trim();
         }
 
         private static string ComboText(ComboBoxEdit combo)
@@ -1187,8 +1196,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
             if (row == null || _tabTrace == null) return;
             _traceLot.Text = Convert.ToString(row["LotNo"]);
             string site = Convert.ToString(row["SiteCode"]);
-            int index = _traceSite.Properties.Items.IndexOf(site);
-            if (index >= 0) _traceSite.SelectedIndex = index;
+            _traceSite.SiteCode = site;
             _traceDirection.SelectedIndex = 0;
             GoTab(_tabTrace);
             RunTrace();

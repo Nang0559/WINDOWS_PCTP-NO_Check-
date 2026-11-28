@@ -61,3 +61,73 @@ namespace PCTP.Shared.MesControls
                 all["SiteCode"] = AllSiteCode;
                 all["SiteName"] = "Tất cả Site trong phạm vi";
                 all["SiteShort"] = "Tất cả";
+                table.Rows.InsertAt(all, 0);
+            }
+            table.AcceptChanges();
+            return table;
+        }
+
+        /// <summary>Đọc mọi Site dùng được (SiteStatus = OK) từ <c>dbo.vFVN_Site</c>: cặp (SiteCode, SiteName IFS).</summary>
+        public static IList<KeyValuePair<string, string>> LoadUsableSites()
+        {
+            string connectionString = ConfigurationManager.ConnectionStrings["FVN_PCTP"] == null
+                ? null
+                : ConfigurationManager.ConnectionStrings["FVN_PCTP"].ConnectionString;
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new InvalidOperationException("Thiếu connection string FVN_PCTP.");
+
+            var list = new List<KeyValuePair<string, string>>();
+            using (var cn = new SqlConnection(connectionString))
+            using (var cmd = new SqlCommand(UsableSitesSql, cn))
+            {
+                cn.Open();
+                using (var rd = cmd.ExecuteReader())
+                    while (rd.Read())
+                        list.Add(new KeyValuePair<string, string>(
+                            Convert.ToString(rd["SiteCode"]),
+                            rd["SiteName"] == DBNull.Value ? string.Empty : Convert.ToString(rd["SiteName"])));
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Bảng lookup cho một chức năng: Site dùng được (vFVN_Site) ∩ Site tài khoản được xem
+        /// (<see cref="DocumentSiteResolver"/> + <see cref="UserSession.HasDataScope"/>). Ném lỗi khi chưa đăng nhập / lỗi SQL.
+        /// </summary>
+        public static DataTable ForFunction(string functionCode, bool includeAll)
+        {
+            UserSession session = UserSession.Current;
+            if (session == null) throw new InvalidOperationException("Chưa đăng nhập.");
+            IList<KeyValuePair<string, string>> usable = LoadUsableSites();
+            IReadOnlyList<string> allowed = DocumentSiteResolver.Candidates(
+                session, functionCode, () => usable.Select(x => x.Key).ToList());
+            return Build(usable, allowed, includeAll);
+        }
+
+        /// <summary>Như <see cref="ForFunction"/> nhưng Site phải nằm trong phạm vi của TẤT CẢ các chức năng (màn hình dùng nhiều quyền).</summary>
+        public static DataTable ForFunctions(IEnumerable<string> functionCodes, bool includeAll)
+        {
+            UserSession session = UserSession.Current;
+            if (session == null) throw new InvalidOperationException("Chưa đăng nhập.");
+            string[] codes = (functionCodes ?? Enumerable.Empty<string>()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+            if (codes.Length == 0) throw new ArgumentException("Cần ít nhất một mã chức năng.", "functionCodes");
+            IList<KeyValuePair<string, string>> usable = LoadUsableSites();
+            IEnumerable<string> allowed = null;
+            foreach (string function in codes)
+            {
+                IReadOnlyList<string> sites = DocumentSiteResolver.Candidates(
+                    session, function, () => usable.Select(x => x.Key).ToList());
+                allowed = allowed == null
+                    ? (IEnumerable<string>)sites
+                    : allowed.Intersect(sites, StringComparer.OrdinalIgnoreCase).ToList();
+            }
+            return Build(usable, allowed, includeAll);
+        }
+
+        /// <summary>Bảng lookup cho danh sách mã Site mà Application Service đã lọc quyền sẵn.</summary>
+        public static DataTable ForCodes(IEnumerable<string> authorizedCodes, bool includeAll)
+        {
+            return Build(LoadUsableSites(), authorizedCodes ?? Enumerable.Empty<string>(), includeAll);
+        }
+    }
+}

@@ -1,5 +1,6 @@
 using PCTP.Infrastructure.Security;
 using PCTP.Security;
+using PCTP.Shared.MesControls;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
@@ -21,12 +22,12 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly GridControl _demands = new GridControl();
         private readonly GridView _planView;
         private readonly GridView _demandView;
-        private readonly TextEdit _site = new TextEdit();
+        private readonly FvnSiteLookupEdit _site = new FvnSiteLookupEdit();
+        private FvnConsoleScreenFrame _frame;
         private readonly TextEdit _issueNo = new TextEdit();
         private readonly LookUpEdit _lots = new LookUpEdit();
         private readonly LookUpEdit _wipSlots = new LookUpEdit();
         private readonly SpinEdit _qty = new SpinEdit();
-        private readonly LabelControl _status = new LabelControl();
         private readonly SimpleButton _postButton = new SimpleButton();
 
         public FormYeuCauVaXuatLinhKien()
@@ -43,58 +44,50 @@ namespace PCTP.Modules.MesPlanning.UI
             _demandView = new GridView(_demands);
             Text = "Yêu cầu linh kiện và điều chuyển PART → WIP";
             StartPosition = FormStartPosition.CenterParent;
+            WindowState = FormWindowState.Maximized;
             Size = new Size(1360, 850);
             MinimumSize = new Size(1050, 680);
             BuildUi();
-            Load += (s, e) => LoadPlans();
+            Load += (s, e) =>
+            {
+                // Site chuẩn: dbo.vFVN_Site ∩ phạm vi của cả nhu cầu linh kiện lẫn xuất PART → WIP.
+                _site.LoadForFunctions(new[] { "MES.COMPONENT_DEMAND", "MES.COMPONENT_ISSUE" });
+                if (_site.SiteCount == 0)
+                {
+                    SetStatus(string.IsNullOrEmpty(_site.LastError)
+                        ? "Không tìm thấy Site trong phạm vi được cấp cho tài khoản."
+                        : _site.LastError, true);
+                    return;
+                }
+                LoadPlans();
+            };
         }
 
         private void BuildUi()
         {
-            var root = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 5,
-                Padding = new Padding(10)
-            };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 46));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 39));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
-
-            var top = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(2) };
-            top.Controls.Add(new LabelControl { Text = "Site", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
-            _site.Width = 110;
-            top.Controls.Add(_site);
-            var reload = new SimpleButton { Text = "Tải kế hoạch", Width = 120, Height = 30 };
-            reload.Click += (s, e) => LoadPlans();
-            top.Controls.Add(reload);
-            var reconcile = new SimpleButton
-            {
-                Text = "ĐỒNG BỘ YÊU CẦU BOM",
-                Width = 190,
-                Height = 30,
-                Enabled = UserSession.Current != null &&
-                    UserSession.Current.HasPermission("MES.COMPONENT_DEMAND", "CREATE")
-            };
-            reconcile.Click += GenerateClick;
-            top.Controls.Add(reconcile);
+            _site.Width = 150;
+            _site.SiteChanged += (s, e) => LoadPlans();
+            var reload = new SimpleButton();
+            FvnConsoleScreen.StyleButton(reload, "TẢI KẾ HOẠCH", 130, (s, e) => LoadPlans());
+            var reconcile = new SimpleButton();
+            FvnConsoleScreen.StyleButton(reconcile, "ĐỒNG BỘ YÊU CẦU BOM", 190, GenerateClick,
+                UserSession.Current != null && UserSession.Current.HasPermission("MES.COMPONENT_DEMAND", "CREATE"));
+            var filter = FvnConsoleScreen.CreateFilterCard(
+                FvnConsoleScreen.Caption("Site"), _site, reload, reconcile);
 
             ConfigureGrid(_plans, _planView);
             ConfigureGrid(_demands, _demandView);
             _planView.SelectionChanged += (s, e) => LoadDemand();
             _demandView.SelectionChanged += (s, e) => LoadIssueOptions();
 
-            var issue = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, Padding = new Padding(2) };
-            issue.Controls.Add(new LabelControl { Text = "LOT / Slot nguồn", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
+            var issue = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, BackColor = Color.White };
+            issue.Controls.Add(FvnConsoleScreen.Caption("LOT / Slot nguồn"));
             ConfigureLookup(_lots, 330);
             issue.Controls.Add(_lots);
-            issue.Controls.Add(new LabelControl { Text = "Slot đích WIP", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
+            issue.Controls.Add(FvnConsoleScreen.Caption("Slot đích WIP"));
             ConfigureLookup(_wipSlots, 260);
             issue.Controls.Add(_wipSlots);
-            issue.Controls.Add(new LabelControl { Text = "Số lượng", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
+            issue.Controls.Add(FvnConsoleScreen.Caption("Số lượng"));
             _qty.Width = 110;
             _qty.Properties.IsFloatValue = true;
             _qty.Properties.Mask.EditMask = "n3";
@@ -104,7 +97,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _qty.Properties.Increment = 1M;
             _qty.EditValue = 1M;
             issue.Controls.Add(_qty);
-            issue.Controls.Add(new LabelControl { Text = "Số phiếu", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
+            issue.Controls.Add(FvnConsoleScreen.Caption("Số phiếu"));
             _issueNo.Width = 180;
             _issueNo.Text = "WIP-" + DateTime.Now.ToString("yyyyMMddHHmmss");
             issue.Controls.Add(_issueNo);
@@ -117,32 +110,38 @@ namespace PCTP.Modules.MesPlanning.UI
             _postButton.Click += PostClick;
             issue.Controls.Add(_postButton);
 
-            _status.Dock = DockStyle.Fill;
-            _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            _status.AutoSizeMode = LabelAutoSizeMode.None;
+            var issueCard = new FvnCardPanel { Dock = DockStyle.Fill };
+            issueCard.Controls.Add(issue);
 
-            root.Controls.Add(top, 0, 0);
-            root.Controls.Add(_plans, 0, 1);
-            root.Controls.Add(_demands, 0, 2);
-            root.Controls.Add(issue, 0, 3);
-            root.Controls.Add(_status, 0, 4);
-            Controls.Add(root);
+            var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = FvnConsoleTheme.Background };
+            body.RowStyles.Add(new RowStyle(SizeType.Percent, 54));
+            body.RowStyles.Add(new RowStyle(SizeType.Percent, 46));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+            body.Controls.Add(Card(_plans), 0, 0);
+            body.Controls.Add(Card(_demands), 0, 1);
+            body.Controls.Add(issueCard, 0, 2);
+
+            _frame = FvnConsoleScreen.Compose(this,
+                "YÊU CẦU LINH KIỆN & XUẤT PART → WIP",
+                "Kế hoạch FIRM → nhu cầu linh kiện theo BOM IFS → xuất LOT từ PART sang slot WIP | Site theo phạm vi tài khoản",
+                filter, FvnConsoleScreen.FilterCardHeight, body);
+        }
+
+        private static Control Card(Control grid)
+        {
+            var card = new FvnCardPanel { Dock = DockStyle.Fill, Padding = new Padding(1), Margin = new Padding(0, 0, 0, 8) };
+            card.Controls.Add(grid);
+            return card;
+        }
+
+        private void SetStatus(string text, bool warning)
+        {
+            if (_frame != null) _frame.SetStatus(text, warning);
         }
 
         private static void ConfigureGrid(GridControl grid, GridView view)
         {
-            grid.Dock = DockStyle.Fill;
-            grid.MainView = view;
-            grid.ViewCollection.Add(view);
-            view.OptionsBehavior.Editable = false;
-            view.OptionsBehavior.ReadOnly = true;
-            view.OptionsView.ShowGroupPanel = false;
-            view.OptionsView.ColumnAutoWidth = false;
-            view.OptionsView.ShowIndicator = true;
-            view.OptionsSelection.MultiSelect = false;
-            view.OptionsSelection.EnableAppearanceFocusedCell = false;
-            view.FocusRectStyle = DrawFocusRectStyle.RowFocus;
-            view.OptionsView.ShowAutoFilterRow = true;
+            FvnConsoleScreen.StyleGrid(grid, view);
         }
 
         private static void ConfigureLookup(LookUpEdit editor, int width)
@@ -183,9 +182,12 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             try
             {
-                _plans.DataSource = _service.GetPlanLines(_site.Text);
+                if (string.IsNullOrWhiteSpace(_site.SiteCode))
+                    throw new InvalidOperationException("Chọn Site để tải đúng phạm vi kế hoạch được phân quyền.");
+                _plans.DataSource = _service.GetPlanLines(_site.SiteCode);
                 _planView.BestFitColumns();
-                _status.Text = "Danh sách kế hoạch theo ca. Yêu cầu linh kiện được tạo tự động khi kế hoạch chuyển sang FIRM.";
+                _frame.SetRuntime("Site " + _site.SiteCode, true);
+                SetStatus("Danh sách kế hoạch theo ca. Yêu cầu linh kiện được tạo tự động khi kế hoạch chuyển sang FIRM.", false);
                 LoadDemand();
             }
             catch (Exception ex) { ShowError(ex); }
@@ -199,7 +201,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 var id = CellLong(row, "ProductionPlanLineId");
                 if (id <= 0) throw new InvalidOperationException("Chọn một dòng kế hoạch FIRM.");
                 var demandId = _service.GenerateDemand(id, CellText(row, "SiteCode"), Environment.UserName);
-                _status.Text = "Đã kiểm tra/đồng bộ yêu cầu BOM #" + demandId + ". Thao tác có tính idempotent.";
+                SetStatus("✔  Đã kiểm tra/đồng bộ yêu cầu BOM #" + demandId + ". Thao tác có tính idempotent.", false);
                 LoadDemand();
             }
             catch (Exception ex) { ShowError(ex); }
@@ -250,7 +252,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 _wipSlots.Enabled = supplyMode != "MAKE";
 
                 if (supplyMode == "MAKE")
-                    _status.Text = "Linh kiện MAKE: không xuất từ PART; ghi nhận LOT và tiêu hao tại Điều hành sản xuất MES.";
+                    SetStatus("Linh kiện MAKE: không xuất từ PART; ghi nhận LOT và tiêu hao tại Điều hành sản xuất MES.", true);
 
                 var slots = !string.IsNullOrWhiteSpace(site) ? _service.GetWipSlots(site) : new DataTable();
                 _wipSlots.Properties.DataSource = slots;
@@ -267,7 +269,7 @@ namespace PCTP.Modules.MesPlanning.UI
                 if (suggested >= _qty.Properties.MinValue)
                     _qty.Value = Math.Min(_qty.Properties.MaxValue, suggested);
             }
-            catch (Exception ex) { _status.Text = ex.Message; }
+            catch (Exception ex) { SetStatus(ex.Message, true); }
         }
 
         private void PostClick(object sender, EventArgs e)
@@ -294,8 +296,8 @@ namespace PCTP.Modules.MesPlanning.UI
                     _qty.Value,
                     Environment.UserName);
 
-                _status.Text = "Đã chuyển " + _qty.Value.ToString("N3") +
-                    " từ PART sang WIP. Giao dịch MES #" + result.Rows[0]["InventoryTransactionId"] + ".";
+                SetStatus("✔  Đã chuyển " + _qty.Value.ToString("N3") +
+                    " từ PART sang WIP. Giao dịch MES #" + result.Rows[0]["InventoryTransactionId"] + ".", false);
                 LoadDemand();
             }
             catch (Exception ex) { ShowError(ex); }
@@ -303,7 +305,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void ShowError(Exception ex)
         {
-            _status.Text = ex.Message;
+            SetStatus(ex.Message, true);
             XtraMessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }

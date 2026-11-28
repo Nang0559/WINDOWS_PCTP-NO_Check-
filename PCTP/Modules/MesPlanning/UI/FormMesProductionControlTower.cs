@@ -78,18 +78,14 @@ namespace PCTP.Modules.MesPlanning.UI
             WindowState = FormWindowState.Maximized;
             MinimumSize = new Size(1180, 720);
             _filters.RefreshRequested += (s, e) => LoadFlow();
+            _filters.SiteChanged += (s, e) => LoadFlow();
             BuildUi();
             ConfigureWorker();
             Load += (s, e) =>
             {
-                if (string.IsNullOrWhiteSpace(_filters.SiteCode))
-                {
-                    var scope = UserSession.Current.DataScopes.FirstOrDefault(x =>
-                        !string.IsNullOrWhiteSpace(x.SiteCode) &&
-                        (string.IsNullOrWhiteSpace(x.FunctionCode) ||
-                         string.Equals(x.FunctionCode, "MES.PRODUCTION_FLOW", StringComparison.OrdinalIgnoreCase)));
-                    if (scope != null) _filters.SiteCode = scope.SiteCode;
-                }
+                // Site chuẩn: dbo.vFVN_Site (FVN_PCTPSite liên kết IFS.FVN_Site) ∩ phạm vi tài khoản của chức năng.
+                _filters.LoadSites("MES.PRODUCTION_FLOW");
+                if (!string.IsNullOrEmpty(_filters.SiteLoadError)) _status.Text = "⚠  " + _filters.SiteLoadError;
                 // Dựng sẵn khung 5 thẻ chặng + tiêu đề cột để màn hình luôn hiển thị đúng bố cục,
                 // kể cả khi chưa có Site trong phạm vi hoặc chưa tải được dữ liệu.
                 ShowEmptyState();

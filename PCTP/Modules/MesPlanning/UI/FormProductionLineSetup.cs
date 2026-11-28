@@ -7,6 +7,7 @@ using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Security;
+using PCTP.Shared.MesControls;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -18,14 +19,16 @@ namespace PCTP.Modules.MesPlanning.UI
     /// </summary>
     public sealed class FormProductionLineSetup : XtraForm
     {
-        private readonly string _site;
+        private string _site;
+        private const string Function = "MES.PRODUCTION_LINE_SETUP";
+        private readonly FvnSiteLookupEdit _siteLookup = new FvnSiteLookupEdit();
+        private FvnConsoleScreenFrame _frame;
         private readonly ProductionLineSetupService _service;
         private readonly GridControl _grid = new GridControl { Dock = DockStyle.Fill };
         private readonly GridView _view;
-        private readonly LabelControl _status = new LabelControl { Dock = DockStyle.Bottom, Height = 26 };
         private readonly LabelControl _flow = new LabelControl
         {
-            Dock = DockStyle.Top, Height = 24, AutoSizeMode = LabelAutoSizeMode.None,
+            Dock = DockStyle.Top, Height = 28, AutoSizeMode = LabelAutoSizeMode.None,
             Text = "Thứ tự khai báo: ① Work Center ↔ mã bộ phận → ② Mã chuyền 5 ↔ 3 → ③ Liên kết Work Center → ④ Khai báo chuyền (màn này: chỉ chọn từ danh sách)."
         };
         private readonly CheckEdit _onlyUnmapped = new CheckEdit { Text = "Chỉ chuyền chưa khai báo", Width = 190 };
@@ -51,49 +54,61 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void BuildUi()
         {
-            _grid.MainView = _view;
-            _grid.ViewCollection.Add(_view);
-            _view.OptionsBehavior.Editable = false;
-            _view.OptionsView.ShowAutoFilterRow = true;
-            _view.OptionsView.ColumnAutoWidth = false;
+            FvnConsoleScreen.StyleGrid(_grid, _view);
             _view.DoubleClick += (s, e) => EditFocused();
 
-            var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 44, Padding = new Padding(6, 6, 6, 0) };
-            bar.Controls.Add(Button("TẢI LẠI", 90, (s, e) => Reload()));
-            _editButton = Button("Khai báo / Sửa…", 130, (s, e) => EditFocused());
-            _deactivateButton = Button("Ngừng dùng", 100, (s, e) => DeactivateFocused());
-            _editButton.Enabled = CanConfigure;
-            _deactivateButton.Enabled = CanConfigure;
+            // Site chuẩn: dbo.vFVN_Site ∩ phạm vi MES.PRODUCTION_LINE_SETUP; Site truyền từ menu được chọn sẵn.
+            _siteLookup.Width = 150;
+            _siteLookup.LoadForFunction(Function, false, _site);
+            if (!string.IsNullOrEmpty(_siteLookup.SiteCode)) _site = _siteLookup.SiteCode.ToUpperInvariant();
+            _siteLookup.SiteChanged += (s, e) =>
+            {
+                if (string.IsNullOrEmpty(_siteLookup.SiteCode)) return;
+                _site = _siteLookup.SiteCode.ToUpperInvariant();
+                Text = "Khai báo chuyền sản xuất - Site " + _site;
+                Reload();
+            };
+
+            var reload = new SimpleButton();
+            FvnConsoleScreen.StyleButton(reload, "TẢI LẠI", 100, (s, e) => Reload());
+            _editButton = new SimpleButton();
+            FvnConsoleScreen.StyleButton(_editButton, "KHAI BÁO / SỬA…", 150, (s, e) => EditFocused(), CanConfigure);
+            _deactivateButton = new SimpleButton();
+            FvnConsoleScreen.StyleButton(_deactivateButton, "NGỪNG DÙNG", 120, (s, e) => DeactivateFocused(), CanConfigure);
             _editButton.ToolTip = CanConfigure ? "Khai báo / sửa mapping IFS → LOT" : "Bạn chỉ có quyền xem; cần MES.PRODUCTION_LINE_SETUP / CREATE.";
             _deactivateButton.ToolTip = _editButton.ToolTip;
-            bar.Controls.Add(_editButton);
-            bar.Controls.Add(_deactivateButton);
             _onlyUnmapped.CheckedChanged += (s, e) => Reload();
-            bar.Controls.Add(_onlyUnmapped);
+            _onlyUnmapped.Margin = new Padding(8, 4, 0, 0);
 
-            Controls.Add(_grid);
-            Controls.Add(bar);
-            Controls.Add(_flow);
-            Controls.Add(_status);
-        }
+            var filter = FvnConsoleScreen.CreateFilterCard(
+                FvnConsoleScreen.Caption("Site"), _siteLookup, reload, _editButton, _deactivateButton, _onlyUnmapped);
 
-        private static SimpleButton Button(string text, int width, EventHandler click)
-        {
-            var b = new SimpleButton { Text = text, Width = width, Height = 30 };
-            b.Click += click;
-            return b;
+            _flow.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            var gridCard = new FvnCardPanel { Dock = DockStyle.Fill, Padding = new Padding(1) };
+            gridCard.Controls.Add(_grid);
+            var body = new Panel { Dock = DockStyle.Fill, BackColor = FvnConsoleTheme.Background };
+            body.Controls.Add(gridCard);
+            body.Controls.Add(_flow);
+
+            _frame = FvnConsoleScreen.Compose(this,
+                "KHAI BÁO CHUYỀN SẢN XUẤT THEO SITE",
+                "Gán chuyền IFS sang mã chuyền LOT (3 ký tự) + mã bộ phận (4 ký tự) | Site từ dbo.vFVN_Site",
+                filter, FvnConsoleScreen.FilterCardHeight, body);
+            if (_siteLookup.SiteCount == 0)
+                SetStatus(string.IsNullOrEmpty(_siteLookup.LastError)
+                    ? "Không tìm thấy Site trong phạm vi được cấp cho tài khoản." : _siteLookup.LastError, true);
         }
 
         private void SetStatus(string text, bool error)
         {
-            _status.Text = text;
-            _status.Appearance.ForeColor = error ? Color.Firebrick : Color.FromArgb(70, 85, 100);
+            if (_frame != null) _frame.SetStatus(text, error);
         }
 
         private void Reload()
         {
             try
             {
+                _frame.SetRuntime("Site " + _site, true);
                 DataTable table = _service.List(_site);
                 int lines = table.Rows.Count;
                 int unmapped = 0;

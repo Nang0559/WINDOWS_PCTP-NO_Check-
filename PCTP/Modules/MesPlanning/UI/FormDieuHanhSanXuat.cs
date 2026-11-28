@@ -56,6 +56,8 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly GridControl _work = new GridControl();
         private readonly GridView _workView = new GridView();
         private readonly SimpleButton _refreshWork = new SimpleButton();
+        private readonly PCTP.Shared.MesControls.FvnSiteLookupEdit _siteLookup = new PCTP.Shared.MesControls.FvnSiteLookupEdit();
+        private bool _siteLoaded;
         private readonly List<Cmd> _orderCmds = new List<Cmd>();
         private Cmd _cmdSelectPlan, _cmdCreateOrder, _cmdRelease, _cmdCreateLot, _cmdStart,
             _cmdPause, _cmdResume, _cmdComplete, _cmdClose, _cmdHistory;
@@ -465,6 +467,10 @@ namespace PCTP.Modules.MesPlanning.UI
             _refreshWork.Size = new Size(190, 28);
             _refreshWork.ImageOptions.Image = Icon("images/actions/refresh_16x16.png");
             _refreshWork.Click += (s, e) => LoadWorklist();
+            workBar.Controls.Add(new LabelControl { Text = "SITE", AutoSizeMode = LabelAutoSizeMode.Default, Padding = new Padding(0, 6, 4, 0) });
+            _siteLookup.Width = 140;
+            _siteLookup.SiteChanged += (s, e) => LoadWorklist();
+            workBar.Controls.Add(_siteLookup);
             workBar.Controls.Add(_refreshWork);
             workBar.Controls.Add(new LabelControl
             {
@@ -945,14 +951,18 @@ namespace PCTP.Modules.MesPlanning.UI
         //  WORKLIST (dòng kế hoạch FIRM / lệnh trong phạm vi của người dùng)
         // =====================================================================================================
 
+        /// <summary>
+        /// Site đang chọn. Danh sách Site lấy từ dbo.vFVN_Site (FVN_PCTPSite liên kết IFS.FVN_Site) ∩ phạm vi tài khoản của
+        /// MES.PRODUCTION_FLOW và MES.PRODUCTION_EXECUTION (đọc cả SiteCode lẫn ScopeValue, bung scope ALL).
+        /// </summary>
         private string ResolveSite()
         {
-            var scope = UserSession.Current.DataScopes.FirstOrDefault(x =>
-                !string.IsNullOrWhiteSpace(x.SiteCode) &&
-                (string.IsNullOrWhiteSpace(x.FunctionCode) ||
-                 string.Equals(x.FunctionCode, "MES.PRODUCTION_FLOW", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(x.FunctionCode, "MES.PRODUCTION_EXECUTION", StringComparison.OrdinalIgnoreCase)));
-            return scope == null ? null : scope.SiteCode;
+            if (!_siteLoaded)
+            {
+                _siteLookup.LoadForFunctions(new[] { "MES.PRODUCTION_FLOW", "MES.PRODUCTION_EXECUTION" });
+                _siteLoaded = _siteLookup.SiteCount > 0;   // thử lại ở lần tải sau nếu chưa có Site
+            }
+            return string.IsNullOrWhiteSpace(_siteLookup.SiteCode) ? null : _siteLookup.SiteCode;
         }
 
         private void LoadWorklist()
@@ -966,7 +976,9 @@ namespace PCTP.Modules.MesPlanning.UI
             string site = ResolveSite();
             if (string.IsNullOrWhiteSpace(site))
             {
-                SetStatus("Không tìm thấy Site trong phạm vi được cấp cho tài khoản.", StatusKind.Error);
+                SetStatus(string.IsNullOrEmpty(_siteLookup.LastError)
+                    ? "Không tìm thấy Site trong phạm vi được cấp cho tài khoản."
+                    : _siteLookup.LastError, StatusKind.Error);
                 return;
             }
             _loadingWork = true;

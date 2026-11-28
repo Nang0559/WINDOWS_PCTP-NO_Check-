@@ -7,6 +7,7 @@ using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Infrastructure.Security;
 using PCTP.Security;
+using PCTP.Shared.MesControls;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -19,11 +20,12 @@ namespace PCTP.Modules.MesPlanning.UI
     {
         private readonly IProductionPlanService _plans;
         private readonly IProductionWorkflowService _workflow;
-        private readonly TextEdit _site = new TextEdit();
+        private readonly FvnSiteLookupEdit _site = new FvnSiteLookupEdit();
         private readonly TextEdit _reason = new TextEdit();
         private readonly GridControl _grid = new GridControl();
         private readonly GridView _view;
-        private readonly LabelControl _status = new LabelControl();
+        private FvnConsoleScreenFrame _frame;
+        private const string Function = "MES.PLAN_UPLOAD";
         public long SelectedPlanLineId { get; private set; }
 
         public FormProductionPlanWorkflow()
@@ -42,64 +44,69 @@ namespace PCTP.Modules.MesPlanning.UI
             WindowState = FormWindowState.Maximized;
             MinimumSize = new Size(1050, 650);
             BuildUi();
-            Load += (s, e) => LoadPlans();
+            Load += (s, e) =>
+            {
+                // Site chuẩn: dbo.vFVN_Site (FVN_PCTPSite liên kết IFS.FVN_Site) ∩ phạm vi tài khoản của MES.PLAN_UPLOAD.
+                _site.LoadForFunction(Function);
+                if (_site.SiteCount == 0)
+                {
+                    SetStatus(string.IsNullOrEmpty(_site.LastError)
+                        ? "Không tìm thấy Site trong phạm vi được cấp cho tài khoản."
+                        : _site.LastError, true);
+                    return;
+                }
+                LoadPlans();
+            };
         }
 
         private void BuildUi()
         {
-            var root = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, Padding = new Padding(12),
-                ColumnCount = 1, RowCount = 3
-            };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-
-            var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoScroll = true };
-            toolbar.Controls.Add(new LabelControl { Text = "Site", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
-            _site.Width = 120;
-            _site.Properties.NullValuePrompt = "Nhập SiteCode";
-            toolbar.Controls.Add(_site);
             var session = UserSession.Current;
-            AddButton(toolbar, "TẢI KẾ HOẠCH", LoadPlans, true);
-            AddButton(toolbar, "1. KIỂM TRA / VALIDATE", () => Transition(10), session.HasPermission("MES.PLAN_UPLOAD", "CONFIRM"));
-            AddButton(toolbar, "2. FIRM + SINH NHU CẦU BOM", () => Transition(20), session.HasPermission("MES.PLAN_UPLOAD", "APPROVE"));
-            AddButton(toolbar, "HỦY KẾ HOẠCH", () => Transition(900), session.HasPermission("MES.PLAN_UPLOAD", "CANCEL"));
-            AddButton(toolbar, "LỊCH SỬ WORKFLOW", OpenTimeline, true);
-            AddButton(toolbar, "CHỌN DÒNG KẾ HOẠCH", SelectPlanLine, true);
-
-            _reason.Width = 220;
+            _site.Width = 150;
+            _site.SiteChanged += (s, e) => LoadPlans();
+            _reason.Width = 280;
             _reason.Properties.NullValuePrompt = "Lý do / ghi chú (nếu có)";
-            toolbar.Controls.Add(_reason);
+            var refresh = new SimpleButton();
+            FvnConsoleScreen.StyleButton(refresh, "TẢI KẾ HOẠCH", 130, (s, e) => LoadPlans());
+            var filter = FvnConsoleScreen.CreateFilterCard(
+                FvnConsoleScreen.Caption("Site"), _site, refresh,
+                FvnConsoleScreen.Caption("Ghi chú"), _reason);
 
-            _grid.Dock = DockStyle.Fill;
-            _grid.MainView = _view;
-            _grid.ViewCollection.Add(_view);
-            _view.OptionsBehavior.Editable = false;
-            _view.OptionsBehavior.ReadOnly = true;
-            _view.OptionsView.ShowGroupPanel = false;
-            _view.OptionsView.ShowAutoFilterRow = true;
-            _view.OptionsView.ColumnAutoWidth = false;
-            _view.OptionsSelection.MultiSelect = false;
-            _view.OptionsSelection.EnableAppearanceFocusedCell = false;
-            _view.FocusRectStyle = DrawFocusRectStyle.RowFocus;
+            var actions = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top, Height = 44, WrapContents = false, BackColor = FvnConsoleTheme.Background,
+                Padding = new Padding(0, 6, 0, 0)
+            };
+            AddButton(actions, "1. KIỂM TRA / VALIDATE", () => Transition(10), session.HasPermission(Function, "CONFIRM"));
+            AddButton(actions, "2. FIRM + SINH NHU CẦU BOM", () => Transition(20), session.HasPermission(Function, "APPROVE"));
+            AddButton(actions, "HỦY KẾ HOẠCH", () => Transition(900), session.HasPermission(Function, "CANCEL"));
+            AddButton(actions, "LỊCH SỬ WORKFLOW", OpenTimeline, true);
+            AddButton(actions, "CHỌN DÒNG KẾ HOẠCH", SelectPlanLine, true);
 
-            _status.Dock = DockStyle.Fill;
-            _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            _status.Text = "Chọn một dòng kế hoạch. FIRM gọi thủ tục SQL chuyên biệt để sinh yêu cầu linh kiện từ BOM.";
+            FvnConsoleScreen.StyleGrid(_grid, _view);
+            var gridCard = new FvnCardPanel { Dock = DockStyle.Fill, Padding = new Padding(1) };
+            gridCard.Controls.Add(_grid);
+            var body = new Panel { Dock = DockStyle.Fill, BackColor = FvnConsoleTheme.Background };
+            body.Controls.Add(gridCard);
+            body.Controls.Add(actions);
 
-            root.Controls.Add(toolbar, 0, 0);
-            root.Controls.Add(_grid, 0, 1);
-            root.Controls.Add(_status, 0, 2);
-            Controls.Add(root);
+            _frame = FvnConsoleScreen.Compose(this,
+                "QUẢN LÝ KẾ HOẠCH SẢN XUẤT & WORKFLOW",
+                "Kế hoạch theo ca: IMPORTED → VALIDATED → FIRM (sinh nhu cầu linh kiện từ BOM) | Site theo phạm vi tài khoản",
+                filter, FvnConsoleScreen.FilterCardHeight, body);
+            SetStatus("Chọn một dòng kế hoạch. FIRM gọi thủ tục SQL chuyên biệt để sinh yêu cầu linh kiện từ BOM.", false);
+        }
+
+        private void SetStatus(string text, bool warning)
+        {
+            if (_frame != null) _frame.SetStatus(text, warning);
         }
 
         private static void AddButton(Control parent, string caption, Action action, bool enabled)
         {
             var button = new SimpleButton
             {
-                Text = caption, Width = 165, Height = 30, Margin = new Padding(4, 2, 4, 2),
+                Text = caption, Width = 190, Height = 32, Margin = new Padding(0, 0, 8, 0),
                 Enabled = enabled,
                 ToolTip = enabled ? caption : "Bạn chỉ có quyền theo dõi, không có quyền thực hiện thao tác này."
             };
@@ -116,12 +123,13 @@ namespace PCTP.Modules.MesPlanning.UI
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(_site.Text))
-                    throw new InvalidOperationException("Nhập SiteCode để tải đúng phạm vi kế hoạch được phân quyền.");
-                _grid.DataSource = _plans.GetPlanLines(_site.Text);
+                if (string.IsNullOrWhiteSpace(_site.SiteCode))
+                    throw new InvalidOperationException("Chọn Site để tải đúng phạm vi kế hoạch được phân quyền.");
+                _grid.DataSource = _plans.GetPlanLines(_site.SiteCode);
                 _view.BestFitColumns();
-                _status.Text = "Đã tải " + _view.RowCount.ToString("N0") +
-                    " dòng kế hoạch. Trạng thái IMPORTED → VALIDATED → FIRM.";
+                _frame.SetRuntime("Site " + _site.SiteCode, true);
+                SetStatus("Đã tải " + _view.RowCount.ToString("N0") +
+                    " dòng kế hoạch. Trạng thái IMPORTED → VALIDATED → FIRM.", false);
             }
             catch (Exception ex) { ShowError(ex); }
         }
@@ -145,7 +153,7 @@ namespace PCTP.Modules.MesPlanning.UI
                     return;
 
                 _workflow.TransitionPlan(planId, current, targetStatus, AuthorizationGuard.ActorCode, _reason.Text);
-                _status.Text = "Đã gửi lệnh " + action + " cho kế hoạch " + Convert.ToString(row["PlanNo"]) + ".";
+                SetStatus("✔  Đã gửi lệnh " + action + " cho kế hoạch " + Convert.ToString(row["PlanNo"]) + ".", false);
                 LoadPlans();
             }
             catch (Exception ex) { ShowError(ex); }
@@ -195,7 +203,7 @@ namespace PCTP.Modules.MesPlanning.UI
 
         private void ShowError(Exception ex)
         {
-            _status.Text = ex.Message;
+            SetStatus(ex.Message, true);
             XtraMessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }

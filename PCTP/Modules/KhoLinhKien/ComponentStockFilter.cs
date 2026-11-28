@@ -70,7 +70,7 @@ WHERE (@SiteCode IS NULL OR b.SiteCode = @SiteCode)
 ORDER BY b.SiteCode, b.PartNo, ml.LotNo, w.Name, r.RackName, s.SlotNumber;";
 
         private const string SiteSql =
-            "SELECT SiteCode FROM dbo.FVN_PCTPSite WHERE IsActive = 1 ORDER BY SiteCode;";
+            "SELECT SiteCode, SiteName FROM dbo.vFVN_Site WHERE SiteStatus = N'OK' ORDER BY SiteCode;";
 
         private const string TransferSql = @"
 SELECT TOP (200)

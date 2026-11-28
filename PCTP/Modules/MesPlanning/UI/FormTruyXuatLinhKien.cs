@@ -6,6 +6,7 @@ using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Infrastructure.Security;
+using PCTP.Shared.MesControls;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -14,11 +15,12 @@ namespace PCTP.Modules.MesPlanning.UI
     {
         private readonly IProductionTraceService _service;
         private readonly TextEdit _lotNo = new TextEdit();
-        private readonly TextEdit _siteCode = new TextEdit();
+        private readonly FvnSiteLookupEdit _site = new FvnSiteLookupEdit();
+        private const string Function = "REPORT.COMPONENT_TRACEABILITY";
         private readonly ComboBoxEdit _direction = new ComboBoxEdit();
         private readonly GridControl _results = new GridControl();
         private readonly GridView _view;
-        private readonly LabelControl _status = new LabelControl();
+        private FvnConsoleScreenFrame _frame;
 
         public FormTruyXuatLinhKien()
             : this(new ProductionTraceService(new ProductionTraceRepository()))
@@ -35,77 +37,74 @@ namespace PCTP.Modules.MesPlanning.UI
             WindowState = FormWindowState.Maximized;
             MinimumSize = new Size(1050, 650);
             BuildUi();
+            Load += (s, e) =>
+            {
+                // Site chuẩn: dbo.vFVN_Site (FVN_PCTPSite liên kết IFS.FVN_Site) ∩ phạm vi tài khoản của chức năng.
+                _site.LoadForFunction(Function);
+                if (_site.SiteCount == 0)
+                    SetStatus(string.IsNullOrEmpty(_site.LastError)
+                        ? "Không tìm thấy Site trong phạm vi được cấp cho tài khoản."
+                        : _site.LastError, true);
+                else _frame.SetRuntime("Site " + _site.SiteCode, true);
+            };
         }
 
         private void BuildUi()
         {
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12), ColumnCount = 1, RowCount = 3 };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-
-            var filters = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(2) };
-            filters.Controls.Add(new LabelControl { Text = "LOT cần truy xuất", AutoSize = true, Padding = new Padding(0, 9, 0, 0) });
-            _lotNo.Width = 270;
+            _lotNo.Width = 280;
             _lotNo.Properties.NullValuePrompt = "Quét / nhập mã LOT";
-            filters.Controls.Add(_lotNo);
-            filters.Controls.Add(new LabelControl { Text = "Site (bắt buộc)", AutoSize = true, Padding = new Padding(10, 9, 0, 0) });
-            _siteCode.Width = 110;
-            _siteCode.Properties.NullValuePrompt = "SiteCode";
-            filters.Controls.Add(_siteCode);
-            filters.Controls.Add(new LabelControl { Text = "Chiều truy xuất", AutoSize = true, Padding = new Padding(10, 9, 0, 0) });
-            _direction.Width = 260;
+            _lotNo.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; SearchClick(s, e); } };
+            _site.Width = 150;
+            _site.SiteChanged += (s, e) => _frame.SetRuntime("Site " + _site.SiteCode, true);
+            _direction.Width = 270;
             _direction.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
             _direction.Properties.Items.AddRange(new object[] { "Ngược: Thành phẩm → linh kiện", "Xuôi: Linh kiện → thành phẩm" });
             _direction.SelectedIndex = 0;
-            filters.Controls.Add(_direction);
-            var search = new SimpleButton { Text = "TRUY XUẤT GENEALOGY", Width = 190, Height = 32 };
-            search.Click += SearchClick;
-            filters.Controls.Add(search);
+            var search = new SimpleButton();
+            FvnConsoleScreen.StyleButton(search, "TRUY XUẤT GENEALOGY", 190, SearchClick);
 
-            _results.Dock = DockStyle.Fill;
-            _results.MainView = _view;
-            _results.ViewCollection.Add(_view);
-            _view.OptionsBehavior.Editable = false;
-            _view.OptionsBehavior.ReadOnly = true;
-            _view.OptionsView.ShowGroupPanel = false;
-            _view.OptionsView.ShowAutoFilterRow = true;
-            _view.OptionsView.ColumnAutoWidth = false;
-            _view.OptionsSelection.MultiSelect = false;
-            _view.OptionsSelection.EnableAppearanceFocusedCell = false;
-            _view.FocusRectStyle = DrawFocusRectStyle.RowFocus;
+            var filter = FvnConsoleScreen.CreateFilterCard(
+                FvnConsoleScreen.Caption("Site"), _site,
+                FvnConsoleScreen.Caption("LOT cần truy xuất"), _lotNo,
+                FvnConsoleScreen.Caption("Chiều truy xuất"), _direction, search);
 
-            _status.Dock = DockStyle.Fill;
-            _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            _status.Text = "Tra cứu theo tiêu hao LOT thực tế, không suy diễn từ BOM kế hoạch.";
+            FvnConsoleScreen.StyleGrid(_results, _view);
+            var gridCard = new FvnCardPanel { Dock = DockStyle.Fill, Padding = new Padding(1) };
+            gridCard.Controls.Add(_results);
 
-            root.Controls.Add(filters, 0, 0);
-            root.Controls.Add(_results, 0, 1);
-            root.Controls.Add(_status, 0, 2);
-            Controls.Add(root);
+            _frame = FvnConsoleScreen.Compose(this,
+                "TRUY XUẤT LINH KIỆN / LOT SẢN XUẤT",
+                "Genealogy theo LOT tiêu hao và LOT sản xuất thực tế, không suy diễn từ BOM kế hoạch | Site theo phạm vi tài khoản",
+                filter, FvnConsoleScreen.FilterCardHeight, gridCard);
+            SetStatus("Tra cứu theo tiêu hao LOT thực tế, không suy diễn từ BOM kế hoạch.", false);
+        }
+
+        private void SetStatus(string text, bool warning)
+        {
+            if (_frame != null) _frame.SetStatus(text, warning);
         }
 
         private void SearchClick(object sender, EventArgs e)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(_siteCode.Text))
-                    throw new InvalidOperationException("Nhập SiteCode để kiểm tra đúng phạm vi dữ liệu được phân quyền.");
+                if (string.IsNullOrWhiteSpace(_site.SiteCode))
+                    throw new InvalidOperationException("Chọn Site để kiểm tra đúng phạm vi dữ liệu được phân quyền.");
                 if (_direction.SelectedIndex < 0)
                     throw new InvalidOperationException("Chọn chiều truy xuất.");
                 string direction = _direction.SelectedIndex == 0 ? "UPSTREAM" : "DOWNSTREAM";
-                DataTable data = _service.Trace(_lotNo.Text, direction, _siteCode.Text);
+                DataTable data = _service.Trace(_lotNo.Text, direction, _site.SiteCode);
                 _results.DataSource = data;
                 _view.BestFitColumns();
-                _status.Text = data.Rows.Count == 0
+                SetStatus(data.Rows.Count == 0
                     ? "Không tìm thấy quan hệ genealogy cho LOT này."
                     : "Tìm thấy " + data.Rows.Count.ToString("N0") +
-                      " quan hệ. Dữ liệu dựa trên LOT tiêu hao và LOT sản xuất thực tế.";
+                      " quan hệ. Dữ liệu dựa trên LOT tiêu hao và LOT sản xuất thực tế.", data.Rows.Count == 0);
             }
             catch (Exception ex)
             {
                 _results.DataSource = null;
-                _status.Text = ex.Message;
+                SetStatus(ex.Message, true);
                 XtraMessageBox.Show(this, ex.Message, "Truy xuất linh kiện",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }

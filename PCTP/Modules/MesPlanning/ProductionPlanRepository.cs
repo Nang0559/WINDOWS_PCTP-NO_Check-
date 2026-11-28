@@ -31,7 +31,7 @@ namespace PCTP.Modules.MesPlanning
         {
             var sites = new List<string>();
             using (var cn = new SqlConnection(_connectionString))
-            using (var cmd = new SqlCommand("SELECT p.SiteCode FROM dbo.FVN_PCTPSite AS p JOIN IFS.FVN_Site AS s ON s.SiteCode=p.SiteCode AND s.IsPresentInIfs=1 WHERE p.IsActive=1 ORDER BY p.SiteCode", cn))
+            using (var cmd = new SqlCommand("SELECT SiteCode FROM dbo.vFVN_Site WHERE SiteStatus = N'OK' ORDER BY SiteCode", cn))
             {
                 cn.Open();
                 using (var rd = cmd.ExecuteReader())

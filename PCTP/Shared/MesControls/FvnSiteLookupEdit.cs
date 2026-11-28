@@ -72,3 +72,85 @@ namespace PCTP.Shared.MesControls
         public int LoadForFunction(string functionCode, bool includeAll = false, string preferred = null)
         {
             try
+            {
+                return Bind(FvnSiteDirectory.ForFunction(functionCode, includeAll), preferred);
+            }
+            catch (Exception ex)
+            {
+                return Fail(ex);
+            }
+        }
+
+        /// <summary>Nạp Site nằm trong phạm vi của tất cả các chức năng (màn hình dùng nhiều quyền).</summary>
+        public int LoadForFunctions(IEnumerable<string> functionCodes, bool includeAll = false, string preferred = null)
+        {
+            try
+            {
+                return Bind(FvnSiteDirectory.ForFunctions(functionCodes, includeAll), preferred);
+            }
+            catch (Exception ex)
+            {
+                return Fail(ex);
+            }
+        }
+
+        /// <summary>Nạp theo danh sách mã Site mà service đã lọc quyền; tên Site lấy từ dbo.vFVN_Site.</summary>
+        public int LoadCodes(IEnumerable<string> authorizedCodes, bool includeAll = false, string preferred = null)
+        {
+            try
+            {
+                return Bind(FvnSiteDirectory.ForCodes(authorizedCodes, includeAll), preferred);
+            }
+            catch (Exception ex)
+            {
+                return Fail(ex);
+            }
+        }
+
+        private int Fail(Exception ex)
+        {
+            Bind(FvnSiteDirectory.CreateTable(), null);
+            LastError = ex.Message;
+            return 0;
+        }
+
+        private int Bind(DataTable table, string preferred)
+        {
+            _loading = true;
+            try
+            {
+                LastError = string.Empty;
+                Properties.DataSource = table;
+                SiteCount = table.Rows.Cast<DataRow>().Count(r =>
+                    !string.Equals(Convert.ToString(r["SiteCode"]), FvnSiteDirectory.AllSiteCode, StringComparison.Ordinal));
+
+                string pick = FindCode(preferred);
+                if (pick == null)
+                {
+                    DataRow first = table.Rows.Cast<DataRow>().FirstOrDefault(r =>
+                        !string.Equals(Convert.ToString(r["SiteCode"]), FvnSiteDirectory.AllSiteCode, StringComparison.Ordinal));
+                    pick = first == null ? null : Convert.ToString(first["SiteCode"]);
+                }
+                EditValue = pick;
+                // Chỉ có một Site trong phạm vi: không cần mở danh sách.
+                Properties.ReadOnly = SiteCount <= 1;
+            }
+            finally { _loading = false; }
+            return SiteCount;
+        }
+
+        private string FindCode(string code)
+        {
+            code = (code ?? string.Empty).Trim();
+            if (code.Length == 0) return null;
+            DataTable table = Properties.DataSource as DataTable;
+            if (table == null) return null;
+            foreach (DataRow row in table.Rows)
+            {
+                string value = Convert.ToString(row["SiteCode"]);
+                if (string.Equals(value, code, StringComparison.OrdinalIgnoreCase)) return value;
+            }
+            return null;
+        }
+    }
+}

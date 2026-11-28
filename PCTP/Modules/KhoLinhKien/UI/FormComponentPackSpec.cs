@@ -1,4 +1,5 @@
 ﻿using System;
+using PCTP.Shared.MesControls;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -31,11 +32,12 @@ namespace PCTP.Modules.KhoLinhKien.UI
     {
         private const string QtyFormat = "#,##0.###";
 
-        private readonly string _site;
+        private string _site;
+        private readonly FvnSiteLookupEdit _siteLookup = new FvnSiteLookupEdit();
+        private FvnConsoleScreenFrame _frame;
         private readonly ComponentPackSpecService _service;
         private readonly GridControl _grid = new GridControl { Dock = DockStyle.Fill };
         private readonly GridView _view;
-        private readonly LabelControl _status = new LabelControl { Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None };
         private readonly LabelControl _previewPart = new LabelControl { AutoSizeMode = LabelAutoSizeMode.None };
         private readonly SpinEdit _previewQty = new SpinEdit();
         private readonly MemoEdit _previewPlan = new MemoEdit();
@@ -145,15 +147,33 @@ namespace PCTP.Modules.KhoLinhKien.UI
             split.Panel1.Controls.Add(_grid);
             split.Panel2.Controls.Add(preview);
 
-            // 4) Thanh trạng thái
-            var statusBar = new PanelControl { Dock = DockStyle.Bottom, Height = 30, BorderStyle = BorderStyles.NoBorder };
-            _status.Padding = new Padding(8, 0, 8, 0);
-            _status.Appearance.TextOptions.VAlignment = VertAlignment.Center;
-            statusBar.Controls.Add(_status);
+            // 4) Khung chuẩn: header + thẻ bộ lọc Site + status bar đáy.
+            // Site chuẩn: dbo.vFVN_Site ∩ phạm vi của chức năng đặt hàng linh kiện; Site truyền từ menu được chọn sẵn.
+            _siteLookup.Width = 150;
+            _siteLookup.LoadForFunction(ComponentPoStatus.Function, false, _site);
+            if (!string.IsNullOrEmpty(_siteLookup.SiteCode)) _site = _siteLookup.SiteCode.ToUpperInvariant();
+            _siteLookup.SiteChanged += (s, e) =>
+            {
+                if (string.IsNullOrEmpty(_siteLookup.SiteCode)) return;
+                _site = _siteLookup.SiteCode.ToUpperInvariant();
+                Text = "Quy cách đóng gói linh kiện - Site " + _site;
+                Reload();
+            };
+            var filter = FvnConsoleScreen.CreateFilterCard(FvnConsoleScreen.Caption("Site"), _siteLookup);
 
-            Controls.Add(split);
-            Controls.Add(statusBar);
-            Controls.Add(actions);
+            var body = new Panel { Dock = DockStyle.Fill, BackColor = FvnConsoleTheme.Background };
+            split.Dock = DockStyle.Fill;
+            body.Controls.Add(split);
+            actions.Dock = DockStyle.Top;
+            body.Controls.Add(actions);
+
+            _frame = FvnConsoleScreen.Compose(this,
+                "QUY CÁCH ĐÓNG GÓI LINH KIỆN",
+                "SL / thùng (Quantity) và SL / palet (MaxCloseQty) — phát hành PO chia tem thùng / palet theo quy cách này | Site từ dbo.vFVN_Site",
+                filter, FvnConsoleScreen.FilterCardHeight, body);
+            if (_siteLookup.SiteCount == 0)
+                SetStatus(string.IsNullOrEmpty(_siteLookup.LastError)
+                    ? "Không tìm thấy Site trong phạm vi được cấp cho tài khoản." : _siteLookup.LastError, true);
         }
 
         private static void AddCaption(TablePanel t, string caption, int row)
@@ -240,9 +260,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
 
         private void SetStatus(string text, bool error)
         {
-            _status.Text = text;
-            _status.Appearance.ForeColor = error ? Color.Firebrick : Color.FromArgb(70, 85, 100);
-            _status.Appearance.Options.UseForeColor = true;
+            if (_frame != null) _frame.SetStatus(text, error);
         }
 
         // ───────────────────────────── Dữ liệu ─────────────────────────────
@@ -251,6 +269,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
         {
             try
             {
+                if (_frame != null) _frame.SetRuntime("Site " + _site, true);
                 DataTable table = _service.List(_site);
                 bool first = _grid.DataSource == null;
                 _grid.DataSource = table;

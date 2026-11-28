@@ -876,7 +876,7 @@ namespace PCTP
             var sites = new List<string>();
             using (var cn = new System.Data.SqlClient.SqlConnection(connectionString))
             using (var cmd = new System.Data.SqlClient.SqlCommand(
-                "SELECT SiteCode FROM dbo.FVN_PCTPSite WHERE IsActive = 1 ORDER BY SiteCode", cn))
+                "SELECT SiteCode FROM dbo.vFVN_Site WHERE SiteStatus = N'OK' ORDER BY SiteCode", cn))
             {
                 cn.Open();
                 using (var rd = cmd.ExecuteReader())
@@ -896,16 +896,16 @@ namespace PCTP
                 dialog.MinimizeBox = false;
                 dialog.ClientSize = new System.Drawing.Size(360, 130);
                 var label = new LabelControl { Text = "Chọn Site cho " + functionCode + ":", Left = 14, Top = 14, AutoSizeMode = LabelAutoSizeMode.Default };
-                var combo = new ComboBoxEdit { Left = 14, Top = 40, Width = 330 };
-                combo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
-                foreach (var site in sites) combo.Properties.Items.Add(site);
-                combo.SelectedIndex = 0;
+                // Site chuẩn: lookup dbo.vFVN_Site (FVN_PCTPSite liên kết IFS.FVN_Site), giới hạn theo danh sách đã lọc quyền.
+                var combo = new PCTP.Shared.MesControls.FvnSiteLookupEdit { Left = 14, Top = 40, Width = 330 };
+                combo.LoadCodes(sites);
                 var ok = new SimpleButton { Text = "MỞ", Left = 154, Top = 84, Width = 90, Height = 30, DialogResult = DialogResult.OK };
                 var cancel = new SimpleButton { Text = "HỦY", Left = 254, Top = 84, Width = 90, Height = 30, DialogResult = DialogResult.Cancel };
                 dialog.Controls.AddRange(new Control[] { label, combo, ok, cancel });
                 dialog.AcceptButton = ok;
                 dialog.CancelButton = cancel;
-                return dialog.ShowDialog(this) == DialogResult.OK ? combo.SelectedItem as string : null;
+                if (dialog.ShowDialog(this) != DialogResult.OK) return null;
+                return string.IsNullOrEmpty(combo.SiteCode) ? null : combo.SiteCode;
             }
         }
 
