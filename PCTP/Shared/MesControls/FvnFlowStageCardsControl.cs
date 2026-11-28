@@ -128,11 +128,13 @@ namespace PCTP.Shared.MesControls
             g.Clip = oldClip;
 
             // caption
-            using (var capFont = new Font("Segoe UI Semibold", 10.5F, FontStyle.Bold, GraphicsUnit.Point))
+            // Tiêu đề stage dài (đặc biệt "TỒN LOTNO & TOÀN NHÀ MÁY") được xuống 2 dòng,
+            // không cắt bằng dấu ... trong dải 6 thẻ.
+            using (var capFont = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold, GraphicsUnit.Point))
             using (var capBrush = new SolidBrush(Color.FromArgb(30, 38, 52)))
-            using (var fmt = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap })
+            using (var fmt = new StringFormat { Trimming = StringTrimming.Word, FormatFlags = StringFormatFlags.LineLimit })
                 g.DrawString(card.Caption, capFont, capBrush,
-                    new RectangleF(r.X + 14, r.Y + 12, Math.Max(10, r.Width - 66), 22), fmt);
+                    new RectangleF(r.X + 10, r.Y + 8, Math.Max(10, r.Width - 66), 36), fmt);
 
             // icon
             var icon = new RectangleF(r.Right - 52, r.Y + 8, 38, 34);
