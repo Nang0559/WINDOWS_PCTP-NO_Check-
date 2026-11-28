@@ -171,11 +171,11 @@ namespace PCTP.Modules.KhoLinhKien.UI
             _banner.Padding = new Padding(12, 0, 12, 0);
             _bannerPanel.Controls.Add(_banner);
             // Site chưa có Slot PART map sang MES Location: mở thẳng màn khai báo thay vì chỉ báo lỗi.
-            _mapSlot.Text = "Map Slot ↔ Location…";
+            _mapSlot.Text = "Map Slot ↔ Vùng kho…";
             _mapSlot.Dock = DockStyle.Right;
             _mapSlot.Width = 190;
             _mapSlot.Visible = false;
-            _mapSlot.ToolTip = "Mở màn Map Slot kho ↔ MES Location (IFS); đóng lại để tải lại danh sách Slot.";
+            _mapSlot.ToolTip = "Mở màn Map Slot kho MES ↔ Vùng PART / WIP (Location IFS chọn ở cấp Kho); đóng lại để tải lại danh sách Slot.";
             _mapSlot.Click += (s, e) => OpenSlotMapping();
             _bannerPanel.Controls.Add(_mapSlot);
 
@@ -305,7 +305,7 @@ namespace PCTP.Modules.KhoLinhKien.UI
                 bool wasMissing = _mapSlot.Visible;
                 _mapSlot.Visible = slots.Rows.Count == 0;
                 if (slots.Rows.Count == 0)
-                    SetStatus("Site " + _siteCode + " chưa có Slot PART hoạt động được map sang MES Location. Bấm \"Map Slot ↔ Location…\" để khai báo.", Kind.Warning);
+                    SetStatus("Site " + _siteCode + " chưa có Slot PART sẵn sàng (cần vùng PART của Slot và Location IFS của Kho). Bấm \"Map Slot ↔ Vùng kho…\" để khai báo.", Kind.Warning);
                 else if (wasMissing)
                     SetStatus("Đã có " + slots.Rows.Count + " Slot PART sẵn sàng. Chọn Slot rồi quét tem.", Kind.Success);
                 if (slots.Rows.Count == 1)

@@ -74,10 +74,10 @@ namespace PCTP.Modules.IfsSync
                     } },
                 new Stage { Code = "WAREHOUSE", Title = "04 KHO", Hint = "Kho IFS ↔ dbo.FVN_Warehouse", Accent = Color.FromArgb(235, 140, 40),
                     Actions = new[] { a("Map Kho PCTP ↔ Kho IFS…", () => new FormWarehouseIfsMap(site)) } },
-                new Stage { Code = "LOCATION", Title = "05 LOCATION", Hint = "Location IFS đã gán cho Slot", Accent = Color.FromArgb(200, 90, 130),
-                    Actions = new[] { a("Map Slot ↔ MES Location…", () => new PCTP.Modules.KhoLinhKien.UI.FormSlotMesLocation(site)) } },
-                new Stage { Code = "SLOT", Title = "06 SLOT", Hint = "Slot sẵn sàng nhập / xuất linh kiện", Accent = Color.FromArgb(40, 160, 90),
-                    Actions = new[] { a("Map Slot ↔ MES Location…", () => new PCTP.Modules.KhoLinhKien.UI.FormSlotMesLocation(site)) } }
+                new Stage { Code = "LOCATION", Title = "05 LOCATION", Hint = "Location IFS chọn cho từng Kho (Slot kế thừa)", Accent = Color.FromArgb(200, 90, 130),
+                    Actions = new[] { a("Chọn Location IFS cho Kho…", () => new FormWarehouseIfsMap(site)) } },
+                new Stage { Code = "SLOT", Title = "06 SLOT", Hint = "Slot (MES) có vùng + Location của Kho: sẵn sàng nhập / xuất linh kiện", Accent = Color.FromArgb(40, 160, 90),
+                    Actions = new[] { a("Map Slot ↔ Vùng PART / WIP…", () => new PCTP.Modules.KhoLinhKien.UI.FormSlotMesLocation(site)) } }
             };
         }
 

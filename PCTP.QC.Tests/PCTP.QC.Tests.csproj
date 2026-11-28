@@ -24,6 +24,9 @@
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/081_MES_StrictMasterDataChain.sql" Link="081_MES_StrictMasterDataChain.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/083_MES_SlotMesLocationMapping.sql" Link="083_MES_SlotMesLocationMapping.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/085_IFS_WarehouseMapAndMapCenter.sql" Link="085_IFS_WarehouseMapAndMapCenter.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/086_IFS_LocationPerWarehouse.sql" Link="086_IFS_LocationPerWarehouse.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/IfsSync/FormWarehouseIfsMap.cs" Link="FormWarehouseIfsMap.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/IfsSync/IfsMapCenterRepository.cs" Link="IfsMapCenterRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Common/ISiteContext.cs" Link="src/ISiteContext.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shell/Main_APP.Menu.cs" Link="src/Main_APP.Menu.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/084_IFS_InventoryLocationSync.sql" Link="084_IFS_InventoryLocationSync.sql" CopyToOutputDirectory="PreserveNewest" />

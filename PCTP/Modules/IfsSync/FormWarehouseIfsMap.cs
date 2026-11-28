@@ -13,10 +13,10 @@ using PCTP.Security;
 namespace PCTP.Modules.IfsSync
 {
     /// <summary>
-    /// Map Kho PCTP (dbo.FVN_Warehouse) ↔ Kho IFS (MES.FVN_IfsWarehouse) của một Site, cùng kiểu với Site / Work Center / Chuyền:
-    /// IFS là nguồn danh mục, Kho PCTP là danh mục vận hành. Rack / Slot thuộc Kho nên kế thừa Site và Kho IFS từ Kho; Slot chỉ gán được
-    /// Location thuộc đúng Kho IFS đã map (xem migration 085). Có thể map Kho sẵn có, hoặc tạo Kho PCTP từ Kho IFS (xem trước rồi mới tạo).
-    /// Quyền WAREHOUSE.WAREHOUSE_IFS_MAP (VIEW xem, EDIT map / tạo, theo Site).
+    /// Map Kho PCTP (dbo.FVN_Warehouse) ↔ Kho IFS (MES.FVN_IfsWarehouse) + Location IFS của một Site, cùng kiểu với Site / Work Center / Chuyền:
+    /// IFS là nguồn danh mục (chỉ có Kho + Location, KHÔNG có Rack / Slot), Kho PCTP là danh mục vận hành và là nơi duy nhất định nghĩa thêm Rack / Slot.
+    /// Mỗi Kho chọn MỘT Location thuộc đúng Kho IFS đã map; mọi Slot của Kho kế thừa Location đó (migration 086), Slot chỉ gán vùng PART / WIP.
+    /// Có thể map Kho sẵn có, hoặc tạo Kho PCTP từ Kho IFS (xem trước rồi mới tạo). Quyền WAREHOUSE.WAREHOUSE_IFS_MAP (VIEW xem, EDIT, theo Site).
     /// </summary>
     public sealed class FormWarehouseIfsMap : XtraForm
     {
@@ -40,9 +40,9 @@ namespace PCTP.Modules.IfsSync
             _site = siteCode.Trim().ToUpperInvariant();
             _repository = repository ?? throw new ArgumentNullException("repository");
             _view = new GridView(_grid);
-            Text = "Map Kho PCTP ↔ Kho IFS - Site " + _site;
+            Text = "Map Kho PCTP ↔ Kho IFS + Location IFS - Site " + _site;
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(1100, 620);
+            Size = new Size(1280, 620);
             BuildUi();
             Load += (s, e) => Reload();
         }
@@ -66,10 +66,12 @@ namespace PCTP.Modules.IfsSync
             var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 44, Padding = new Padding(6, 6, 6, 0) };
             bar.Controls.Add(Button("TẢI LẠI", 90, (s, e) => Reload()));
             var map = Button("Map Kho ↔ Kho IFS…", 170, (s, e) => MapSelected());
+            var location = Button("Chọn Location IFS…", 160, (s, e) => PickLocationForSelected());
+            var sync = Button("Đồng bộ lại Slot", 140, (s, e) => SyncSlots());
             var unmap = Button("Gỡ map", 90, (s, e) => UnmapSelected());
             var create = Button("Tạo Kho từ Kho IFS…", 170, (s, e) => CreateFromIfs());
             string tip = CanEdit ? null : "Bạn chỉ có quyền xem; cần " + IfsMapCenterRepository.WarehouseMapFunctionCode + " / EDIT.";
-            foreach (SimpleButton b in new[] { map, unmap, create })
+            foreach (SimpleButton b in new[] { map, location, unmap, create, sync })
             {
                 b.Enabled = CanEdit;
                 if (tip != null) b.ToolTip = tip;
@@ -77,6 +79,8 @@ namespace PCTP.Modules.IfsSync
             }
             map.ToolTip = map.ToolTip ?? "Chọn một Kho PCTP rồi chọn Kho IFS tương ứng.";
             create.ToolTip = create.ToolTip ?? "Tạo Kho PCTP cho Kho IFS chưa có Kho (xem trước danh sách trước khi tạo).";
+            location.ToolTip = location.ToolTip ?? "Chọn Location IFS cho Kho đã map Kho IFS. Mọi Slot của Kho dùng Location này (IFS không có Rack / Slot).";
+            sync.ToolTip = sync.ToolTip ?? "Ghi lại Location của Kho xuống các Slot (dùng khi Slot / Rack mới được chuyển sang Kho này).";
 
             Controls.Add(_grid);
             Controls.Add(bar);
@@ -107,11 +111,18 @@ namespace PCTP.Modules.IfsSync
             {
                 DataTable table = _repository.GetWarehouseMap(_site);
                 table.Columns.Add("StatusText", typeof(string));
+                table.Columns.Add("LocationStatusText", typeof(string));
                 int mapped = 0;
                 foreach (DataRow r in table.Rows)
                 {
                     string state = Cell(r, "MapStatus");
                     if (state == "MAPPED") mapped++;
+                    r["LocationStatusText"] = Cell(r, "LocationMapStatus") == "OK" ? "Đã chọn Location"
+                        : Cell(r, "LocationMapStatus") == "NO_LOCATION" ? "Chưa chọn Location IFS"
+                        : Cell(r, "LocationMapStatus") == "SLOT_LEVEL_LEGACY" ? "Đang gán Location riêng từng Slot - chọn Location cho Kho"
+                        : Cell(r, "LocationMapStatus") == "LOCATION_INACTIVE" ? "Location đã ngừng trong IFS"
+                        : Cell(r, "LocationMapStatus") == "LOCATION_MISMATCH" ? "Location khác Kho IFS"
+                        : string.Empty;
                     r["StatusText"] = state == "MAPPED" ? "Đã map"
                         : state == "NO_IFS_MAP" ? "Kho PCTP chưa map IFS"
                         : state == "IFS_ONLY" ? "Kho IFS chưa có Kho PCTP"
@@ -120,13 +131,15 @@ namespace PCTP.Modules.IfsSync
                 _grid.DataSource = table.DefaultView;
                 Caption("WarehouseName", "Kho PCTP"); Caption("IfsWarehouseCode", "Kho IFS"); Caption("IfsDescription", "Mô tả Kho IFS");
                 Caption("RackCount", "Số Rack"); Caption("SlotCount", "Số Slot"); Caption("IfsLocationCount", "Số Location IFS");
-                Caption("StatusText", "Trạng thái");
-                foreach (string hidden in new[] { "SiteCode", "WarehouseId", "MapStatus" })
+                Caption("IfsLocationNo", "Location IFS của Kho"); Caption("IfsLocationDescription", "Mô tả Location");
+                Caption("StatusText", "Trạng thái Kho IFS"); Caption("LocationStatusText", "Trạng thái Location");
+                foreach (string hidden in new[] { "SiteCode", "WarehouseId", "MapStatus", "LocationMapStatus", "SlotLocationCount" })
                     if (_view.Columns[hidden] != null) _view.Columns[hidden].Visible = false;
                 _view.BestFitColumns();
                 SetStatus(table.Rows.Count == 0
                     ? "Site " + _site + " chưa có Kho PCTP và chưa đồng bộ Kho IFS. Đồng bộ nhóm WAREHOUSE (và INVENTORY_LOCATION) ở Trung tâm đồng bộ IFS."
-                    : table.Rows.Count + " dòng, " + mapped + " Kho đã map. Dòng vàng: Kho PCTP chưa map; dòng xanh: Kho IFS chưa có Kho PCTP.",
+                    : table.Rows.Count + " dòng, " + mapped + " Kho đã map. Dòng vàng: Kho PCTP chưa map; dòng xanh: Kho IFS chưa có Kho PCTP. "
+                      + "IFS chỉ có Kho + Location; Rack / Slot chỉ có ở MES và dùng Location của Kho.",
                     table.Rows.Count == 0);
             }
             catch (Exception ex) { SetStatus("Không tải được: " + ex.GetBaseException().Message, true); }
@@ -152,6 +165,10 @@ namespace PCTP.Modules.IfsSync
             int warehouseId = Convert.ToInt32(row["WarehouseId"]);
             string ifsCode = PickIfsWarehouse(Cell(row, "WarehouseName"), Cell(row, "IfsWarehouseCode"));
             if (ifsCode == null) return;
+            if (Cell(row, "IfsLocationNo").Length > 0 && !string.Equals(ifsCode, Cell(row, "IfsWarehouseCode"), StringComparison.OrdinalIgnoreCase)
+                && XtraMessageBox.Show(this, "Kho đang dùng Location IFS " + Cell(row, "IfsLocationNo") + " của Kho IFS " + Cell(row, "IfsWarehouseCode")
+                    + ".\r\nĐổi sang Kho IFS " + ifsCode + " sẽ bỏ Location này và các Slot của Kho tạm thời chưa sẵn sàng cho đến khi chọn Location mới. Tiếp tục?",
+                    Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             try
             {
                 _repository.MapWarehouse(_site, warehouseId, ifsCode);
@@ -165,7 +182,8 @@ namespace PCTP.Modules.IfsSync
             if (!CanEdit) return;
             DataRow row = Current();
             if (row == null || Cell(row, "WarehouseId").Length == 0 || Cell(row, "IfsWarehouseCode").Length == 0) return;
-            if (XtraMessageBox.Show(this, "Gỡ map Kho \"" + Cell(row, "WarehouseName") + "\" khỏi Kho IFS " + Cell(row, "IfsWarehouseCode") + "?",
+            if (XtraMessageBox.Show(this, "Gỡ map Kho \"" + Cell(row, "WarehouseName") + "\" khỏi Kho IFS " + Cell(row, "IfsWarehouseCode") + "?"
+                    + (Cell(row, "IfsLocationNo").Length > 0 ? "\r\nLocation IFS " + Cell(row, "IfsLocationNo") + " của Kho cũng bị bỏ; các Slot của Kho chưa sẵn sàng cho đến khi map lại." : string.Empty),
                     Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             try
             {
@@ -173,6 +191,83 @@ namespace PCTP.Modules.IfsSync
                 Reload();
             }
             catch (Exception ex) { SetStatus(ex.GetBaseException().Message, true); }
+        }
+
+        private void PickLocationForSelected()
+        {
+            if (!CanEdit) return;
+            DataRow row = Current();
+            if (row == null || Cell(row, "WarehouseId").Length == 0) { SetStatus("Chọn một Kho PCTP (dòng không phải Kho IFS chưa có Kho).", true); return; }
+            string ifsCode = Cell(row, "IfsWarehouseCode");
+            if (ifsCode.Length == 0) { SetStatus("Kho \"" + Cell(row, "WarehouseName") + "\" chưa map Kho IFS. Map Kho ↔ Kho IFS trước, rồi chọn Location.", true); return; }
+            try
+            {
+                string pick = PickIfsLocation(Cell(row, "WarehouseName"), ifsCode, Cell(row, "IfsLocationNo"));
+                if (pick == null) return;
+                _repository.SetWarehouseLocation(_site, Convert.ToInt32(row["WarehouseId"]), pick);
+                Reload();
+                SetStatus("Đã chọn Location " + pick + " cho Kho \"" + Cell(row, "WarehouseName") + "\"; mọi Slot của Kho dùng Location này.", false);
+            }
+            catch (Exception ex) { SetStatus(ex.GetBaseException().Message, true); }
+        }
+
+        private void SyncSlots()
+        {
+            if (!CanEdit) return;
+            try
+            {
+                DataRow row = Current();
+                int? warehouseId = row != null && Cell(row, "WarehouseId").Length > 0 && Cell(row, "IfsLocationNo").Length > 0
+                    ? Convert.ToInt32(row["WarehouseId"]) : (int?)null;
+                int slots = _repository.SyncSlotLocations(_site, warehouseId);
+                Reload();
+                SetStatus("Đã đồng bộ Location của " + (warehouseId.HasValue ? "Kho \"" + Cell(row, "WarehouseName") + "\"" : "mọi Kho đã có Location")
+                    + " xuống " + slots + " Slot.", false);
+            }
+            catch (Exception ex) { SetStatus(ex.GetBaseException().Message, true); }
+        }
+
+        private string PickIfsLocation(string warehouseName, string ifsWarehouseCode, string current)
+        {
+            DataTable list = _repository.GetIfsLocations(_site, ifsWarehouseCode);
+            if (list.Rows.Count == 0)
+            {
+                SetStatus("Kho IFS " + ifsWarehouseCode + " chưa có Location nào. Đồng bộ nhóm INVENTORY_LOCATION từ IFS trước.", true);
+                return null;
+            }
+            list.Columns.Add("Display", typeof(string));
+            foreach (DataRow r in list.Rows)
+                r["Display"] = Cell(r, "LocationNo") + (Cell(r, "Description").Length > 0 ? " - " + Cell(r, "Description") : string.Empty);
+            using (var dialog = new XtraForm())
+            {
+                dialog.Text = "Chọn Location IFS";
+                dialog.StartPosition = FormStartPosition.CenterParent;
+                dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dialog.MaximizeBox = false;
+                dialog.MinimizeBox = false;
+                dialog.ClientSize = new Size(500, 170);
+                var label = new LabelControl
+                {
+                    Text = "Location của Kho IFS " + ifsWarehouseCode + " dùng cho Kho PCTP \"" + warehouseName + "\" (mọi Slot của Kho kế thừa):",
+                    Left = 14, Top = 14, AutoSizeMode = LabelAutoSizeMode.None, Width = 472, Height = 32
+                };
+                var combo = new LookUpEdit { Left = 14, Top = 56, Width = 472 };
+                combo.Properties.DataSource = list;
+                combo.Properties.ValueMember = "LocationNo";
+                combo.Properties.DisplayMember = "Display";
+                combo.Properties.Columns.Add(new LookUpColumnInfo("Display", "Location IFS"));
+                combo.Properties.ShowHeader = false;
+                combo.Properties.NullText = "";
+                combo.Properties.SearchMode = SearchMode.AutoComplete;
+                if (current.Length > 0) combo.EditValue = current;
+                var ok = new SimpleButton { Text = "CHỌN", Left = 298, Top = 122, Width = 90, Height = 30, DialogResult = DialogResult.OK };
+                var cancel = new SimpleButton { Text = "HỦY", Left = 394, Top = 122, Width = 90, Height = 30, DialogResult = DialogResult.Cancel };
+                dialog.Controls.AddRange(new Control[] { label, combo, ok, cancel });
+                dialog.AcceptButton = ok;
+                dialog.CancelButton = cancel;
+                if (dialog.ShowDialog(this) != DialogResult.OK || combo.EditValue == null) return null;
+                return Convert.ToString(combo.EditValue);
+            }
         }
 
         private void CreateFromIfs(string onlyIfsCode = null)

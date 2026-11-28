@@ -61,14 +61,15 @@ public sealed class SlotMesLocationMappingContractTests
     }
 
     [Fact]
-    public void Screen_picks_location_from_a_list_and_receiving_form_can_open_it()
+    public void Screen_sets_the_area_only_and_receiving_form_can_open_it()
     {
+        // 086: IFS has no Rack / Slot, so the Location is picked per Kho (FormWarehouseIfsMap); this screen no longer picks a Location.
         var form = Read("FormSlotMesLocation.source.cs");
-        Assert.Contains("LookUpEdit", form);
-        Assert.Contains("GetLocations", form);
-        Assert.DoesNotContain("TextEdit _location", form);
+        Assert.DoesNotContain("LookUpEdit", form);
+        Assert.DoesNotContain("GetLocations", form);
+        Assert.Contains("FormWarehouseIfsMap", form);
         var scan = Read("FormKiemKeHangVeScan.source.cs");
         Assert.Contains("new FormSlotMesLocation(_siteCode)", scan);
-        Assert.Contains("Map Slot ↔ Location", scan);
+        Assert.Contains("Map Slot ↔ Vùng kho", scan);
     }
 }

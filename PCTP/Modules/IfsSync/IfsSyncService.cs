@@ -79,7 +79,7 @@ namespace PCTP.Modules.IfsSync
                 { "BOM_ALTERNATIVE", "SELECT * FROM IFSAPP.MANUF_STRUCT_ALTERNATE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO" },
                 { "BOM_COMPONENT", "SELECT * FROM IFSAPP.MANUF_STRUCTURE ORDER BY CONTRACT, PART_NO, ENG_CHG_LEVEL, BOM_TYPE_DB, ALTERNATIVE_NO, LINE_ITEM_NO" },
                 { "WAREHOUSE", "SELECT CONTRACT, WAREHOUSE_ID, DESCRIPTION, OBJKEY, OBJVERSION FROM IFSAPP.WAREHOUSE ORDER BY CONTRACT, WAREHOUSE_ID" },
-                // Location kho IFS (bin/location). Map Slot kho ↔ MES Location chỉ cho chọn trong bảng này.
+                // Location kho IFS (bin/location). Location IFS chỉ chọn trong bảng này, ở cấp Kho PCTP (IFS không có Rack / Slot).
                 // SELECT * để PayloadJson giữ đủ cột; IFS.usp_ApplyInventoryLocationBatch (migration 084) đọc các khóa JSON đã biết.
                 { "INVENTORY_LOCATION", "SELECT * FROM IFSAPP.INVENTORY_LOCATION ORDER BY CONTRACT, LOCATION_NO" },
                 { "SUPPLIER", "SELECT SUPPLIER_ID, NAME, OBJKEY, OBJVERSION FROM IFSAPP.SUPPLIER_INFO_GENERAL ORDER BY SUPPLIER_ID" },

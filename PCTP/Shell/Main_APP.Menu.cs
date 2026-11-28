@@ -169,9 +169,9 @@ namespace PCTP
             _menuIfsMap.Elements.Add(CreateMenuItem("menuMaChuyen5Va3", "② Mã chuyền 5 ký tự ↔ 3 ký tự (LOT)", OpenMaChuyen5Va3));
             _menuIfsMap.Elements.Add(CreateMenuItem("menuLienKetWorkCenter", "③ Liên kết Work Center IFS ↔ Bộ phận", OpenLienKetWorkCenter));
             _menuIfsMap.Elements.Add(CreateMenuItem("menuKhaiBaoChuyenSanXuat", "④ Khai báo chuyền sản xuất theo Site", OpenKhaiBaoChuyenSanXuat));
-            _menuIfsMap.Elements.Add(CreateMenuItem("menuWarehouseIfsMap", "⑤ Map Kho PCTP ↔ Kho IFS", OpenWarehouseIfsMap));
-            // Khai báo Slot nào là kho PART / WIP và map sang MES Location (IFS): điều kiện để Kiểm kê hàng về có Slot nhập kho.
-            _menuIfsMap.Elements.Add(CreateMenuItem("menuSlotMesLocation", "⑥ Map Slot kho ↔ MES Location (IFS)", OpenSlotMesLocation));
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuWarehouseIfsMap", "⑤ Map Kho PCTP ↔ Kho IFS + Location IFS", OpenWarehouseIfsMap));
+            // Khai báo Slot (MES) nào là kho PART / WIP; Location IFS đã chọn ở cấp Kho (bước ⑤, IFS không có Rack / Slot): điều kiện để Kiểm kê hàng về có Slot nhập kho.
+            _menuIfsMap.Elements.Add(CreateMenuItem("menuSlotMesLocation", "⑥ Map Slot kho MES ↔ Vùng PART / WIP", OpenSlotMesLocation));
 
             // ── 3. Xử lý LOT ───────────────────────────────────────────
             // Tách LOT là luồng nghiệp vụ; form tự chọn mẫu in Ghép LOT theo CustomerCode.
@@ -693,7 +693,7 @@ namespace PCTP
                 "Kho linh kiện PART");
         }
 
-        /// <summary>Map Slot kho ↔ MES Location (IFS) và vùng PART / WIP. Quyền WAREHOUSE.SLOT_MES_LOCATION (VIEW/EDIT + SITE).</summary>
+        /// <summary>Map Slot kho MES ↔ vùng PART / WIP (Location IFS do Kho quyết định). Quyền WAREHOUSE.SLOT_MES_LOCATION (VIEW/EDIT + SITE).</summary>
         private void OpenSlotMesLocation(object sender, EventArgs e)
         {
             OpenFromMenu(() =>
@@ -703,7 +703,7 @@ namespace PCTP
                 FormWindowManager.ShowSingle(this,
                     () => new PCTP.Modules.KhoLinhKien.UI.FormSlotMesLocation(site),
                     "SlotMesLocation:" + site);
-            }, "Map Slot ↔ MES Location");
+            }, "Map Slot ↔ Vùng PART / WIP");
         }
 
         /// <summary>Trung tâm đồng bộ &amp; map IFS (hub): số liệu map từng công đoạn của một Site. Quyền MES.IFS_MAP_CENTER (VIEW + SITE).</summary>
