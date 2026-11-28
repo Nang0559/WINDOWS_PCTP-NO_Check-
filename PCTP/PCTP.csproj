@@ -501,8 +501,12 @@
     <Compile Include="Modules\KhoLinhKien\ComponentLabelPicker.cs" />
     <Compile Include="Modules\KhoLinhKien\ComponentLabelCatalog.cs" />
     <Compile Include="Modules\MesPlanning\UI\MesFlowCanvasControl.cs" />
-    <Compile Include="Modules\MesPlanning\UI\MesProductionFlowMapControl.cs" />
-    <Compile Include="Modules\MesPlanning\UI\MesComponentFlowMapControl.cs" />
+    <Compile Include="Modules\MesPlanning\UI\MesProductionFlowMapControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\MesPlanning\UI\MesComponentFlowMapControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Shared\Labels\LabelCatalog.cs" />
     <Compile Include="Shared\Labels\LabelLayoutStore.cs" />
     <Compile Include="Shared\Labels\LabelReportService.cs" />
