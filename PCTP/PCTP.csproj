@@ -747,8 +747,13 @@
     <Compile Include="Shared\Common\ItemFifoConfig.cs" />
     <Compile Include="Shared\Enums\IfsOrderQueryMode.cs" />
     <Compile Include="Shared\Helpers\GioHelpper.cs" />
+    <Compile Include="Shared\MesControls\FvnConsoleTheme.cs" />
     <Compile Include="Shared\MesControls\FvnFlowStageCardsControl.cs" />
     <Compile Include="Shared\MesControls\FvnMesConsoleChromeControls.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Shared\MesControls\FvnSiteDirectory.cs" />
+    <Compile Include="Shared\MesControls\FvnSiteLookupEdit.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Shared\Models\HangChoGiao.cs" />
