@@ -56,7 +56,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_FVN_LineCodeCrossRef_
     EXEC(N'CREATE UNIQUE INDEX UX_FVN_LineCodeCrossRef_IfsLine ON MES.FVN_LineCodeCrossRef(SiteCode, IfsProductionLineCode) WHERE IfsProductionLineCode IS NOT NULL;');
 GO
 
-CREATE OR ALTER VIEW MES.vw_FVN_LineCodeCrossRef
+alter  VIEW MES.vw_FVN_LineCodeCrossRef
 AS
 SELECT x.SiteCode, x.LineCode5, x.LineCode3, x.FamilyCode, x.SeqNo, x.Description, x.IfsProductionLineCode,
        i.Description AS IfsProductionLineDescription, l.LineName AS LotLineName,
@@ -67,7 +67,7 @@ LEFT JOIN dbo.FVN_ProductionLine l ON l.SiteCode = x.SiteCode AND l.LineCode = x
 LEFT JOIN IFS.FVN_ProductionLine i ON i.SiteCode = x.SiteCode AND i.ProductionLineCode = x.IfsProductionLineCode;
 GO
 
-CREATE OR ALTER PROCEDURE MES.usp_FVN_LineCodeCrossRef_Generate
+alter  PROCEDURE MES.usp_FVN_LineCodeCrossRef_Generate
     @SiteCode nvarchar(30), @FamilyCode varchar(3) = NULL, @Body varchar(4) = NULL,
     @Description nvarchar(200) = NULL, @IfsProductionLine nvarchar(30) = NULL, @LineCode3Override varchar(3) = NULL,
     @ActorCode nvarchar(100) = NULL, @Preview bit = 1
@@ -153,7 +153,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE MES.usp_FVN_LotLineCode_Resolve
+alter  PROCEDURE MES.usp_FVN_LotLineCode_Resolve
     @SiteCode nvarchar(30), @IfsProductionLine nvarchar(30), @LotLineCode varchar(3) OUTPUT
 AS
 BEGIN

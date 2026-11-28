@@ -41,7 +41,7 @@ WHERE l.IfsProductionLineCode IS NULL
                   WHERE o.SiteCode = l.SiteCode AND o.IfsProductionLineCode = x.PlanProductionLineCode);');
 GO
 
-CREATE OR ALTER FUNCTION MES.fn_FVN_DepartmentCodeFromWorkCenter(@WorkCenterNo nvarchar(30))
+alter  FUNCTION MES.fn_FVN_DepartmentCodeFromWorkCenter(@WorkCenterNo nvarchar(30))
 RETURNS varchar(4)
 AS
 BEGIN
@@ -52,7 +52,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE MES.usp_FVN_LotLineCode_Resolve
+alter  PROCEDURE MES.usp_FVN_LotLineCode_Resolve
     @SiteCode nvarchar(30), @IfsProductionLine nvarchar(30), @LotLineCode varchar(3) OUTPUT
 AS
 BEGIN
@@ -102,7 +102,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER VIEW MES.vw_FVN_WorkCenterLinkCandidates
+alter  VIEW MES.vw_FVN_WorkCenterLinkCandidates
 AS
 SELECT w.SiteCode, w.WorkCenterNo, w.Description, w.WorkCenterCode, w.IsPresentInIfs,
        w.IfsProductionLine, w.IfsProductionLineDescription, w.IfsDepartmentNo, w.IfsDepartmentDescription,
@@ -118,7 +118,7 @@ LEFT JOIN dbo.FVN_PCTPSite ps ON ps.SiteCode = w.SiteCode AND ps.IsActive = 1
 LEFT JOIN dbo.FVN_ProductionLine ll ON ll.SiteCode = w.SiteCode AND ll.IfsProductionLineCode = w.IfsProductionLine;
 GO
 
-CREATE OR ALTER PROCEDURE MES.usp_FVN_SiteDepartmentLine_Link
+alter  PROCEDURE MES.usp_FVN_SiteDepartmentLine_Link
     @SiteCode nvarchar(30), @WorkCenterNo nvarchar(30),
     @DepartmentCode varchar(4) = NULL, @LineCode varchar(3) = NULL,
     @LineName nvarchar(120) = NULL, @DepartmentName nvarchar(120) = NULL,
