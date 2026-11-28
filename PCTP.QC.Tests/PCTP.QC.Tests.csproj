@@ -18,7 +18,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../PCTP/Modules/MesPlanning/ProductionFlowTaskPolicy.cs" Link="ProductionFlowTaskPolicy.source.cs" />
-    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/067_IFS_SiteWorkCenterSyncAndProductionLink.sql" Link="067_IFS_SiteWorkCenterSyncAndProductionLink.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/068_IFS_SiteWorkCenterSyncAndProductionLink.sql" Link="068_IFS_SiteWorkCenterSyncAndProductionLink.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/FVN_PCTP/05_MES/Migrations/076_MES_MasterDataUnification.sql" Link="076_MES_MasterDataUnification.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/FVN_PCTP/05_MES/Migrations/069_IFS_SyncRuntimeSelectedEntitiesCompatibility.sql" Link="069_IFS_SyncRuntimeSelectedEntitiesCompatibility.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/IfsSync/IfsSyncService.cs" Link="IfsSyncService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/IfsSync/SiteDepartmentLineRepository.cs" Link="SiteDepartmentLineRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
