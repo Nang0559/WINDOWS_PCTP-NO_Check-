@@ -103,7 +103,7 @@ BEGIN
     Base AS
     (
         SELECT po.PurchaseOrderId, po.PurchaseOrderNo, po.SiteCode, po.Status AS PoStatus, po.OrderDate,
-               pol.PurchaseOrderLineId, pol.LineNo, pol.PartNo, pol.PartDescription, pol.UnitCode,
+               pol.PurchaseOrderLineId, pol.[LineNo], pol.PartNo, pol.PartDescription, pol.UnitCode,
                pol.OrderQty, pol.ReceivedQty AS PoLineReceivedQty,
                cl.ComponentLotId, cl.LotNo, cl.Status AS LotStatus,
                cl.IssuedQty AS LotQty, cl.ReceivedQty AS LotReceivedQty, cl.MaterialLotId,
@@ -145,7 +145,7 @@ BEGIN
         FROM Base b
     )
     SELECT st.PurchaseOrderId, st.PurchaseOrderNo, st.PurchaseOrderLineId, st.ComponentLotId, st.MaterialLotId,
-           CASE WHEN st.LotNo IS NULL THEN st.PurchaseOrderNo + N' / ' + CONVERT(nvarchar(10), st.LineNo)
+           CASE WHEN st.LotNo IS NULL THEN st.PurchaseOrderNo + N' / ' + CONVERT(nvarchar(10), st.[LineNo])
                 ELSE st.PurchaseOrderNo + N' / ' + st.LotNo END AS PoLotKey,
            st.LotNo, st.PartNo, st.PartDescription, st.SiteCode,
            st.PoStatus, st.LotStatus, st.IsPrinted,
@@ -190,7 +190,7 @@ BEGIN
                WHEN st.ComponentLotId IS NOT NULL AND st.LotReceivedQty > 0 THEN N'Đang chạy'
                ELSE N'Chờ xử lý' END AS StatusText
     FROM Staged st
-    ORDER BY st.OrderDate DESC, st.PurchaseOrderNo, st.LineNo, st.LotNo;
+    ORDER BY st.OrderDate DESC, st.PurchaseOrderNo, st.[LineNo], st.LotNo;
 END;
 GO
 
